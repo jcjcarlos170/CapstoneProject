@@ -1,0 +1,193 @@
+;(function () {
+  'use strict'
+
+  // Per-tbody state: { page, rpp }
+  var _pg = {}
+
+  // ── Inject CSS once ───────────────────────────────────────────────
+  var _styled = false
+  function ensureCSS() {
+    if (_styled) return
+    _styled = true
+    var s = document.createElement('style')
+    s.textContent =
+      '.pg-hidden{display:none!important}' +
+      '.pg-bar{display:flex;align-items:center;justify-content:space-between;' +
+        'padding:14px 20px 16px;border-top:1px solid #f3f4f6;flex-wrap:wrap;gap:10px}' +
+      '.pg-info{font-size:.8rem;color:#6b7280}' +
+      '.pg-rpp{display:flex;align-items:center;gap:6px;font-size:.8rem;color:#6b7280}' +
+      '.pg-rpp select{border:1px solid #d1d5db;border-radius:6px;padding:4px 8px;' +
+        'font-size:.8rem;font-family:\'Poppins\',sans-serif;color:#374151;background:#fff;cursor:pointer}' +
+      '.pg-btns{display:flex;align-items:center;gap:4px}' +
+      '.pg-btn{width:32px;height:32px;border-radius:8px;border:1px solid #e5e7eb;' +
+        'background:transparent;color:#374151;font-size:.82rem;font-weight:500;' +
+        'font-family:\'Poppins\',sans-serif;cursor:pointer;' +
+        'display:inline-flex;align-items:center;justify-content:center;' +
+        'transition:background .12s,border-color .12s}' +
+      '.pg-btn:hover:not([disabled]):not(.pg-btn-active){background:#f3f4f6;border-color:#d1d5db}' +
+      '.pg-btn.pg-btn-active{background:#E8891C!important;color:#fff!important;' +
+        'border-color:#E8891C!important;cursor:default}' +
+      '.pg-btn[disabled]{opacity:.4;cursor:not-allowed;pointer-events:none}' +
+      '.pg-ellipsis{width:32px;height:32px;display:inline-flex;align-items:center;' +
+        'justify-content:center;color:#9ca3af;font-size:.82rem}' +
+      '@media(max-width:768px){' +
+        '.pg-info,.pg-rpp{display:none}' +
+        '.pg-bar{justify-content:center}' +
+        '.pg-btn{width:28px;height:28px;font-size:.78rem}' +
+      '}'
+    document.head.appendChild(s)
+  }
+
+  // ── Public: init ──────────────────────────────────────────────────
+  // Call from afterRender after the tbody is in the DOM.
+  function initPagination(tbodyId, rpp) {
+    ensureCSS()
+    _pg[tbodyId] = { page: 1, rpp: rpp || 10 }
+    _render(tbodyId)
+  }
+
+  // ── Public: refresh ───────────────────────────────────────────────
+  // Re-paginate without resetting the current page.
+  // Use after external filter changes that don't reset the page.
+  function refreshPagination(tbodyId) {
+    if (_pg[tbodyId]) _render(tbodyId)
+  }
+
+  // ── Public: pgReset ───────────────────────────────────────────────
+  // Reset to page 1 then re-paginate.
+  // Call from search inputs and filter dropdowns.
+  function pgReset(tbodyId) {
+    if (!_pg[tbodyId]) return
+    _pg[tbodyId].page = 1
+    _render(tbodyId)
+  }
+
+  // ── Core render ───────────────────────────────────────────────────
+  function _render(tbodyId) {
+    var st = _pg[tbodyId]
+    if (!st) return
+
+    var tbody = document.getElementById(tbodyId)
+    if (!tbody) return
+
+    var allRows = Array.from(tbody.querySelectorAll('tr[data-search]'))
+
+    // Step 1: Remove pg-hidden so we can see the true filter state
+    allRows.forEach(function (r) { r.classList.remove('pg-hidden') })
+
+    // Step 2: Active rows = those not hidden by external filter (inline display)
+    var active = allRows.filter(function (r) { return r.style.display !== 'none' })
+
+    var total = active.length
+    var pages = Math.max(1, Math.ceil(total / st.rpp))
+
+    // Clamp current page
+    if (st.page > pages) st.page = pages
+    if (st.page < 1)     st.page = 1
+
+    var start = (st.page - 1) * st.rpp
+    var end   = start + st.rpp
+
+    // Step 3: Hide rows outside current page using CSS class (not inline style)
+    active.forEach(function (r, i) {
+      if (i < start || i >= end) r.classList.add('pg-hidden')
+    })
+
+    // Step 4: Render the pagination bar below the table-wrap
+    _renderBar(tbodyId, total, pages, st.page, st.rpp)
+  }
+
+  // ── Bar ───────────────────────────────────────────────────────────
+  function _renderBar(tbodyId, total, totalPages, cur, rpp) {
+    var tbody = document.getElementById(tbodyId)
+    if (!tbody) return
+
+    var wrap = tbody.closest('.table-wrap')
+    if (!wrap) return
+
+    var barId = 'pg-bar-' + tbodyId
+    var bar   = document.getElementById(barId)
+    if (!bar) {
+      bar = document.createElement('div')
+      bar.id        = barId
+      bar.className = 'pg-bar'
+      wrap.appendChild(bar)
+    }
+
+    // Hide bar when all records fit on one page
+    if (total <= rpp) { bar.style.display = 'none'; return }
+    bar.style.display = 'flex'
+
+    var s = (cur - 1) * rpp + 1
+    var e = Math.min(cur * rpp, total)
+
+    bar.innerHTML =
+      '<span class="pg-info">Showing ' + s + '\u2013' + e + ' of ' + total + ' records</span>' +
+      '<span class="pg-rpp">Rows per page:\u00a0' +
+        '<select onchange="window._pgRpp(\'' + tbodyId + '\',+this.value)">' +
+        [5, 10, 20, 50].map(function (n) {
+          return '<option value="' + n + '"' + (n === rpp ? ' selected' : '') + '>' + n + '</option>'
+        }).join('') +
+        '</select></span>' +
+      '<span class="pg-btns">' + _btns(tbodyId, cur, totalPages) + '</span>'
+  }
+
+  // ── Page buttons with ellipsis ────────────────────────────────────
+  function _btns(tbodyId, cur, total) {
+    var out = ''
+
+    // Prev
+    out += '<button class="pg-btn"' +
+      (cur === 1
+        ? ' disabled'
+        : ' onclick="window._pgGo(\'' + tbodyId + '\',' + (cur - 1) + ')"') +
+      '>\u2039</button>'
+
+    // Collect visible page numbers
+    var show = {}
+    show[1] = true; show[total] = true; show[cur] = true
+    if (cur > 1) show[cur - 1] = true
+    if (cur < total) show[cur + 1] = true
+    var nums = Object.keys(show).map(Number).sort(function (a, b) { return a - b })
+
+    var prev = 0
+    nums.forEach(function (p) {
+      if (p - prev > 1) out += '<span class="pg-ellipsis">\u2026</span>'
+      var active = p === cur
+      out += '<button class="pg-btn' + (active ? ' pg-btn-active' : '') + '"' +
+        (active ? '' : ' onclick="window._pgGo(\'' + tbodyId + '\',' + p + ')"') +
+        '>' + p + '</button>'
+      prev = p
+    })
+
+    // Next
+    out += '<button class="pg-btn"' +
+      (cur === total
+        ? ' disabled'
+        : ' onclick="window._pgGo(\'' + tbodyId + '\',' + (cur + 1) + ')"') +
+      '>\u203a</button>'
+
+    return out
+  }
+
+  // ── Exposed globals ───────────────────────────────────────────────
+  window.initPagination    = initPagination
+  window.refreshPagination = refreshPagination
+  window.pgReset           = pgReset
+
+  // Called by page buttons
+  window._pgGo = function (tbodyId, page) {
+    if (!_pg[tbodyId]) return
+    _pg[tbodyId].page = page
+    _render(tbodyId)
+  }
+
+  // Called by rows-per-page select
+  window._pgRpp = function (tbodyId, rpp) {
+    if (!_pg[tbodyId]) return
+    _pg[tbodyId].rpp  = rpp
+    _pg[tbodyId].page = 1
+    _render(tbodyId)
+  }
+
+})()

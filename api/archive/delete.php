@@ -1,0 +1,65 @@
+<?php
+// ================================================================
+//  OPTICANA — api/archive/delete.php
+//  Admin only. Permanently deletes an archived account/patient —
+//  removes the role row (cascading to appointments/examinations/
+//  prescriptions/consultations), the login row, and the archive
+//  entry itself. This is irreversible.
+//
+//  POST { id }   — archived_records.id
+// ================================================================
+
+require_once '../../config/db.php';
+require_once '../helpers.php';
+
+requireMethod('POST');
+startSession();
+
+if (!isset($_SESSION['user_id'])) {
+    jsonResponse(['success' => false, 'message' => 'Not authenticated.'], 401);
+}
+if ($_SESSION['role'] !== 'admin') {
+    jsonResponse(['success' => false, 'message' => 'Only admins may permanently delete records.'], 403);
+}
+
+$b  = getBody();
+$id = trim($b['id'] ?? '');
+if (!$id) {
+    jsonResponse(['success' => false, 'message' => 'id is required.']);
+}
+
+try {
+    $pdo = getDB();
+
+    $s = $pdo->prepare('SELECT * FROM archived_records WHERE id = ? LIMIT 1');
+    $s->execute([$id]);
+    $rec = $s->fetch();
+    if (!$rec) {
+        jsonResponse(['success' => false, 'message' => 'Archived record not found.']);
+    }
+
+    $data  = $rec['data_json'] ? json_decode($rec['data_json'], true) : [];
+    $role  = $data['role'] ?? ($rec['type'] === 'Patient' ? 'Patient' : null);
+    $tableMap = ['Admin' => 'admins', 'Staff' => 'staff', 'Doctor' => 'doctors', 'Patient' => 'patients'];
+    $table = $tableMap[$role] ?? null;
+
+    if ($table) {
+        $rs = $pdo->prepare("SELECT user_id FROM `{$table}` WHERE id = ? LIMIT 1");
+        $rs->execute([$rec['ref_id']]);
+        $row = $rs->fetch();
+
+        // Cascades to appointments/examinations/prescriptions/consultations
+        $pdo->prepare("DELETE FROM `{$table}` WHERE id = ?")->execute([$rec['ref_id']]);
+
+        if ($row && $row['user_id']) {
+            $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$row['user_id']]);
+        }
+    }
+
+    $pdo->prepare('DELETE FROM archived_records WHERE id = ?')->execute([$id]);
+
+    jsonResponse(['success' => true]);
+
+} catch (PDOException $e) {
+    jsonResponse(['success' => false, 'message' => 'Database error. Please try again.'], 500);
+}

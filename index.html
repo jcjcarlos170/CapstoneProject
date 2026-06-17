@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OPTICANA — Cana Optical Clinic | Clear Vision, Compassionate Care</title>
+  <link rel="icon" type="image/png" href="brand_assests/cana logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/public.css">
+  <link rel="stylesheet" href="assets/css/landing.css">
+</head>
+<body>
+
+<nav id="navbar">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <img src="brand_assests/cana logo.png" alt="OPTICANA">
+      <div>
+        <div class="nav-logo-name">OPTICANA</div>
+        <div class="nav-logo-sub">Cana Optical Clinic</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="pages/services.html">Services</a></li>
+      <li><a href="pages/doctors.html">Doctors</a></li>
+      <li><a href="pages/contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a href="app.html" class="nav-login">Login</a>
+      <a href="app.html" class="nav-book">Book Now <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></a>
+    </div>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="hero-bg" style="background-image:url('assets/images/cana-optical-clinic.jpg')"></div>
+  <div class="hero-inner">
+    <p class="hero-tagline">Your Trusted Partner in Eye Health</p>
+    <h1 class="hero-heading">
+      Clear Vision,<br>
+      <span class="orange">Compassionate</span> Care.
+    </h1>
+    <p class="hero-sub">Cana Optical Clinic — professional eye examinations, precision vision testing, and personalized optical care from licensed optometrists in Carmona, Cavite.</p>
+    <div class="hero-btns">
+      <a href="app.html" class="btn-solid">
+        Book Appointment
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a href="app.html#register" class="btn-outline">Register</a>
+    </div>
+  </div>
+  <a href="#about" class="scroll-indicator">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+  </a>
+</section>
+
+<section id="about">
+  <div class="about-inner">
+    <div class="about-img-wrap">
+      <div class="about-img-main">
+        <img src="assets/images/about/cana.jpg" alt="Cana Optical Clinic">
+      </div>
+    </div>
+    <div class="about-text">
+      <span class="about-eyebrow">About Us</span>
+      <h2 class="about-heading">Trusted Eye Care<br>Since 2008</h2>
+      <p class="about-desc">At Cana Optical Clinic, we provide exceptional eye care services to our community in Carmona, Cavite. Founded by Dr. Lalaine Cana, the clinic has grown from a single-doctor practice to a team of five licensed optometrists serving thousands of patients across Carmona and neighboring areas.</p>
+      <p class="about-desc">From routine eye examinations to precision prescription fitting and a wide selection of optical frames, every patient receives the highest standard of care in a warm, welcoming environment.</p>
+      <div class="about-stats">
+        <div class="about-stat" style="padding-left:0">
+          <div class="about-stat-num" id="stat-years">18+</div>
+          <div class="about-stat-label">Years of Service</div>
+        </div>
+        <div class="about-stat" style="padding-left:24px">
+          <div class="about-stat-num" id="stat-patients">5,000+</div>
+          <div class="about-stat-label">Happy Patients</div>
+        </div>
+        <div class="about-stat" style="padding-left:24px;border-right:none;padding-right:0">
+          <div class="about-stat-num" id="stat-doctors">5</div>
+          <div class="about-stat-label">Specialist Doctors</div>
+        </div>
+      </div>
+      <div class="about-cta">
+        <a href="pages/services.html" class="about-cta-btn">
+          Explore Our Services
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer id="footer">
+  <div class="footer-line">&copy; 2026, CANA OPTICAL CLINIC</div>
+</footer>
+
+<script>
+  const navbar = document.getElementById('navbar');
+  const hero   = document.getElementById('hero');
+  function updateNav() {
+    navbar.classList.toggle('scrolled', window.scrollY > hero.offsetHeight - 80);
+  }
+  window.addEventListener('scroll', updateNav, { passive: true });
+  updateNav();
+
+  document.querySelectorAll('.nav-links a, .nav-login, .nav-book').forEach(link => {
+    link.addEventListener('click', function(e) {
+      const href = this.getAttribute('href');
+      if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+        e.preventDefault();
+        document.body.style.cssText = 'opacity:0;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease';
+        setTimeout(() => { window.location.href = href; }, 80);
+      }
+    });
+  });
+
+  // Live stats
+  document.getElementById('stat-years').textContent = (new Date().getFullYear() - 2008) + '+';
+  fetch('api/stats/public.php').then(r => r.json()).then(d => {
+    if (!d.success) return;
+    if (d.doctors > 0)  document.getElementById('stat-doctors').textContent  = d.doctors;
+    if (d.patients > 0) document.getElementById('stat-patients').textContent =
+      d.patients >= 1000 ? (Math.floor(d.patients / 1000) + ',000+') : d.patients + '+';
+  }).catch(() => {});
+
+</script>
+
+</body>
+</html>

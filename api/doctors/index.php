@@ -1,0 +1,75 @@
+<?php
+// ================================================================
+//  OPTICANA — api/doctors/index.php
+//  GET — authenticated endpoint (admin/staff/doctor only).
+//  Returns all doctors with schedule, availability, and photo.
+// ================================================================
+
+require_once '../../config/db.php';
+require_once '../helpers.php';
+
+startSession();
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    jsonResponse(['success' => false, 'message' => 'Method not allowed.'], 405);
+}
+
+if (!isset($_SESSION['user_id'])) {
+    jsonResponse(['success' => false, 'message' => 'Not authenticated.'], 401);
+}
+
+$role = $_SESSION['role'] ?? '';
+if (!in_array($role, ['admin', 'staff', 'doctor'], true)) {
+    jsonResponse(['success' => false, 'message' => 'Unauthorized.'], 403);
+}
+
+try {
+    $pdo = getDB();
+
+    $rows = $pdo->query(
+        'SELECT d.id, d.first_name, d.last_name, d.specialization, d.work_hours,
+                d.available, d.status, d.contact, u.id AS user_id, u.email,
+                GROUP_CONCAT(dd.day_of_week
+                    ORDER BY FIELD(dd.day_of_week,"Mon","Tue","Wed","Thu","Fri","Sat","Sun")
+                    SEPARATOR ","
+                ) AS days
+         FROM doctors d
+         LEFT JOIN users u ON u.id = d.user_id
+         LEFT JOIN doctor_days dd ON dd.doctor_id = d.id
+         WHERE d.archived_at IS NULL
+         GROUP BY d.id, d.first_name, d.last_name, d.specialization,
+                  d.work_hours, d.available, d.status, d.contact, u.id, u.email
+         ORDER BY d.first_name'
+    )->fetchAll();
+
+    // Fetch photos separately so a missing column never breaks this endpoint
+    $photoMap = [];
+    try {
+        $userIds = array_filter(array_column($rows, 'user_id'));
+        if ($userIds) {
+            $in  = implode(',', array_map('intval', $userIds));
+            $prs = $pdo->query("SELECT id, photo_url FROM users WHERE id IN ($in)")->fetchAll();
+            foreach ($prs as $pr) { $photoMap[(int)$pr['id']] = $pr['photo_url']; }
+        }
+    } catch (PDOException) { /* photo_url column not yet migrated — skip */ }
+
+    $doctors = array_map(fn($r) => [
+        'id'             => $r['id'],
+        'name'           => 'Dr. ' . $r['first_name'] . ' ' . $r['last_name'],
+        'firstName'      => $r['first_name'],
+        'lastName'       => $r['last_name'],
+        'email'          => $r['email'] ?? '',
+        'specialization' => $r['specialization'] ?: 'Optometrist',
+        'workHours'      => $r['work_hours'] ?: '',
+        'hours'          => $r['work_hours'] ?: '',
+        'days'           => $r['days'] ? explode(',', $r['days']) : [],
+        'available'      => (bool)$r['available'],
+        'status'         => $r['status'],
+        'contact'        => $r['contact'] ?? '',
+        'photoUrl'       => $photoMap[(int)($r['user_id'] ?? 0)] ?? null,
+    ], $rows);
+
+    jsonResponse(['success' => true, 'doctors' => $doctors]);
+} catch (PDOException $e) {
+    jsonResponse(['success' => false, 'doctors' => []], 500);
+}

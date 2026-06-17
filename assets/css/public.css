@@ -1,0 +1,21 @@
+/* ── Shared base for all public pages ── */
+:root {
+  --orange:    #E8891C;
+  --orange-dk: #C4720E;
+  --orange-lt: #FFF3E0;
+  --orange-md: #FDE8C8;
+  --text:      #1a1a1a;
+  --muted:     #6b7280;
+  --light:     #f9fafb;
+  --border:    #e5e7eb;
+  --white:     #ffffff;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+img { display: block; max-width: 100%; }
+a { text-decoration: none; color: inherit; }
+body { font-family: 'Poppins', sans-serif; }
+
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+body { opacity: 0; animation: pageIn 0.2s ease forwards; }
+.fade-in { opacity: 0; transform: translateY(16px); transition: opacity 0.45s ease, transform 0.45s ease; }
+.fade-in.visible { opacity: 1; transform: translateY(0); }

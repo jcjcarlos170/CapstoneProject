@@ -1,0 +1,22 @@
+/* ── Services page content ── */
+#content { position: fixed; top: 70px; left: 0; right: 0; height: calc(100vh - 115px); display: flex; align-items: center; overflow: hidden; }
+.services-wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; width: 100%; }
+.section-header { margin-bottom: 20px; }
+.section-eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--orange); margin-bottom: 6px; display: block; }
+.section-title { font-size: 1.4rem; font-weight: 700; color: var(--text); line-height: 1.2; letter-spacing: -0.02em; }
+
+.services-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+.service-card { background: var(--white); border-radius: 10px; padding: 16px 20px; border: 1px solid var(--border); border-bottom: 2px solid transparent; transition: all 0.22s; position: relative; overflow: hidden; }
+.service-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg,rgba(232,137,28,0.04) 0%,transparent 60%); opacity: 0; transition: opacity 0.22s; }
+.service-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); border-bottom-color: var(--orange); border-color: rgba(232,137,28,0.15); }
+.service-card:hover::before { opacity: 1; }
+.service-icon-wrap { width: 32px; height: 32px; background: var(--orange-lt); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; transition: background 0.22s; flex-shrink: 0; }
+.service-card:hover .service-icon-wrap { background: var(--orange); }
+.service-icon-wrap svg { width: 16px; height: 16px; stroke: var(--orange); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.22s; }
+.service-card:hover .service-icon-wrap svg { stroke: white; }
+.service-title { font-size: 0.85rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.service-desc  { font-size: 0.68rem; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.services-cta { text-align: center; }
+.cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 28px; background: var(--orange); color: #fff; font-size: 0.88rem; font-weight: 600; border-radius: 8px; border: 2px solid var(--orange); transition: all 0.25s; box-shadow: 0 4px 14px rgba(232,137,28,0.28); cursor: pointer; }
+.cta-btn:hover { background: var(--orange-dk); border-color: var(--orange-dk); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,137,28,0.38); }

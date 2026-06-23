@@ -31,6 +31,46 @@ $name       = trim($b['name']       ?? '');
 $reason     = trim($b['reason']     ?? '') ?: 'No reason provided';
 $archivedBy = trim($b['archivedBy'] ?? '') ?: 'Admin';
 
+// Services aren't user accounts (no `role`/login to touch) — archive them
+// straight from clinic_services instead of the Admin/Staff/Doctor/Patient
+// role-table path below.
+if ($type === 'Service') {
+    if (!$profileId) {
+        jsonResponse(['success' => false, 'message' => 'profileId is required.']);
+    }
+    try {
+        $pdo = getDB();
+
+        $s = $pdo->prepare('SELECT * FROM clinic_services WHERE id = ? LIMIT 1');
+        $s->execute([$profileId]);
+        $svc = $s->fetch();
+        if (!$svc) {
+            jsonResponse(['success' => false, 'message' => 'Service not found.']);
+        }
+
+        $snapshot = [
+            'id' => (int)$svc['id'], 'name' => $svc['name'], 'description' => $svc['description'],
+            'duration' => (int)$svc['duration'], 'status' => $svc['status'], 'icon' => $svc['icon'],
+        ];
+
+        $pdo->prepare("UPDATE clinic_services SET status = 'inactive' WHERE id = ?")->execute([$profileId]);
+
+        $id   = 'AR' . date('YmdHis') . random_int(10, 99);
+        $date = date('M j, Y');
+        $pdo->prepare(
+            'INSERT INTO archived_records (id, type, name, ref_id, archived_by, reason, data_json, date)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$id, 'Service', $name ?: $svc['name'], $profileId, $archivedBy, $reason, json_encode($snapshot), $date]);
+
+        jsonResponse(['success' => true, 'record' => [
+            'id' => $id, 'type' => 'Service', 'name' => $name ?: $svc['name'], 'refId' => $profileId,
+            'archivedBy' => $archivedBy, 'reason' => $reason, 'date' => $date, 'data' => $snapshot,
+        ]]);
+    } catch (PDOException $e) {
+        jsonResponse(['success' => false, 'message' => 'Database error. Please try again.'], 500);
+    }
+}
+
 $tableMap = ['Admin' => 'admins', 'Staff' => 'staff', 'Doctor' => 'doctors', 'Patient' => 'patients'];
 $table    = $tableMap[$role] ?? null;
 

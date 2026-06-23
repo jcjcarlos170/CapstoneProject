@@ -62,6 +62,18 @@
 --      INDEX `idx_email_otp` (`email`, `otp`),
 --      INDEX `idx_token` (`token`)
 --    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+--    CREATE TABLE IF NOT EXISTS `blocked_dates` (
+--      `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+--      `doctor_id`  VARCHAR(10)  NOT NULL,
+--      `date`       DATE         NOT NULL,
+--      `reason`     VARCHAR(255) DEFAULT NULL,
+--      `created_by` VARCHAR(100) DEFAULT NULL,
+--      `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--      PRIMARY KEY (`id`),
+--      UNIQUE KEY `uq_doctor_date` (`doctor_id`, `date`),
+--      FOREIGN KEY (`doctor_id`) REFERENCES `doctors`(`id`) ON DELETE CASCADE
+--    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+--    ALTER TABLE `doctors` ADD COLUMN `prc_license` VARCHAR(50) NULL DEFAULT NULL AFTER `specialization`;
 -- ================================================================
 
 SET NAMES utf8mb4;
@@ -118,6 +130,7 @@ CREATE TABLE IF NOT EXISTS `doctors` (
   `first_name`     VARCHAR(100) NOT NULL,
   `last_name`      VARCHAR(100) NOT NULL,
   `specialization` VARCHAR(100) NOT NULL DEFAULT 'Optometrist',
+  `prc_license`    VARCHAR(50)  NULL DEFAULT NULL,
   `contact`        VARCHAR(20)  DEFAULT NULL,
   `available`      TINYINT(1)   NOT NULL DEFAULT 1,
   `work_hours`     VARCHAR(100) DEFAULT NULL,
@@ -133,6 +146,20 @@ CREATE TABLE IF NOT EXISTS `doctor_days` (
   `doctor_id`   VARCHAR(10)  NOT NULL,
   `day_of_week` ENUM('Mon','Tue','Wed','Thu','Fri','Sat','Sun') NOT NULL,
   PRIMARY KEY (`doctor_id`, `day_of_week`),
+  FOREIGN KEY (`doctor_id`) REFERENCES `doctors`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Doctor blocked dates (one-off unavailability — leave, conference,
+--    holiday, etc. — distinct from the recurring weekly schedule above) ──
+CREATE TABLE IF NOT EXISTS `blocked_dates` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `doctor_id`  VARCHAR(10)  NOT NULL,
+  `date`       DATE         NOT NULL,
+  `reason`     VARCHAR(255) DEFAULT NULL,
+  `created_by` VARCHAR(100) DEFAULT NULL,
+  `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_doctor_date` (`doctor_id`, `date`),
   FOREIGN KEY (`doctor_id`) REFERENCES `doctors`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

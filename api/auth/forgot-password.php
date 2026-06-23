@@ -3,7 +3,9 @@
 //  OPTICANA — api/auth/forgot-password.php
 //  POST { email }
 //  Generates a 6-digit OTP, stores it, and emails it via SMTP.
-//  Always returns success:true to avoid leaking whether an email exists.
+//  Returns success:false if the email isn't registered (intentionally
+//  not anti-enumeration-safe — this app prioritizes a clear error over
+//  hiding which emails exist).
 // ================================================================
 
 require_once '../../config/db.php';
@@ -31,60 +33,62 @@ try {
     $s->execute([$email]);
     $user = $s->fetch();
 
-    if ($user) {
-        // Invalidate any previous unused OTPs for this email
-        $pdo->prepare('UPDATE password_resets SET used = 1 WHERE email = ? AND used = 0')
-            ->execute([$email]);
-
-        // Generate a cryptographically secure 6-digit OTP
-        $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        // Use MySQL's NOW() for expiry so timezone mismatches between PHP and MySQL don't break the check
-        $pdo->prepare('INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, NOW() + INTERVAL 5 MINUTE)')
-            ->execute([$email, $otp]);
-
-        // Send OTP via SMTP
-        $logoPath = realpath(__DIR__ . '/../../brand_assests/cana logo.png');
-
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USERNAME;
-        $mail->Password   = SMTP_PASSWORD;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
-
-        // Fail fast instead of hanging — cloud hosts (Railway included) can be slow
-        // or unreliable reaching external SMTP servers, and minimal container images
-        // sometimes lack an up-to-date CA bundle for the TLS handshake.
-        $mail->Timeout        = 10;
-        $mail->SMTPKeepAlive  = false;
-        $mail->SMTPOptions    = [
-            'ssl' => [
-                'verify_peer'       => false,
-                'verify_peer_name'  => false,
-                'allow_self_signed' => true,
-            ],
-        ];
-
-        $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
-        $mail->addAddress($email);
-        $mail->isHTML(true);
-        $mail->Subject = 'Your Opticana Password Reset Code';
-
-        $hasCidLogo = false;
-        if ($logoPath && file_exists($logoPath)) {
-            $mail->addEmbeddedImage($logoPath, 'opticana_logo', 'cana logo.png', 'base64', 'image/png');
-            $hasCidLogo = true;
-        }
-
-        $mail->Body    = emailBody($otp, $hasCidLogo);
-        $mail->AltBody = "Your Opticana password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone.";
-
-        $mail->send();
+    if (!$user) {
+        jsonResponse(['success' => false, 'message' => 'This account or email doesn\'t exist. Please enter a valid email.']);
     }
-    // Always return success so we don't leak whether the email is registered
+
+    // Invalidate any previous unused OTPs for this email
+    $pdo->prepare('UPDATE password_resets SET used = 1 WHERE email = ? AND used = 0')
+        ->execute([$email]);
+
+    // Generate a cryptographically secure 6-digit OTP
+    $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+    // Use MySQL's NOW() for expiry so timezone mismatches between PHP and MySQL don't break the check
+    $pdo->prepare('INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, NOW() + INTERVAL 5 MINUTE)')
+        ->execute([$email, $otp]);
+
+    // Send OTP via SMTP
+    $logoPath = realpath(__DIR__ . '/../../brand_assests/cana logo.png');
+
+    $mail = new PHPMailer(true);
+    $mail->isSMTP();
+    $mail->Host       = SMTP_HOST;
+    $mail->SMTPAuth   = true;
+    $mail->Username   = SMTP_USERNAME;
+    $mail->Password   = SMTP_PASSWORD;
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = SMTP_PORT;
+
+    // Fail fast instead of hanging — cloud hosts (Railway included) can be slow
+    // or unreliable reaching external SMTP servers, and minimal container images
+    // sometimes lack an up-to-date CA bundle for the TLS handshake.
+    $mail->Timeout        = 10;
+    $mail->SMTPKeepAlive  = false;
+    $mail->SMTPOptions    = [
+        'ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true,
+        ],
+    ];
+
+    $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
+    $mail->addAddress($email);
+    $mail->isHTML(true);
+    $mail->Subject = 'Your Opticana Password Reset Code';
+
+    $hasCidLogo = false;
+    if ($logoPath && file_exists($logoPath)) {
+        $mail->addEmbeddedImage($logoPath, 'opticana_logo', 'cana logo.png', 'base64', 'image/png');
+        $hasCidLogo = true;
+    }
+
+    $mail->Body    = emailBody($otp, $hasCidLogo);
+    $mail->AltBody = "Your Opticana password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone.";
+
+    $mail->send();
+
     jsonResponse(['success' => true]);
 
 } catch (Exception $e) {

@@ -65,6 +65,32 @@ try {
                 : "Appointments must be booked at least {$minDays} day" . ($minDays > 1 ? 's' : '') . ' in advance.';
             jsonResponse(['success' => false, 'message' => $msg]);
         }
+
+        // Reject self-service bookings on a date the doctor has explicitly
+        // blocked, even if a stale frontend calendar let the request through.
+        // Admin/staff keep discretion to book anyway (e.g. squeezing in an
+        // urgent case), so this check is patient-only.
+        $bs = $pdo->prepare('SELECT reason FROM blocked_dates WHERE doctor_id = ? AND date = ? LIMIT 1');
+        $bs->execute([$doctorId, $date]);
+        $blockedRow = $bs->fetch();
+        if ($blockedRow) {
+            jsonResponse(['success' => false, 'message' =>
+                'This doctor is unavailable on the selected date' . ($blockedRow['reason'] ? " ({$blockedRow['reason']})" : '') . '. Please choose another date.']);
+        }
+
+        // Enforce the clinic's max-appointments-per-doctor-per-day cap for
+        // self-service patient bookings — cancelled/disapproved slots don't
+        // count against it since they're not actually occupying the doctor's day.
+        $maxPerDay = (int)($pdo->query('SELECT max_appts_per_doctor_per_day FROM clinic_settings WHERE id = 1 LIMIT 1')->fetchColumn() ?: 12);
+        $cs = $pdo->prepare(
+            "SELECT COUNT(*) FROM appointments
+             WHERE doctor_id = ? AND date = ? AND status NOT IN ('cancelled','disapproved')"
+        );
+        $cs->execute([$doctorId, $date]);
+        if ((int)$cs->fetchColumn() >= $maxPerDay) {
+            jsonResponse(['success' => false, 'message' =>
+                'This doctor is fully booked on the selected date. Please choose another date or doctor.']);
+        }
     }
 
     // Generate next ID: A001, A002, …

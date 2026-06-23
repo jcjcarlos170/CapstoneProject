@@ -4,6 +4,11 @@
 //  Shared utilities for all API endpoints.
 // ================================================================
 
+// The clinic operates in the Philippines — without this, PHP falls back to
+// UTC (the default on Railway's containers), so timestamps shown in the app
+// end up 8 hours behind the actual local time.
+date_default_timezone_set('Asia/Manila');
+
 function jsonResponse(array $data, int $status = 200): void {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -127,6 +132,7 @@ function buildUserObject(string $role, array $p, string $email, array $days = []
     if ($role === 'doctor') {
         return array_merge($base, [
             'specialization' => $p['specialization'] ?? 'Optometrist',
+            'prcLicense'     => $p['prc_license'] ?? '',
             'available'      => (bool)($p['available'] ?? true),
             'days'           => $days,
             'hours'          => $p['work_hours'] ?? '',

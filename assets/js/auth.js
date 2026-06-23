@@ -49,6 +49,13 @@ async function handleLogin() {
       return
     }
 
+    // Remember (or forget) the email for next time, based on the checkbox —
+    // separate from the session-length extension login.php already applies.
+    try {
+      if (remember) localStorage.setItem('opticana_remembered_email', email)
+      else localStorage.removeItem('opticana_remembered_email')
+    } catch (_) { /* localStorage unavailable (private mode, etc.) — non-critical */ }
+
     _bootAfterAuth(data.role, data.user)
   } catch (_) {
     // Real network/server failure — surface it instead of silently
@@ -79,6 +86,9 @@ async function logout() {
   document.getElementById('login-email').value          = ''
   document.getElementById('login-password').value       = ''
   document.getElementById('login-error').style.display  = 'none'
+  const rememberEl = document.getElementById('login-remember')
+  if (rememberEl) rememberEl.checked = false
+  _prefillRememberedEmail()
 }
 
 // ── Register ─────────────────────────────────────────────────────
@@ -101,6 +111,10 @@ async function handleRegister() {
   const required = [first, last, dob, gender, address, contact, email, pass, confirm]
   if (required.some(v => !v)) {
     errMsg.textContent = 'Please complete all required fields before proceeding.'
+    errEl.style.display = 'flex'; return
+  }
+  if (!document.getElementById('reg-terms-agree')?.checked) {
+    errMsg.textContent = 'Please read and agree to the Terms & Conditions and Data Privacy Act before registering.'
     errEl.style.display = 'flex'; return
   }
   if (pass !== confirm) {
@@ -151,6 +165,120 @@ async function handleRegister() {
   }
 }
 
+// ── Terms & Conditions / Data Privacy Act modal ────────────────────
+// The "I Agree" checkbox on the register form starts disabled — it can
+// only be checked by reading the terms here and scrolling to the bottom,
+// which is how this enforces an actual read-through instead of a
+// rubber-stamp checkbox.
+const TERMS_AND_PRIVACY_HTML = `
+  <h4>1. Acceptance of Terms</h4>
+  <p>By creating a patient account with Cana Optical Clinic ("the Clinic") through Opticana, you agree to be bound by these Terms &amp; Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.</p>
+
+  <h4>2. Account Registration</h4>
+  <p>You must provide accurate, current, and complete information during registration. You are responsible for keeping your password confidential and for all activity under your account. Notify the Clinic immediately if you suspect unauthorized use.</p>
+
+  <h4>3. Your Patient QR Code</h4>
+  <p>Upon registration, a unique QR code is generated and linked to your patient record. Present this QR code at the clinic for fast, accurate check-in. Do not share it with anyone else — it provides access to your health information.</p>
+
+  <h4>4. Appointments</h4>
+  <p>Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The Clinic reserves the right to reschedule or decline requests when necessary.</p>
+
+  <h4>5. Use of the Platform</h4>
+  <p>You agree to use this system only for legitimate healthcare purposes related to your own care. Misuse — including attempting to access another patient's records or interfering with the system's normal operation — may result in account suspension.</p>
+
+  <h4>6. Data Privacy Act Notice (Republic Act No. 10173)</h4>
+  <p>In compliance with the Data Privacy Act of 2012 (RA 10173) and its Implementing Rules and Regulations, the Clinic collects the personal and sensitive personal information you provide during registration (e.g. name, date of birth, address, contact details) and through your subsequent care (e.g. examination results, diagnoses, prescriptions). This information is collected and processed solely for:</p>
+  <ul>
+    <li>Creating and maintaining your patient record</li>
+    <li>Scheduling and managing appointments</li>
+    <li>Providing optical examination, diagnosis, and treatment</li>
+    <li>Generating your patient identification QR code</li>
+    <li>Communicating with you regarding your account, appointments, or care</li>
+    <li>Complying with legal and regulatory requirements</li>
+  </ul>
+
+  <h4>7. Storage and Security</h4>
+  <p>Your data is stored on secured servers with access restricted to authorized clinic personnel (admin, staff, and your attending doctor) who need it to perform their duties. We apply reasonable organizational, physical, and technical safeguards to protect your information against unauthorized access, alteration, disclosure, or destruction.</p>
+
+  <h4>8. Data Sharing</h4>
+  <p>The Clinic does not sell or rent your personal information. Your data may only be shared with third parties when required by law, when necessary to provide your care (e.g. referrals), or with your explicit consent.</p>
+
+  <h4>9. Data Retention</h4>
+  <p>Your personal and health records are retained for as long as your account is active, and for the period required by applicable healthcare record-keeping regulations afterward, after which they are securely disposed of.</p>
+
+  <h4>10. Your Rights as a Data Subject</h4>
+  <p>Under the Data Privacy Act, you have the right to:</p>
+  <ul>
+    <li>Be informed of how your data is collected and processed</li>
+    <li>Access the personal data the Clinic holds about you</li>
+    <li>Request correction of inaccurate or outdated data</li>
+    <li>Object to or withdraw consent for processing, subject to legal or contractual restrictions</li>
+    <li>Request deletion of your data, where applicable</li>
+    <li>File a complaint with the National Privacy Commission (NPC)</li>
+  </ul>
+  <p>To exercise any of these rights, please contact the clinic directly using the contact details on our website.</p>
+
+  <h4>11. Consent</h4>
+  <p>By checking "I agree" and completing registration, you acknowledge that you have read and understood this notice, and you consent to the collection, use, storage, and processing of your personal and sensitive personal information as described above, for the purpose of receiving care from Cana Optical Clinic — and you are entrusting your credentials and personal information to the Clinic on that basis.</p>
+
+  <h4>12. Changes to this Notice</h4>
+  <p>The Clinic may update these Terms &amp; Conditions and this Data Privacy Notice from time to time. Continued use of your account after changes are posted constitutes acceptance of the revised terms.</p>
+`
+
+function openTermsModal() {
+  window.showModal(`
+    <div class="modal-header">
+      <div class="modal-title">${window.icon ? window.icon('shield','icon-sm') : ''} Terms &amp; Conditions and Data Privacy Act</div>
+      <button class="modal-close" onclick="window.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="terms-body" id="terms-scroll-body" onscroll="window._checkTermsScroll()">
+        ${TERMS_AND_PRIVACY_HTML}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="terms-scroll-hint" id="terms-scroll-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        Scroll to the bottom to continue
+      </span>
+      <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
+      <button class="btn-primary" id="terms-agree-btn" disabled onclick="window.acceptTerms()">I Agree &amp; Continue</button>
+    </div>`, 'modal-lg')
+
+  // If the content already fits without scrolling (tall viewport / small
+  // text), don't trap the user behind an unreachable scroll requirement.
+  setTimeout(() => window._checkTermsScroll(), 50)
+}
+window.openTermsModal = openTermsModal
+
+function _checkTermsScroll() {
+  const body = document.getElementById('terms-scroll-body')
+  const btn  = document.getElementById('terms-agree-btn')
+  if (!body || !btn) return
+  const reachedBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 24
+  if (reachedBottom && btn.disabled) {
+    btn.disabled = false
+    const hint = document.getElementById('terms-scroll-hint')
+    if (hint) hint.style.display = 'none'
+  }
+}
+window._checkTermsScroll = _checkTermsScroll
+
+function acceptTerms() {
+  // Defense in depth — the button's native `disabled` attribute already
+  // blocks this click, but don't trust that alone for something gating
+  // consent to data collection.
+  const btn = document.getElementById('terms-agree-btn')
+  if (btn && btn.disabled) return
+
+  const cb = document.getElementById('reg-terms-agree')
+  if (cb) { cb.disabled = false; cb.checked = true }
+  const hint = document.getElementById('reg-terms-hint')
+  if (hint) hint.style.display = 'none'
+  window.closeModal()
+}
+window.acceptTerms = acceptTerms
+
 // ── Session restore (called from index.html on page load) ─────────
 async function restoreSession() {
   try {
@@ -171,6 +299,22 @@ async function restoreSession() {
   }
 }
 
+// Pre-fill the login email + check "Remember me" if a prior login left one
+// saved — called on page load alongside restoreSession(). Independent of
+// the session itself, since a remembered email is still useful after the
+// session (even a 30-day one) has expired and the user has to sign in again.
+function _prefillRememberedEmail() {
+  try {
+    const saved = localStorage.getItem('opticana_remembered_email')
+    if (!saved) return
+    const emailEl    = document.getElementById('login-email')
+    const rememberEl = document.getElementById('login-remember')
+    if (emailEl && !emailEl.value) emailEl.value = saved
+    if (rememberEl) rememberEl.checked = true
+  } catch (_) { /* localStorage unavailable — non-critical */ }
+}
+window._prefillRememberedEmail = _prefillRememberedEmail
+
 // ── Screen switching ──────────────────────────────────────────────
 function showRegister() {
   document.getElementById('login-screen').style.display    = 'none'
@@ -180,6 +324,10 @@ function showRegister() {
   document.getElementById('reg-gender').value = ''
   document.getElementById('reg-blood').value  = ''
   document.getElementById('reg-error').style.display = 'none'
+  const termsCb = document.getElementById('reg-terms-agree')
+  if (termsCb) { termsCb.checked = false; termsCb.disabled = true }
+  const termsHint = document.getElementById('reg-terms-hint')
+  if (termsHint) termsHint.style.display = 'flex'
 }
 
 function showLogin() {
@@ -265,6 +413,7 @@ async function fpS1Submit() {
     })
     const data = await res.json()
     if (!data.success) {
+      emailEl.classList.add('error')
       errEl.textContent = data.message || 'Failed to send email. Please try again.'
       errEl.classList.add('show')
       return
@@ -474,7 +623,12 @@ function _bootAfterAuth(role, user) {
   _syncServices()
   if (role === 'admin') { _syncActivityLog(); _syncStaff(); _syncArchives() }
   if (role === 'staff') _syncStaff()
-  if (['admin', 'staff', 'doctor'].includes(role)) { _syncPatients(); _syncDoctors() }
+  if (['admin', 'staff', 'doctor'].includes(role)) _syncPatients()
+  // Doctors array (incl. schedule/availability/blocked dates) — every role needs
+  // a synced copy, not just staff: patients book against it, doctors see their
+  // own panel. Patients hit the public endpoint since they're not authorized
+  // for the admin/staff doctors/index.php route.
+  _syncDoctors()
   if (['admin', 'staff'].includes(role)) _syncContactMessages()
 }
 
@@ -525,7 +679,11 @@ window._syncPatients = _syncPatients
 // ── Doctors sync ──────────────────────────────────────────────────
 async function _syncDoctors() {
   try {
-    const r = await fetch('api/doctors/index.php')
+    // Patients aren't authorized for the staff/admin doctors/index.php route —
+    // the public endpoint has everything the booking flow needs (schedule,
+    // hours, photo, blocked dates) without staff-only fields like email.
+    const endpoint = window.state?.role === 'patient' ? 'api/doctors/public.php' : 'api/doctors/index.php'
+    const r = await fetch(endpoint)
     if (!r.ok) return
     const d = await r.json()
     if (!d.success || !Array.isArray(d.doctors)) return
@@ -535,6 +693,7 @@ async function _syncDoctors() {
     if (_dp === 'staff-dashboard' && window.updateStaffDashboard) window.updateStaffDashboard()
     if (_dp === 'schedule' && window.renderPage) window.renderPage()
     if (_dp === 'admin-users' && window.renderPage) window.renderPage()
+    if (['doctor-availability', 'patient-appts', 'patient-dashboard'].includes(_dp) && window.renderPage) window.renderPage()
   } catch (_) { /* keep mock data on network failure */ }
 }
 window._syncDoctors = _syncDoctors

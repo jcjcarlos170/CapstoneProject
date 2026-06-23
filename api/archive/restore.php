@@ -36,6 +36,13 @@ try {
         jsonResponse(['success' => false, 'message' => 'Archived record not found.']);
     }
 
+    // Services aren't a user account/role row — just flip status back to active.
+    if ($rec['type'] === 'Service') {
+        $pdo->prepare("UPDATE clinic_services SET status = 'active' WHERE id = ?")->execute([$rec['ref_id']]);
+        $pdo->prepare('DELETE FROM archived_records WHERE id = ?')->execute([$id]);
+        jsonResponse(['success' => true, 'role' => 'Service']);
+    }
+
     $data  = $rec['data_json'] ? json_decode($rec['data_json'], true) : [];
     $role  = $data['role'] ?? ($rec['type'] === 'Patient' ? 'Patient' : null);
     $tableMap = ['Admin' => 'admins', 'Staff' => 'staff', 'Doctor' => 'doctors', 'Patient' => 'patients'];

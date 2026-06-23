@@ -16,7 +16,8 @@ try {
     $pdo = getDB();
 
     $rows = $pdo->query(
-        'SELECT d.id, d.first_name, d.last_name, d.specialization, d.work_hours, u.id AS user_id,
+        'SELECT d.id, d.first_name, d.last_name, d.specialization, d.work_hours,
+                d.available, d.status, u.id AS user_id,
                 GROUP_CONCAT(dd.day_of_week
                     ORDER BY FIELD(dd.day_of_week,"Mon","Tue","Wed","Thu","Fri","Sat","Sun")
                     SEPARATOR ","
@@ -25,7 +26,8 @@ try {
          JOIN users u ON u.id = d.user_id
          LEFT JOIN doctor_days dd ON dd.doctor_id = d.id
          WHERE d.status = "active" AND u.is_active = 1
-         GROUP BY d.id, d.first_name, d.last_name, d.specialization, d.work_hours, u.id
+         GROUP BY d.id, d.first_name, d.last_name, d.specialization, d.work_hours,
+                  d.available, d.status, u.id
          ORDER BY d.first_name'
     )->fetchAll();
 
@@ -40,6 +42,24 @@ try {
         }
     } catch (PDOException) { /* photo_url column not yet migrated — skip */ }
 
+    // Fetch PRC license separately so a missing column never breaks this endpoint
+    $licenseMap = [];
+    try {
+        $lRows = $pdo->query('SELECT id, prc_license FROM doctors')->fetchAll();
+        foreach ($lRows as $lr) { $licenseMap[$lr['id']] = $lr['prc_license']; }
+    } catch (PDOException) { /* prc_license column not yet migrated — skip */ }
+
+    // Blocked dates — so the patient booking calendar can grey these out too.
+    $blockedMap = [];
+    try {
+        $bRows = $pdo->query(
+            'SELECT doctor_id, date, reason FROM blocked_dates WHERE date >= CURDATE() ORDER BY date'
+        )->fetchAll();
+        foreach ($bRows as $br) {
+            $blockedMap[$br['doctor_id']][] = ['date' => $br['date'], 'reason' => $br['reason'] ?? ''];
+        }
+    } catch (PDOException) { /* table not yet migrated — skip */ }
+
     $seen    = [];
     $doctors = [];
     foreach ($rows as $r) {
@@ -52,9 +72,15 @@ try {
             'firstName'      => $r['first_name'],
             'lastName'       => $r['last_name'],
             'specialization' => $r['specialization'] ?: 'Optometrist',
+            'prcLicense'     => $licenseMap[$r['id']] ?? '',
             'workHours'      => $r['work_hours'] ?: '',
+            'hours'          => $r['work_hours'] ?: '',
             'days'           => $r['days'] ? explode(',', $r['days']) : [],
+            'availableDays'  => $r['days'] ? explode(',', $r['days']) : [],
+            'available'      => (bool)$r['available'],
+            'status'         => $r['status'],
             'photoUrl'       => $photoMap[(int)$r['user_id']] ?? null,
+            'blockedDates'   => $blockedMap[$r['id']] ?? [],
         ];
     }
 

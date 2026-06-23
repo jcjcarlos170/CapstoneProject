@@ -74,6 +74,16 @@ try {
             jsonResponse(['success' => false, 'message' => 'Patients may only cancel appointments.'], 403);
         }
 
+        // Patients can only cancel up to CANCEL_DEADLINE_HOURS before the
+        // appointment — mirrors the same window enforced client-side
+        // (pages.js's CANCEL_DEADLINE_HOURS) so a direct API call can't bypass it.
+        if ($role === 'patient' && $newStatus === 'cancelled') {
+            $apptDt = DateTime::createFromFormat('Y-m-d g:i A', $appt['date'] . ' ' . $appt['time']);
+            if ($apptDt && (time() > $apptDt->getTimestamp() - 24 * 3600)) {
+                jsonResponse(['success' => false, 'message' => "This appointment can no longer be cancelled online — cancellations require at least 24 hours' notice. Please call the clinic directly."]);
+            }
+        }
+
         // Deciding the appointment's status (approve/disapprove/cancel/complete)
         // supersedes any reschedule request still sitting on it — otherwise the
         // "Reschedule Req." flag keeps showing after the appointment has already

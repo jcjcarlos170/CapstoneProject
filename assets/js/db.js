@@ -827,6 +827,21 @@ function minAdvanceTooltip() {
   return `Appointments must be booked at least ${n} days in advance.`
 }
 
+// Parses consultationSettings.maxAdvanceBooking ('1 week','2 weeks','1 month',…)
+// into the furthest-out date a patient booking calendar should allow,
+// relative to `base`. Same sync rationale as minAdvanceDays() above —
+// booking calendars read this instead of a hardcoded "+3 months".
+function maxAdvanceDate(base) {
+  const v    = (consultationSettings.maxAdvanceBooking || '3 months').toLowerCase()
+  const m    = v.match(/(\d+)\s*(week|month)/)
+  const n    = m ? parseInt(m[1], 10) : 3
+  const unit = m ? m[2] : 'month'
+  const d = new Date(base)
+  if (unit === 'week') d.setDate(d.getDate() + n * 7)
+  else                 d.setMonth(d.getMonth() + n)
+  return d
+}
+
 // Helpers that work on the raw data
 function getPatientById(id)     { return patients.find(p => p.id === id) }
 function getDoctorById(id)      { return doctors.find(d => d.id === id) }
@@ -855,6 +870,16 @@ function updateAppointmentStatus(id, status) {
 
 function addAppointment(appt) {
   appointments.push(appt)
+}
+
+// Local (not UTC) "YYYY-MM-DD HH:MM:SS" wall-clock timestamp. Date#toISOString()
+// always converts to UTC first, which silently shifted every client-logged
+// timestamp by the local UTC offset (e.g. 8h for the Philippines) — this is
+// what addActivityLog() and friends should use instead.
+function nowTimestamp() {
+  const d = new Date()
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 function addActivityLog(entry) {

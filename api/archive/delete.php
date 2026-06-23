@@ -38,6 +38,14 @@ try {
         jsonResponse(['success' => false, 'message' => 'Archived record not found.']);
     }
 
+    // Services have no FK references from appointments (type is stored as
+    // plain text there), so a hard delete is safe — no cascade needed.
+    if ($rec['type'] === 'Service') {
+        $pdo->prepare('DELETE FROM clinic_services WHERE id = ?')->execute([$rec['ref_id']]);
+        $pdo->prepare('DELETE FROM archived_records WHERE id = ?')->execute([$id]);
+        jsonResponse(['success' => true]);
+    }
+
     $data  = $rec['data_json'] ? json_decode($rec['data_json'], true) : [];
     $role  = $data['role'] ?? ($rec['type'] === 'Patient' ? 'Patient' : null);
     $tableMap = ['Admin' => 'admins', 'Staff' => 'staff', 'Doctor' => 'doctors', 'Patient' => 'patients'];

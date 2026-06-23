@@ -197,12 +197,9 @@ button { border-radius: unset; }
   cursor: pointer;
   user-select: none;
 }
-.lf-remember input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  accent-color: #E8891C;
-  cursor: pointer;
+.lf-remember .chk {
+  width: 16px;
+  height: 16px;
 }
 
 .lf-forgot {
@@ -535,6 +532,65 @@ select.reg-input option { color: #1C1C1C; }
   line-height: 1.5;
 }
 .qr-notice p { margin: 0; }
+
+/* Terms & Conditions / Data Privacy agreement row */
+.reg-terms {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 4px 0 16px;
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1.55;
+}
+.reg-terms .chk { margin-top: 2px; flex-shrink: 0; }
+.reg-terms a { color: #E8891C; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.reg-terms a:hover { color: #C4620A; }
+.reg-terms-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #C4620A;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  border-radius: 6px;
+  padding: 4px 9px;
+  width: fit-content;
+}
+
+/* Scrollable Terms & Conditions modal body */
+.terms-body {
+  max-height: 48vh;
+  overflow-y: auto;
+  font-size: 0.84rem;
+  color: #374151;
+  line-height: 1.7;
+  padding-right: 4px;
+}
+.terms-body h4 {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1C1C1C;
+  margin: 18px 0 6px;
+}
+.terms-body h4:first-child { margin-top: 0; }
+.terms-body p, .terms-body ul { margin: 0 0 10px; }
+.terms-body ul { padding-left: 20px; }
+.terms-body li { margin-bottom: 4px; }
+.terms-scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: #9ca3af;
+  margin-right: auto;
+}
 
 /* Actions row */
 .reg-actions {
@@ -1415,8 +1471,6 @@ select.reg-input option { color: #1C1C1C; }
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
   overflow: hidden;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
 }
 .table-toolbar {
   padding: 14px 20px;
@@ -1434,7 +1488,7 @@ select.reg-input option { color: #1C1C1C; }
   font-weight: 700;
   color: #1C1C1C;
 }
-.table-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.table-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 
 .tbl {
   width: 100%;
@@ -1575,9 +1629,10 @@ select.reg-input option { color: #1C1C1C; }
   white-space: nowrap;
   box-shadow: 0 4px 14px rgba(232,118,10,0.35), 0 1px 3px rgba(232,118,10,0.2);
 }
-.btn-primary:hover { opacity: 0.9; box-shadow: 0 6px 18px rgba(232,118,10,0.42); }
-.btn-primary:active { transform: scale(0.98); }
+.btn-primary:hover:not(:disabled) { opacity: 0.9; box-shadow: 0 6px 18px rgba(232,118,10,0.42); }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
 .btn-primary:focus-visible { outline: 2px solid #E8760A; outline-offset: 2px; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
 .btn-secondary {
   display: inline-flex;
@@ -1957,9 +2012,126 @@ select.reg-input option { color: #1C1C1C; }
   gap: 10px;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   CUSTOM CHECKBOX — fully reskinned (not just accent-color), so it
+   renders identically everywhere instead of inheriting each OS/browser's
+   native checkbox chrome (which often shows a plain black/grey box).
+════════════════════════════════════════════════════════════════ */
+.chk {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid #D1D5DB;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+.chk:hover { border-color: #E8760A; }
+.chk:checked {
+  background: #E8760A;
+  border-color: #E8760A;
+  animation: chkBoxPop 0.25s cubic-bezier(.34,1.56,.64,1);
+}
+.chk:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(1);
+  animation: chkMarkPop 0.25s cubic-bezier(.34,1.56,.64,1);
+}
+.chk:focus-visible {
+  outline: 2px solid #E8760A;
+  outline-offset: 2px;
+}
+.chk:active { transform: scale(0.9); }
+.chk:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@keyframes chkBoxPop {
+  0%   { transform: scale(0.8); }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes chkMarkPop {
+  0%   { opacity: 0; transform: rotate(45deg) scale(0); }
+  50%  { opacity: 1; }
+  100% { opacity: 1; transform: rotate(45deg) scale(1); }
+}
+
 @keyframes modalIn {
   from { opacity: 0; transform: scale(.96) translateY(8px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Clinic Days pill toggle (Consultation Settings) ───────────── */
+.cs-day-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.cs-day-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #E5E7EB;
+  background: #fff;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6B7280;
+  user-select: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.cs-day-pill:hover { border-color: #E8760A; color: #374151; }
+.cs-day-pill.active {
+  background: #FFF7ED;
+  border-color: #E8760A;
+  color: #C4620A;
+  box-shadow: 0 0 0 3px rgba(232,118,10,.1);
+}
+.cs-day-pill input[type="checkbox"] {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.cs-day-pill-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid #D1D5DB;
+  color: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cs-day-pill-check svg { width: 9px; height: 9px; stroke-width: 3; }
+.cs-day-pill.active .cs-day-pill-check {
+  background: #E8760A;
+  border-color: #E8760A;
+  color: #fff;
+}
+
+/* ── Lunch break toggle (reuses .chk) ───────────────────────────── */
+.cs-lunch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #374151;
+  user-select: none;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2146,6 +2318,30 @@ select.reg-input option { color: #1C1C1C; }
   opacity: 0.6;
 }
 
+/* Explicit single-date block (leave/conference/holiday) — distinct from
+   .blocked, which just means "not a recurring working day". Stronger red
+   + a small slash badge so it reads as "actively unavailable", not just off. */
+.cal-day.date-blocked {
+  background: #FEE2E2;
+  color: #B91C1C;
+  font-weight: 700;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  text-decoration-color: rgba(185,28,28,0.5);
+}
+.cal-day.date-blocked:hover { background: #FECACA; }
+.cal-day.date-blocked::after {
+  content: '';
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #DC2626;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+.cal-day.today.date-blocked { background: #B91C1C; color: #fff; text-decoration-color: rgba(255,255,255,0.6); }
+.cal-day.today.date-blocked::after { box-shadow: 0 0 0 1.5px #B91C1C; }
+
 
 /* Calendar hover tooltip (fixed-position, appended to body) */
 #cal-tooltip {
@@ -2245,6 +2441,8 @@ select.reg-input option { color: #1C1C1C; }
   text-align: center;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
   max-width: 340px;
+  margin: 0 auto;
+  width: 100%;
 }
 .qr-display-card canvas { border-radius: 8px; margin: 0 auto; }
 .qr-patient-id {
@@ -2507,8 +2705,22 @@ select.reg-input option { color: #1C1C1C; }
   .register-bg { padding: 24px 16px; justify-content: flex-start; }
   .login-card, .register-card { width: 100%; max-width: 420px; padding: 32px 24px; }
 
-  /* Tables: let them scroll instead of compressing */
-  .tbl { table-layout: auto; min-width: 480px; }
+  /* Tables: scroll horizontally on their own — NOT as part of .table-wrap's
+     overflow (removed there), so dragging the table sideways doesn't also
+     yank its siblings (filter tabs, search toolbar) out of view with it. */
+  .tbl {
+    table-layout: auto;
+    min-width: 480px;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Filter tabs: wrap instead of horizontal-scroll on narrow screens —
+     a scrollable tab strip with no scroll affordance just looks like a
+     clipped/cut-off label (e.g. "Pending" rendering as "ending"). */
+  .filter-tabs { overflow-x: visible; flex-wrap: wrap; padding-bottom: 8px; }
+  .table-toolbar { padding: 12px 16px; }
 
   /* ── Topbar: too many elements for a narrow viewport — drop the
      decorative clinic block, let the breadcrumb truncate instead of
@@ -2584,9 +2796,13 @@ select.reg-input option { color: #1C1C1C; }
    PRINT — Ophthalmic Clearance isolation
 ══════════════════════════════════════════════ */
 @media print {
-  /* Hide everything; reveal only the certificate */
-  body * { visibility: hidden; }
-  .clearance-document, .clearance-document * { visibility: visible; }
+  /* Hide everything, but ONLY when the clearance certificate overlay is
+     actually open — without this :has() guard, every other print in the
+     app (Print Records, table print buttons, etc.) would print a blank
+     page, since this rule applied unconditionally on every window.print(). */
+  body:has(.clearance-document) * { visibility: hidden; }
+  body:has(.clearance-document) .clearance-document,
+  body:has(.clearance-document) .clearance-document * { visibility: visible; }
 
   /* Position certificate at top-left of page */
   .clearance-document {

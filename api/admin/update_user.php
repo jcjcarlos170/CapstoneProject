@@ -20,14 +20,17 @@ if ($_SESSION['role'] !== 'admin') {
     jsonResponse(['success' => false, 'message' => 'Only admins may edit user profiles.'], 403);
 }
 
-$b         = getBody();
-$profileId = trim($b['profileId']  ?? '');
-$role      = trim($b['role']       ?? '');
-$fn        = trim($b['firstName']  ?? '');
-$ln        = trim($b['lastName']   ?? '');
-$email     = trim($b['email']      ?? '');
-$contact   = trim($b['contact']    ?? '');
-$status    = trim($b['status']     ?? '');
+$b             = getBody();
+$profileId     = trim($b['profileId']     ?? '');
+$role          = trim($b['role']          ?? '');
+$fn            = trim($b['firstName']     ?? '');
+$ln            = trim($b['lastName']      ?? '');
+$email         = trim($b['email']         ?? '');
+$contact       = trim($b['contact']       ?? '');
+$status        = trim($b['status']        ?? '');
+// Doctor-only fields — patients/staff/admin profiles don't have these
+$specialization = trim($b['specialization'] ?? '');
+$prcLicense      = trim($b['prcLicense']     ?? '');
 
 if (!$profileId || !$role || !$fn || !$ln) {
     jsonResponse(['success' => false, 'message' => 'profileId, role, firstName and lastName are required.']);
@@ -71,6 +74,15 @@ try {
         ? [$fn, $ln, $contact, $status, $profileId]
         : [$fn, $ln, $contact, $profileId]
     );
+
+    // Doctor-only: specialization and PRC license are locked on the doctor's
+    // own Settings page (shown read-only with "Contact admin to update") —
+    // this is the only place those fields can actually be changed.
+    if ($role === 'Doctor' && ($specialization !== '' || $prcLicense !== '')) {
+        $pdo->prepare(
+            "UPDATE doctors SET specialization = COALESCE(NULLIF(?, ''), specialization), prc_license = ? WHERE id = ?"
+        )->execute([$specialization, $prcLicense !== '' ? $prcLicense : null, $profileId]);
+    }
 
     // Sync is_active on users table when status changes
     if ($status) {

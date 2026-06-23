@@ -241,12 +241,49 @@ function downloadQR(wrapperId, filename) {
 }
 window.downloadQR = downloadQR
 
+// ════════════════════════════════════════════════════════════════
+//  SHARED PRINT HELPER — hidden same-page iframe instead of
+//  window.open(). Mobile browsers (iOS Safari especially, and any
+//  in-app/WebView browser) routinely block a popup window even from
+//  a direct tap, and "width=/height=" window features have no
+//  equivalent on mobile anyway. An iframe never triggers a popup
+//  blocker and produces an identical printed page on every platform.
+// ════════════════════════════════════════════════════════════════
+function _printHtmlDocument(html) {
+  const old = document.getElementById('_print-frame')
+  if (old) old.remove()
+
+  const iframe = document.createElement('iframe')
+  iframe.id = '_print-frame'
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
+  document.body.appendChild(iframe)
+
+  let fired = false
+  const doPrint = () => {
+    if (fired) return
+    fired = true
+    try {
+      iframe.contentWindow.focus()
+      iframe.contentWindow.print()
+    } catch (_) {
+      toast('Could not open the print dialog.', 'error')
+    }
+  }
+
+  iframe.onload = () => setTimeout(doPrint, 100)
+  const doc = iframe.contentWindow.document
+  doc.open()
+  doc.write(html)
+  doc.close()
+  // Fallback in case `load` never fires for a document.write()'d iframe in this browser
+  setTimeout(doPrint, 700)
+}
+window._printHtmlDocument = _printHtmlDocument
+
 function printQR(wrapperId, patientName, patientId, qrData) {
   const root    = wrapperId ? document.getElementById(wrapperId) : document.body
   const dataUrl = _getQRDataUrl(root || document.body)
-  const w = window.open('', '_blank', 'width=420,height=560')
-  if (!w) { toast('Pop-up blocked — please allow pop-ups and try again.', 'error'); return }
-  w.document.write(`<!DOCTYPE html><html><head><title>QR — ${patientName || 'Patient'}</title>
+  _printHtmlDocument(`<!DOCTYPE html><html><head><title>QR — ${patientName || 'Patient'}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:flex-start;padding:24px;background:#fff}
@@ -266,9 +303,7 @@ function printQR(wrapperId, patientName, patientId, qrData) {
     <div class="pid">${patientId || ''}</div>
     <div class="hint">${qrData || ''}</div>
   </div>
-  <script>window.onload=function(){window.print();setTimeout(function(){window.close()},500)}<\/script>
   </body></html>`)
-  w.document.close()
 }
 window.printQR = printQR
 
@@ -328,12 +363,32 @@ async function startQRCamera(containerId, onResult, onStatus) {
   }
 }
 
+// Belt-and-suspenders: html5-qrcode's own stop() can silently fail to
+// release the camera (e.g. if called while still starting up, or in some
+// mobile browsers), leaving the hardware camera light on even though our
+// UI thinks it's stopped. Directly stopping every track of any <video>
+// stream still attached inside the reader guarantees the camera is freed
+// regardless of whether the library's own stop() succeeded.
+function _qrForceStopAllTracks() {
+  try {
+    document.querySelectorAll('#qr-reader video').forEach(video => {
+      const stream = video.srcObject
+      if (stream && typeof stream.getTracks === 'function') {
+        stream.getTracks().forEach(track => track.stop())
+      }
+      video.srcObject = null
+    })
+  } catch (_) {}
+}
+
 async function _qrKillStream() {
-  if (!_h5qr) return
   const instance = _h5qr
   _h5qr = null
-  try { await instance.stop() } catch (_) {}
-  try { instance.clear() } catch (_) {}
+  if (instance) {
+    try { await instance.stop() } catch (_) {}
+    try { instance.clear() } catch (_) {}
+  }
+  _qrForceStopAllTracks()
 }
 window._qrKillStream = _qrKillStream
 
@@ -557,7 +612,7 @@ async function approveAppt(id) {
   const a = appointments.find(a => a.id === id)
   if (a) addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
     action: `Approved appointment ${id} for ${a.patientName}`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'appointment' })
+    timestamp: nowTimestamp(), type:'appointment' })
   toast('Appointment confirmed. The patient will be notified of their scheduled consultation.')
   renderPage()
 }
@@ -688,7 +743,7 @@ async function doRequestReschedule(id) {
   a.rescheduleRequest = {
     reason,
     preferredDate,
-    requestedAt: new Date().toISOString().replace('T',' ').slice(0,16)
+    requestedAt: nowTimestamp().slice(0,16)
   }
   closeModal()
   toast('Reschedule request submitted. The clinic will review and contact you.')
@@ -732,8 +787,11 @@ function viewAppt(id) {
     ${i < steps.length-1 ? `<div style="flex:1;height:2px;margin-top:14px;background:${i < stepIdx ? '#E8760A' : '#E5E7EB'};min-width:16px"></div>` : ''}`
   ).join('')
 
-  const isAdmin = state.role === 'admin' || state.role === 'staff'
-  const isDoctor = state.role === 'doctor'
+  const isAdmin   = state.role === 'admin' || state.role === 'staff'
+  const isDoctor  = state.role === 'doctor'
+  const isPatient = state.role === 'patient'
+  const isActive  = a.status === 'pending' || a.status === 'approved'
+  const patientCanCancel = !isPatient || !isActive || (window.apptCancellable ? window.apptCancellable(a) : true)
   const actionBtns = (isAdmin || isDoctor) ? `
     ${a.status === 'pending' && isAdmin ? `
       <button class="btn-success" onclick="window.approveAppt('${a.id}');window.closeModal()">Approve</button>
@@ -743,8 +801,10 @@ function viewAppt(id) {
       <button class="btn-primary" onclick="window.markApptCompleted('${a.id}')">Mark Completed</button>
       <button class="btn-ghost"   onclick="window.rescheduleAppt('${a.id}')">Reschedule</button>
       <button class="btn-danger"  onclick="window.confirmCancelAppt('${a.id}')">Cancel</button>` : ''}` :
-    (a.status === 'pending' || a.status === 'approved') ? `
-      <button class="btn-danger" onclick="window.confirmCancelAppt('${a.id}')">Cancel Appointment</button>` : ''
+    isActive ? (patientCanCancel
+      ? `<button class="btn-danger" onclick="window.confirmCancelAppt('${a.id}')">Cancel Appointment</button>`
+      : `<button class="btn-danger" disabled style="opacity:.45;cursor:not-allowed" title="Cancellation window has passed">Cancel Appointment</button>`
+    ) : ''
 
   const badgeMap = { pending:'badge-pending', approved:'badge-approved', cancelled:'badge-cancelled', disapproved:'badge-disapproved', completed:'badge-completed' }
   const badgeHtml = `<span class="badge ${badgeMap[a.status]||''}">${a.status.charAt(0).toUpperCase()+a.status.slice(1)}</span>`
@@ -798,13 +858,20 @@ function viewAppt(id) {
         <div style="font-size:.72rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Reschedule Note</div>
         <div style="font-size:.84rem;color:#374151">${a.rescheduleNote}</div>
       </div>` : ''}
+      ${isPatient && isActive && !patientCanCancel ? `<div style="display:flex;gap:8px;align-items:flex-start;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px;margin-bottom:14px">
+        ${icon('alert-circle','icon-sm')}
+        <div style="font-size:.82rem;color:#92400E;line-height:1.5">
+          <strong>This appointment can no longer be cancelled online.</strong><br>
+          Cancellations must be made at least ${CANCEL_DEADLINE_HOURS} hours in advance. Please call the clinic directly if you need to cancel.
+        </div>
+      </div>` : ''}
       ${a.rescheduleRequest ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:700;color:#C2410C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
           ${icon('refresh-cw','icon-sm')} Reschedule Request
         </div>
         <div style="font-size:.84rem;color:#374151;margin-bottom:6px">${a.rescheduleRequest.reason}</div>
         ${a.rescheduleRequest.preferredDate ? `<div style="font-size:.76rem;color:#6B7280">Preferred date: <strong>${(() => { const dt = new Date(a.rescheduleRequest.preferredDate); return isNaN(dt) ? a.rescheduleRequest.preferredDate : dt.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'}) })()}</strong></div>` : ''}
-        <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">Submitted: ${a.rescheduleRequest.requestedAt}</div>
+        <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">Submitted: ${fmtTimestamp12h(a.rescheduleRequest.requestedAt)}</div>
         ${(isAdmin || isDoctor) ? `<div style="margin-top:10px;display:flex;gap:6px">
           <button class="btn-primary" style="font-size:.78rem;padding:5px 12px" onclick="window.rescheduleAppt('${a.id}')">Accept &amp; Reschedule</button>
           <button class="btn-secondary" style="font-size:.78rem;padding:5px 12px" onclick="window.dismissRescheduleRequest('${a.id}')">Dismiss</button>
@@ -911,8 +978,7 @@ window.markAllNotifsRead = markAllNotifsRead
 function printPrescriptionCard(cardId) {
   const el = document.getElementById(cardId)
   if (!el) { window.print(); return }
-  const w = window.open('', '_blank', 'width=600,height=500')
-  w.document.write(`<!DOCTYPE html><html><head><title>Prescription</title>
+  _printHtmlDocument(`<!DOCTYPE html><html><head><title>Prescription</title>
     <style>body{font-family:Arial,sans-serif;padding:24px;font-size:14px}
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
     .box{border:1px solid #ddd;border-radius:6px;padding:12px}
@@ -920,9 +986,6 @@ function printPrescriptionCard(cardId) {
     .val{font-family:monospace;font-size:16px;font-weight:bold;color:#111}
     .sub{font-size:11px;color:#888}
     </style></head><body>${el.innerHTML}</body></html>`)
-  w.document.close()
-  w.focus()
-  setTimeout(() => { w.print(); w.close() }, 300)
 }
 window.printPrescriptionCard = printPrescriptionCard
 
@@ -1179,7 +1242,7 @@ async function doCreateAppt() {
     addAppointment({ id: newId, patientId, patientName, doctorId, doctorName, date, time, type, status, notes })
     addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
       action: `Created appointment ${newId} for ${patientName}`,
-      timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'appointment' })
+      timestamp: nowTimestamp(), type:'appointment' })
     closeModal()
     toast('Appointment created successfully. The patient will be notified.')
     renderPage()
@@ -1196,10 +1259,23 @@ window.doCreateAppt        = doCreateAppt
 // ════════════════════════════════════════════════════════════════
 //  CONFIRM CANCEL + MARK COMPLETED
 // ════════════════════════════════════════════════════════════════
+// Shown when a patient tries to cancel an appointment that's already inside
+// the cancellation deadline window (e.g. clicking a disabled cancel button).
+function explainCancelDeadline() {
+  toast(`This appointment can no longer be cancelled online — cancellations require at least ${CANCEL_DEADLINE_HOURS} hours' notice. Please call the clinic directly.`, 'error')
+}
+window.explainCancelDeadline = explainCancelDeadline
+
 function confirmCancelAppt(id) {
   const a = appointments.find(a => a.id === id)
   if (!a) return
   const isPatient = state.role === 'patient'
+
+  // Defense in depth — the buttons that open this modal already hide/disable
+  // themselves past the deadline, but don't rely on that alone for something
+  // that blocks a real cancellation.
+  if (isPatient && !apptCancellable(a)) { explainCancelDeadline(); return }
+
   const fmtD = d => { const dt = new Date(d); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) }
   showModal(`
     <div class="modal-header">
@@ -1240,7 +1316,7 @@ async function markApptCompleted(id) {
   const a = appointments.find(a => a.id === id)
   if (a) addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
     action: `Marked appointment ${id} as completed for ${a.patientName}`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'appointment' })
+    timestamp: nowTimestamp(), type:'appointment' })
   closeModal()
   toast('Appointment marked as completed. The record has been updated.')
   renderPage()
@@ -1340,6 +1416,39 @@ const _takenSlots = {
   fri: ['8:00 AM','1:00 PM'],
   tue: ['9:30 AM'],
   thu: ['2:30 PM']
+}
+
+// ── Time-slot generation from Consultation Settings ─────────────────
+// Booking time slots used to be a hardcoded list — these read the live
+// morning/afternoon session times + default duration so admin's Operating
+// Hours settings actually drive what patients can book.
+function _clockToMinutes(t) {
+  if (!t) return null
+  const isPM   = /PM$/i.test(t) && !/^12/.test(t)
+  const is12am = /^12/.test(t) && /AM$/i.test(t)
+  const [h, m] = t.replace(/\s?[AP]M$/i, '').split(':').map(Number)
+  let hh = h || 0
+  if (isPM)   hh += 12
+  if (is12am) hh = 0
+  return hh * 60 + (m || 0)
+}
+function _minutesToClock(mins) {
+  let h = Math.floor(mins / 60), m = mins % 60
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  let hh = h % 12; if (hh === 0) hh = 12
+  return `${hh}:${String(m).padStart(2,'0')} ${ampm}`
+}
+function _durationMinutes(d) {
+  const m = (d || '').match(/\d+/)
+  return m ? parseInt(m[0], 10) : 30
+}
+function _buildSessionSlots(startStr, endStr, stepMin) {
+  const start = _clockToMinutes(startStr)
+  const end   = _clockToMinutes(endStr)
+  if (start == null || end == null || stepMin <= 0) return []
+  const out = []
+  for (let t = start; t < end; t += stepMin) out.push(_minutesToClock(t))
+  return out
 }
 
 // ── Stepper UI update ─────────────────────────────────────────────
@@ -1476,8 +1585,9 @@ function amcRender() {
   const now      = new Date()
   const todayY   = now.getFullYear(), todayM = now.getMonth(), todayD = now.getDate()
   const { calYear: year, calMonth: month } = _wiz
-  const maxDate  = new Date(todayY, todayM + 3, todayD)
+  const maxDate  = maxAdvanceDate(new Date(todayY, todayM, todayD))
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const dayNamesFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
   const lbl = document.getElementById('amc-month-label')
   if (lbl) lbl.textContent = new Date(year, month, 1).toLocaleDateString('en-PH', { month:'long', year:'numeric' })
@@ -1485,6 +1595,11 @@ function amcRender() {
   if (prev) prev.style.opacity = (year===todayY && month===todayM) ? '0.3' : '1'
 
   const phHolidays = getPHHolidays(year)
+  const blockedMap = {}
+  if (_wiz.doctorId) {
+    const doc = doctors.find(d => d.id === _wiz.doctorId)
+    ;(doc?.blockedDates || []).forEach(b => { blockedMap[b.date] = b.reason || 'Unavailable' })
+  }
   const firstDay  = new Date(year, month, 1).getDay()
   const daysInMon = new Date(year, month + 1, 0).getDate()
   let cells = ''
@@ -1499,16 +1614,20 @@ function amcRender() {
     const isSel     = dateStr === _wiz.selectedDate
     const isHoliday = !!phHolidays[dateStr]
     const holidayName = phHolidays[dateStr] || ''
+    const blockedReason = blockedMap[dateStr]
+    const isBlocked = !!blockedReason
     const daysOut   = Math.round((new Date(year, month, d) - new Date(todayY, todayM, todayD)) / 86400000)
     const tooSoon   = daysOut < minAdvanceDays()
-    const isDisabled = isPast || tooSoon || isHoliday
-    // If doctor prefilled, restrict to their available days; otherwise allow Mon–Sat
+    const isDisabled = isPast || tooSoon || isHoliday || isBlocked
+    // If doctor prefilled, restrict to their available days; otherwise fall
+    // back to the clinic-wide Clinic Days setting (Consultation Settings).
     const prefillDays = _wiz._prefillDays || []
     const hasPrefill  = prefillDays.length > 0
-    const docAvail    = hasPrefill ? prefillDays.includes(dayNames[dow]) : (dow >= 1 && dow <= 6)
+    const docAvail    = hasPrefill ? prefillDays.includes(dayNames[dow]) : (consultationSettings.clinicDays || []).includes(dayNamesFull[dow])
     let cls = 'amc-day'
     if (isSel)                                       cls += ' amc-selected'
     else if (isToday)                                cls += ' amc-today'
+    else if (isBlocked && !isPast)                   cls += ' amc-blocked'
     else if (isHoliday && !isPast)                   cls += ' amc-holiday'
     else if (docAvail && !isDisabled && !isFar)      cls += ' amc-avail'
     if (isDisabled || isSun || (hasPrefill && !docAvail)) cls += ' amc-past'
@@ -1516,6 +1635,7 @@ function amcRender() {
     const clickable = !isDisabled && !isFar && docAvail && !isSun
     const onclick   = clickable ? `onclick="window.amcSelectDate('${dateStr}','${dayNames[dow]}')"` : ''
     const tooltip   = (tooSoon && !isPast) ? `title="${minAdvanceTooltip()}"` :
+                      isBlocked ? `title="Doctor unavailable: ${String(blockedReason).replace(/"/g,'&quot;')}"` :
                       isHoliday ? `title="Clinic closed: ${holidayName}"` : ''
     const inner     = isHoliday && !isPast
       ? `${d}<span class="amc-holiday-lbl">${holidayName}</span>`
@@ -1586,9 +1706,28 @@ function wizBuildDoctorCards() {
     return
   }
 
+  // A doctor stops being bookable on this date once they hit the clinic's
+  // max-appointments-per-doctor-per-day cap (Consultation Settings) — shown
+  // as a disabled "Fully booked" card instead of just disappearing, so it's
+  // clear why rather than the doctor silently not being there.
+  const maxPerDay = consultationSettings.maxApptsPerDoctorPerDay || 12
+  const apptCountFor = docId => appointments.filter(a =>
+    a.doctorId === docId && a.date === _wiz.selectedDate && !['cancelled','disapproved'].includes(a.status)
+  ).length
+
   const getInitials = name => name.replace('Dr. ','').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
 
-  container.innerHTML = availDocs.map(d => `
+  container.innerHTML = availDocs.map(d => {
+    const isFull = apptCountFor(d.id) >= maxPerDay
+    if (isFull) return `
+      <div class="doc-card" style="opacity:.55;cursor:not-allowed" title="This doctor is fully booked on the selected date.">
+        <div class="doc-card-avatar">${getInitials(d.name)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.9rem;font-weight:700;color:#1C1C1C">${d.name}</div>
+          <div style="font-size:.78rem;color:#DC2626;margin-top:2px">Fully booked on this date</div>
+        </div>
+      </div>`
+    return `
     <button class="doc-card${d.id === _wiz.doctorId ? ' selected' : ''}"
             onclick="window.wizSelectDoctor('${d.id}','${d.name}','${d.specialization}',this)">
       <div class="doc-card-avatar">${getInitials(d.name)}</div>
@@ -1597,7 +1736,8 @@ function wizBuildDoctorCards() {
         <div style="font-size:.78rem;color:#6B7280;margin-top:2px">${d.specialization} &bull; Available ${(d.days||[]).join(', ')}</div>
       </div>
       ${d.id === _wiz.doctorId ? `<span style="color:#E8760A">${icon('check-circle','icon-sm')}</span>` : ''}
-    </button>`).join('')
+    </button>`
+  }).join('')
 
   const btn = document.getElementById('wiz-next-1')
   if (btn) btn.disabled = !_wiz.doctorId
@@ -1636,8 +1776,18 @@ function wizBuildTimeSlots() {
   const dt     = new Date(_wiz.selectedDate + 'T00:00:00')
   const dayAbb = ['sun','mon','tue','wed','thu','fri','sat'][dt.getDay()]
   const taken  = _takenSlots[dayAbb] || []
-  const morning   = ['8:00 AM','8:30 AM','9:00 AM','9:30 AM','10:00 AM','10:30 AM','11:00 AM','11:30 AM']
-  const afternoon = ['1:00 PM','1:30 PM','2:00 PM','2:30 PM','3:00 PM','3:30 PM','4:00 PM','4:30 PM']
+  const stepMin = _durationMinutes(consultationSettings.defaultDuration)
+  // With no lunch break, the clinic runs one continuous session (morning
+  // start → afternoon end) rather than two blocks split around a gap that
+  // no longer means anything.
+  let morning, afternoon
+  if (consultationSettings.lunchBreak) {
+    morning   = _buildSessionSlots(consultationSettings.morningStart,   consultationSettings.morningEnd,   stepMin)
+    afternoon = _buildSessionSlots(consultationSettings.afternoonStart, consultationSettings.afternoonEnd, stepMin)
+  } else {
+    morning   = _buildSessionSlots(consultationSettings.morningStart, consultationSettings.afternoonEnd, stepMin)
+    afternoon = []
+  }
   const slotBtn = t => {
     const isTaken  = taken.includes(t)
     const isSel    = t === _wiz.time
@@ -1648,13 +1798,14 @@ function wizBuildTimeSlots() {
   const el = document.getElementById('appt-time-slots')
   if (el) el.innerHTML = `
     <div style="margin-bottom:14px">
-      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">Morning</div>
+      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">${afternoon.length ? 'Morning' : 'Available Times'}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">${morning.map(slotBtn).join('')}</div>
     </div>
+    ${afternoon.length ? `
     <div>
       <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">Afternoon</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">${afternoon.map(slotBtn).join('')}</div>
-    </div>`
+    </div>` : ''}`
   const lbl2 = document.getElementById('wiz-doc-lbl3')
   const lbl3 = document.getElementById('wiz-date-lbl3')
   if (lbl2) lbl2.textContent = _wiz.doctorName
@@ -1743,7 +1894,7 @@ async function requestAppointment() {
     })
     addActivityLog({ id:'L'+Date.now(), user: user.name, role: 'Patient',
       action: `Requested appointment ${newId} with ${_wiz.doctorName}`,
-      timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'appointment' })
+      timestamp: nowTimestamp(), type:'appointment' })
 
     const dt = new Date(_wiz.selectedDate + 'T00:00:00')
     const dateShort = dt.toLocaleDateString('en-PH', { month:'long', day:'numeric', year:'numeric' })
@@ -1782,7 +1933,7 @@ document.addEventListener('keydown', e => {
 // ════════════════════════════════════════════════════════════════
 //  SAVE OPTICAL EXAMINATION
 // ════════════════════════════════════════════════════════════════
-function saveExamination(patientId) {
+async function saveExamination(patientId) {
   const p = patients.find(p => p.id === patientId)
   if (!p) return
 
@@ -1790,39 +1941,59 @@ function saveExamination(patientId) {
   const od = { sph: val('ex-od-sph'), cyl: val('ex-od-cyl'), axis: val('ex-od-axis'), va: val('ex-od-va'), add: val('ex-od-add') }
   const os = { sph: val('ex-os-sph'), cyl: val('ex-os-cyl'), axis: val('ex-os-axis'), va: val('ex-os-va'), add: val('ex-os-add') }
   const rxPart = (eye) => [eye.sph, eye.cyl ? eye.cyl + (eye.axis ? ' ×' + eye.axis : '') : '', eye.add ? 'Add ' + eye.add : ''].filter(Boolean).join(' ')
+
+  const diagnosis = val('ex-diagnosis')
+  if (!diagnosis) { toast('Please enter a diagnosis.', 'error'); return }
+
   const newExam = {
-    id:                  'E' + Date.now(),
     date:                new Date().toISOString().split('T')[0],
-    doctor:              state.user.name,
-    od,
-    os,
+    od, os,
     iop:                 { od: val('ex-iop-od'), os: val('ex-iop-os') },
     pd:                  val('ex-pd'),
     lensType:            val('ex-lens-type') || '—',
-    status:              'completed',
-    diagnosis:           val('ex-diagnosis'),
+    diagnosis,
     recommendation:      val('ex-recommendation'),
     prescriptionDetails: ('OD: ' + rxPart(od) + ' / OS: ' + rxPart(os)).trim(),
     testResults:         val('ex-test-results'),
-    remarks:             val('ex-remarks')
+    remarks:             val('ex-remarks'),
+    status:              'completed'
   }
 
-  p.examinations.push(newExam)
-  p.consultations.unshift({
-    id: 'C' + Date.now(), date: newExam.date,
-    doctor: state.user.name, type: 'Eye Examination',
-    diagnosis: newExam.diagnosis,
-    prescription: `OD: ${newExam.od.sph} ${newExam.od.cyl} x${newExam.od.axis} / OS: ${newExam.os.sph} ${newExam.os.cyl} x${newExam.os.axis}`,
-    remarks: newExam.remarks
-  })
-  p.lastVisit = newExam.date
+  const saveBtns = document.querySelectorAll('.exam-save-btn')
+  const saveHtml = saveBtns.length ? saveBtns[0].innerHTML : ''
+  saveBtns.forEach(b => { b.disabled = true; b.textContent = 'Saving…' })
 
-  addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: 'Doctor',
-    action: `Saved optical examination for ${p.name} (${p.id})`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'examination' })
+  // This page used to only update in-memory state — the "Saved successfully"
+  // toast and activity log entry fired even though nothing was persisted, so
+  // the record silently vanished on the next sync/reload. Now mirrors
+  // saveNewExam()'s real backend call (api/examinations/create.php).
+  try {
+    const r = await fetch('api/examinations/create.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ patientId, ...newExam })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Failed to save examination.', 'error'); return }
 
-  toast('Examination record saved successfully. The prescription summary is now available for printing.')
-  navigate('patient-view', { patientId, patientName: p.name })
+    newExam.id = d.id
+    p.examinations.push(newExam)
+    p.consultations.unshift({
+      id: 'C' + Date.now(), date: newExam.date,
+      doctor: state.user.name, type: 'Eye Examination',
+      diagnosis: newExam.diagnosis,
+      prescription: `OD: ${newExam.od.sph} ${newExam.od.cyl} x${newExam.od.axis} / OS: ${newExam.os.sph} ${newExam.os.cyl} x${newExam.os.axis}`,
+      remarks: newExam.remarks
+    })
+    p.lastVisit = newExam.date
+
+    toast('Examination record saved successfully. The prescription summary is now available for printing.')
+    navigate('patient-view', { patientId, patientName: p.name })
+  } catch (_) {
+    toast('Network error — examination not saved.', 'error')
+  } finally {
+    saveBtns.forEach(b => { b.disabled = false; b.innerHTML = saveHtml })
+  }
 }
 window.saveExamination = saveExamination
 
@@ -2024,7 +2195,7 @@ function doAddUser() {
 
   addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
     action: `Created new ${role} account: ${name}`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'user' })
+    timestamp: nowTimestamp(), type:'user' })
 
   closeModal()
   toast(`Account created successfully. ${name} can now log in with their credentials.`)
@@ -2051,6 +2222,14 @@ function editUserModal(id, role) {
         <input id="eu-email" type="email" class="form-input" value="${u.email || ''}"></div>
       <div class="form-group"><label class="form-label">Contact</label>
         <input id="eu-contact" class="form-input" value="${u.contact || ''}"></div>
+      ${role === 'Doctor' ? `
+      <div class="form-row-2">
+        <div class="form-group"><label class="form-label">Specialization</label>
+          <input id="eu-specialization" class="form-input" value="${(u.specialization || 'Optometrist').replace(/"/g,'&quot;')}"></div>
+        <div class="form-group"><label class="form-label">PRC License No.</label>
+          <input id="eu-prc-license" class="form-input" placeholder="e.g. 0005787" value="${(u.prcLicense || '').replace(/"/g,'&quot;')}"></div>
+      </div>
+      <p style="font-size:.74rem;color:#9CA3AF;margin:-8px 0 14px">Locked on the doctor's own Settings page — only admins can update these.</p>` : ''}
       <div class="form-group"><label class="form-label">Status</label>
         <select id="eu-status" class="form-select">
           <option${u.status==='active'?' selected':''}>active</option>
@@ -2103,6 +2282,8 @@ async function doEditUser(id, role) {
   const email   = (document.getElementById('eu-email')   || {}).value?.trim() || u.email
   const contact = (document.getElementById('eu-contact') || {}).value?.trim() || u.contact
   const status  = (document.getElementById('eu-status')  || {}).value         || u.status
+  const specialization = document.getElementById('eu-specialization')?.value?.trim() || ''
+  const prcLicense      = document.getElementById('eu-prc-license')?.value?.trim()    || ''
   const newPw   = document.getElementById('eu-new-pw')?.value  || ''
   const cfPw    = document.getElementById('eu-confirm-pw')?.value || ''
 
@@ -2115,10 +2296,14 @@ async function doEditUser(id, role) {
   try {
     const r = await fetch('api/admin/update_user.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profileId: id, role, firstName: fn, lastName: ln, email, contact, status })
+      body: JSON.stringify({ profileId: id, role, firstName: fn, lastName: ln, email, contact, status, specialization, prcLicense })
     })
     const d = await r.json()
     if (!d.success) { toast(d.message || 'Failed to save changes.', 'error'); return }
+    if (role === 'Doctor') {
+      if (specialization) u.specialization = specialization
+      u.prcLicense = prcLicense
+    }
   } catch (_) { toast('Network error — changes not saved.', 'error'); return }
 
   // Reset password via backend if provided
@@ -2215,7 +2400,7 @@ async function doArchiveUser(id, name) {
 
   addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
     action: `Archived account: ${name} (${id}) — Reason: ${reason}`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'user' })
+    timestamp: nowTimestamp(), type:'user' })
   closeModal()
   toast(`Account archived successfully. It can be restored from Settings > Archives.`, 'success')
   renderPage()
@@ -2322,7 +2507,7 @@ async function doAddPatient() {
     patients.push({ ...p, password: '', lastVisit: '—' })
     addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
       action: `Registered new patient: ${p.name} (${p.id})`,
-      timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'patient' })
+      timestamp: nowTimestamp(), type:'patient' })
     closeModal()
     renderPage()
     setTimeout(() => window._showRegistrationQRModal(p, d.tempPassword || null), 150)
@@ -2493,7 +2678,7 @@ async function doArchivePatient(id) {
 
   addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
     action: `Archived patient: ${p.name} (${id}) — Reason: ${reason}`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'patient' })
+    timestamp: nowTimestamp(), type:'patient' })
   closeModal()
   toast(`Patient archived successfully. The record can be restored from Settings > Archives.`, 'success')
   renderPage()
@@ -2516,11 +2701,11 @@ function openContactMessageModal(id) {
   if (!m.isRead) _setContactMessageRead(id, true, true)
 
   const dt = new Date(m.createdAt)
-  const fullDate = isNaN(dt) ? m.createdAt : dt.toLocaleString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const fullDate = isNaN(dt) ? m.createdAt : dt.toLocaleString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
 
   const replyHtml = m.reply ? (() => {
     const rdt = new Date(m.repliedAt)
-    const rDate = isNaN(rdt) ? m.repliedAt : rdt.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    const rDate = isNaN(rdt) ? m.repliedAt : rdt.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
     return `
       <div style="margin-top:14px">
         <p style="margin:0 0 6px;font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9CA3AF">
@@ -2787,7 +2972,7 @@ async function doRestore(id, name) {
   const rec = archivedRecords.find(r => r.id === id)
   if (!rec) return
 
-  if (rec.type === 'Account' || rec.type === 'Patient') {
+  if (rec.type === 'Account' || rec.type === 'Patient' || rec.type === 'Service') {
     try {
       const r = await fetch('api/archive/restore.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2800,28 +2985,18 @@ async function doRestore(id, name) {
     if (window._syncPatients) window._syncPatients()
     if (window._syncDoctors)  window._syncDoctors()
     if (window._syncStaff)    window._syncStaff()
+    if (window._syncServices) window._syncServices()
   } else if (rec.data) {
     const d = rec.data
     if (rec.type === 'Appointment') {
       if (!appointments.find(a => a.id === d.id)) appointments.push(d)
-    } else if (rec.type === 'Service') {
-      if (!CLINIC_SERVICES.find(s => s.id === d.id)) {
-        try {
-          const r = await fetch('api/services/update.php', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: d.id, status: 'active' })
-          })
-          const sd = await r.json()
-          if (sd.success) CLINIC_SERVICES.push(sd.service)
-        } catch (_) {}
-      }
     }
   }
 
   removeArchivedRecord(id)
   addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
     action: `Restored archived record: ${name}`,
-    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19), type: 'settings' })
+    timestamp: nowTimestamp(), type: 'settings' })
   closeModal()
   toast('Record restored successfully. It is now visible in the active list.', 'success')
   renderPage()
@@ -2862,7 +3037,7 @@ function confirmPermDelete(id, name) {
 async function doPermDelete(id, name) {
   const rec = archivedRecords.find(r => r.id === id)
 
-  if (rec && (rec.type === 'Account' || rec.type === 'Patient')) {
+  if (rec && (rec.type === 'Account' || rec.type === 'Patient' || rec.type === 'Service')) {
     try {
       const r = await fetch('api/archive/delete.php', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2876,7 +3051,7 @@ async function doPermDelete(id, name) {
   removeArchivedRecord(id)
   addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
     action: `Permanently deleted archived record: ${name}`,
-    timestamp: new Date().toISOString().replace('T',' ').slice(0,19), type:'settings' })
+    timestamp: nowTimestamp(), type:'settings' })
   closeModal()
   toast('Record permanently deleted.', 'error')
   renderPage()
@@ -3001,7 +3176,7 @@ function saveClinicInfo() {
 
   addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
     action: 'Updated clinic information',
-    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19), type: 'settings' })
+    timestamp: nowTimestamp(), type: 'settings' })
 
   if (window.renderSidebar) renderSidebar()
   toast('Clinic information updated successfully.', 'success')
@@ -3030,7 +3205,7 @@ function saveSchedulingRules() {
 
   addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
     action: 'Updated scheduling rules',
-    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19), type: 'settings' })
+    timestamp: nowTimestamp(), type: 'settings' })
   toast('Scheduling rules saved successfully.', 'success')
 }
 window.saveSchedulingRules = saveSchedulingRules
@@ -3059,7 +3234,7 @@ function saveOperatingHours() {
 
   addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
     action: `Updated operating hours: ${consultationSettings.morningStart}–${consultationSettings.afternoonEnd}`,
-    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19), type: 'settings' })
+    timestamp: nowTimestamp(), type: 'settings' })
   toast('Operating hours saved successfully.', 'success')
 }
 window.saveOperatingHours = saveOperatingHours
@@ -3220,23 +3395,24 @@ window.doArchiveService = async function(id) {
   if (idx === -1) return
   const svc = CLINIC_SERVICES[idx]
   try {
-    const r = await fetch('api/services/update.php', {
+    // archive/create.php deactivates the service AND persists the archive
+    // record server-side in one call — it used to only flip status locally
+    // with a client-fabricated record that vanished on the next page load.
+    const r = await fetch('api/archive/create.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: 'inactive' })
+      body: JSON.stringify({ profileId: id, type: 'Service', name: svc.name, reason, archivedBy: state.user.name })
     })
     const d = await r.json()
     if (!d.success) { toast(d.message || 'Could not archive service.', 'error'); return }
+    addArchivedRecord(d.record)
   } catch (_) {
     toast('Network error — could not archive service.', 'error')
     return
   }
   CLINIC_SERVICES.splice(idx, 1)
-  addArchivedRecord({ id: 'AR' + Date.now(), type: 'Service', name: svc.name, refId: 'SVC' + svc.id,
-    archivedBy: state.user.name, reason, date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    data: { ...svc } })
   addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
     action: `Archived service: ${svc.name} — Reason: ${reason}`,
-    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19), type: 'settings' })
+    timestamp: nowTimestamp(), type: 'settings' })
   closeModal()
   _rebuildServicesTable()
   toast('Service archived. It can be restored from Settings > Archives.', 'success')
@@ -3445,12 +3621,15 @@ function showQRResult(p) {
 
 function _renderPatientResult(p) {
   const initls = (p.name || '').split(' ').map(n=>n[0]).slice(0,2).join('')
+  const avatarHtml = p.photoUrl
+    ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+    : initls
   return `
     <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:10px"
          onmouseover="this.style.background='#FFFBF5'" onmouseout="this.style.background=''"
          onclick="window.selectPatientResult('${p.id}')">
-      <div style="width:32px;height:32px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;font-weight:700;flex-shrink:0">
-        ${initls}
+      <div style="width:32px;height:32px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;font-weight:700;flex-shrink:0;overflow:hidden">
+        ${avatarHtml}
       </div>
       <div>
         <div style="font-size:.84rem;font-weight:600">${p.name}</div>
@@ -3510,7 +3689,7 @@ function openSetScheduleModal(doctorId) {
     const activeDays = doc ? (doc.availableDays || doc.days || []) : []
     return allDays.map(day => `
       <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.85rem;padding:6px 10px;border:1px solid #E5E7EB;border-radius:6px">
-        <input type="checkbox" class="sched-day-cb" value="${day}" ${activeDays.includes(day) ? 'checked' : ''} style="accent-color:#E8760A"> ${day}
+        <input type="checkbox" class="sched-day-cb chk" value="${day}" ${activeDays.includes(day) ? 'checked' : ''}> ${day}
       </label>`).join('')
   }
 
@@ -3536,7 +3715,7 @@ function openSetScheduleModal(doctorId) {
       </div>
       <div class="form-group" style="display:flex;align-items:center;justify-content:space-between">
         <label class="form-label" style="margin:0">Mark as Available</label>
-        <input id="sched-avail" type="checkbox" ${!d || d.available ? 'checked' : ''} style="width:16px;height:16px;accent-color:#E8760A">
+        <input id="sched-avail" type="checkbox" class="chk" ${!d || d.available ? 'checked' : ''}>
       </div>
     </div>
     <div class="modal-footer">
@@ -3553,7 +3732,7 @@ window._schedDocChange = function(id) {
   if (wrap) {
     wrap.innerHTML = allDays.map(day => `
       <label style="cursor:pointer;display:flex;align-items:center;gap:6px;font-size:.85rem;padding:6px 10px;border:1px solid #E5E7EB;border-radius:6px">
-        <input type="checkbox" class="sched-day-cb" value="${day}" ${activeDays.includes(day) ? 'checked' : ''} style="accent-color:#E8760A"> ${day}
+        <input type="checkbox" class="sched-day-cb chk" value="${day}" ${activeDays.includes(day) ? 'checked' : ''}> ${day}
       </label>`).join('')
   }
   const startEl = document.getElementById('sched-start')
@@ -3567,36 +3746,46 @@ window._schedDocChange = function(id) {
   }
 }
 
-function doSaveSchedule() {
+async function doSaveSchedule() {
   const docId   = document.getElementById('sched-doc')?.value
   const startT  = document.getElementById('sched-start')?.value?.trim() || '8:00 AM'
   const endT    = document.getElementById('sched-end')?.value?.trim()   || '5:00 PM'
   const isAvail = document.getElementById('sched-avail')?.checked ?? true
   const selDays = Array.from(document.querySelectorAll('.sched-day-cb:checked')).map(cb => cb.value)
+  const doc     = doctors.find(d => d.id === docId)
 
-  const doc = doctors.find(d => d.id === docId)
-  if (doc) {
-    doc.availableDays = selDays
-    doc.days          = selDays
-    doc.hours         = `${startT} – ${endT}`
-    doc.available     = isAvail
+  if (!docId) { toast('No doctor selected.', 'error'); return }
+
+  const saveBtn = document.querySelector('.modal-footer .btn-primary')
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…' }
+
+  try {
+    const r = await fetch('api/doctors/update.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        doctorId:  docId,
+        days:      selDays,
+        workHours: `${startT} – ${endT}`,
+        available: isAvail,
+      }),
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not save schedule.', 'error'); return }
+
+    addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
+      action: `Updated availability for ${doc?.name || 'doctor'}: ${selDays.join(', ')}`,
+      timestamp: nowTimestamp(), type: 'settings' })
+
+    closeModal()
+    toast('Schedule updated successfully.')
+    if (window._syncDoctors) await window._syncDoctors()
+    renderPage()
+  } catch (_) {
+    toast('Network error — schedule not saved.', 'error')
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save Schedule' }
   }
-
-  if (typeof getAvailableDoctors === 'function') {
-    const bdDoc = getAvailableDoctors().find(d => d.id === docId)
-    if (bdDoc) {
-      bdDoc.availableDays = selDays
-      bdDoc.available     = isAvail
-    }
-  }
-
-  addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
-    action: `Updated availability for ${doc?.name || 'doctor'}: ${selDays.join(', ')}`,
-    timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19), type: 'settings' })
-
-  closeModal()
-  toast('Schedule updated successfully.')
-  renderPage()
 }
 
 window.openSetScheduleModal = openSetScheduleModal
@@ -4280,6 +4469,11 @@ function generateClearance(patientId, examId) {
     prc:   'PRC LICENSE NO. XXXXX',
     title: 'OPTOMETRIST'
   }
+  // Prefer the real PRC license now stored in the doctors table (set via
+  // admin's Edit User modal) over the hardcoded map above, most of which
+  // were "XXXXX" placeholder stubs.
+  const realDoc = doctors.find(d => d.name === e.doctor)
+  if (realDoc?.prcLicense) doc.prc = `PRC LICENSE NO. ${realDoc.prcLicense}`
 
   // Date formatter: "2025-12-10" → "December 10, 2025"
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -4430,7 +4624,7 @@ function generateClearance(patientId, examId) {
                 style="display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:1px solid #D1D5DB;background:#fff;color:#374151;font-size:.85rem;font-weight:500;cursor:pointer;">
           ${icon('x','icon-sm')} Close
         </button>
-        <button onclick="window.toast('PDF downloaded successfully.','success')"
+        <button id="clearance-dl-btn" onclick="window.downloadClearancePDF('${p.name.replace(/'/g,"\\'")}','${e.id}')"
                 style="display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:1px solid #0891b2;background:#fff;color:#0891b2;font-size:.85rem;font-weight:500;cursor:pointer;">
           ${icon('download','icon-sm')} Download PDF
         </button>
@@ -4446,6 +4640,65 @@ function generateClearance(patientId, examId) {
   overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove() })
 }
 window.generateClearance = generateClearance
+
+// Renders the open clearance certificate (.clearance-document) to a real
+// PDF file and triggers a download, via the locally-vendored html2pdf.js.
+function downloadClearancePDF(patientName, examId) {
+  const src = document.querySelector('.clearance-document')
+  if (!src || !window.html2pdf) { toast('PDF export is unavailable right now.', 'error'); return }
+
+  const btn = document.getElementById('clearance-dl-btn')
+  const btnHtml = btn ? btn.innerHTML : ''
+  if (btn) { btn.disabled = true; btn.style.opacity = '.6'; btn.innerHTML = `${icon('download','icon-sm')} Generating…` }
+
+  // html2canvas (used under the hood) can't rasterize live <textarea> values,
+  // so capture from a detached clone with the textareas swapped for plain
+  // text first — the visible editable view in the modal is left untouched.
+  const clone = src.cloneNode(true)
+  clone.querySelectorAll('textarea').forEach(ta => {
+    const div = document.createElement('div')
+    div.textContent = ta.value
+    div.style.cssText = ta.style.cssText
+    div.style.whiteSpace = 'pre-wrap'
+    ta.replaceWith(div)
+  })
+  const cloneWidth = src.offsetWidth
+  clone.style.width      = cloneWidth + 'px'
+  clone.style.background = '#fff'
+
+  // Render at a real (0,0) position rather than far off-screen (e.g.
+  // left:-9999px) — html2canvas's capture box math gets unreliable at
+  // extreme offsets, which is what was shifting the rasterized content to
+  // one side of the page. Keeping it on-screen but invisible via a
+  // visibility:hidden ancestor (overridden by visibility:visible on the
+  // clone itself) captures cleanly without ever showing it to the user.
+  const wrap = document.createElement('div')
+  wrap.style.cssText = 'position:absolute;top:0;left:0;visibility:hidden;'
+  clone.style.visibility = 'visible'
+  wrap.appendChild(clone)
+  document.body.appendChild(wrap)
+
+  const safeName = (patientName || 'Patient').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '')
+  const filename = `Clearance-${safeName}-${examId || ''}.pdf`
+
+  window.html2pdf()
+    .set({
+      margin:      [15, 18],
+      filename,
+      image:       { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: cloneWidth, width: cloneWidth, x: 0, y: 0 },
+      jsPDF:       { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    })
+    .from(clone)
+    .save()
+    .then(() => toast('PDF downloaded successfully.', 'success'))
+    .catch(() => toast('Could not generate the PDF. Try Print instead.', 'error'))
+    .finally(() => {
+      wrap.remove()
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.innerHTML = btnHtml }
+    })
+}
+window.downloadClearancePDF = downloadClearancePDF
 
 // ════════════════════════════════════════════════════════════════
 //  OPTICAL EXAMINATION — CLEAN PRINT WINDOW (A4 document)
@@ -4624,12 +4877,7 @@ function _openExamPrintWindow(p, e) {
 
 </body></html>`
 
-  const w = window.open('', '_blank', 'width=820,height=900,scrollbars=yes')
-  if (!w) { toast('Pop-up blocked — allow pop-ups and try again.', 'error'); return }
-  w.document.write(html)
-  w.document.close()
-  w.focus()
-  setTimeout(() => { w.print() }, 450)
+  _printHtmlDocument(html)
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -4953,6 +5201,12 @@ function buildCalCells(year, month, docDays, docId) {
       apptsByDate[a.date].push(a)
     })
 
+  const blockedByDate = {}
+  if (docId) {
+    const doc = doctors.find(d => d.id === docId)
+    ;(doc?.blockedDates || []).forEach(b => { blockedByDate[b.date] = b.reason || 'Blocked' })
+  }
+
   let cells = ''
   for (let i = 0; i < firstDay; i++) cells += `<div class="cal-day other-month"></div>`
   for (let d = 1; d <= daysInMon; d++) {
@@ -4962,12 +5216,15 @@ function buildCalCells(year, month, docDays, docId) {
     const dateStr  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const avail    = (docDays || []).includes(dayAbb)
     const dayAppts = apptsByDate[dateStr] || []
+    const blockedReason = blockedByDate[dateStr]
     let cls = avail ? 'avail' : ''
     if (isToday) cls += (cls ? ' ' : '') + 'today'
+    if (blockedReason) cls = (isToday ? 'today date-blocked' : 'date-blocked')
     const tip = dayAppts.length
       ? `onmouseenter="window.showCalTip(this,'${JSON.stringify(dayAppts.map(a=>({time:a.time,patientName:a.patientName,status:a.status}))).replace(/'/g,'&#39;').replace(/"/g,'&quot;')}')" onmouseleave="window.hideCalTip()"`
       : ''
-    cells += `<div class="cal-day ${cls}${dayAppts.length?' has-appts':''}" ${tip}>${d}</div>`
+    const titleAttr = blockedReason ? `title="Blocked: ${blockedReason.replace(/"/g,'&quot;')}"` : ''
+    cells += `<div class="cal-day ${cls}${dayAppts.length?' has-appts':''}" ${tip} ${titleAttr}>${d}</div>`
   }
   return cells
 }
@@ -4991,6 +5248,8 @@ function buildDocCalCells(year, month, docDays) {
   const firstDay  = new Date(year, month, 1).getDay()
   const daysInMon = new Date(year, month + 1, 0).getDate()
   const doc       = doctors.find(d => d.id === state.user?.id)
+  const blockedByDate = {}
+  ;(doc?.blockedDates || []).forEach(b => { blockedByDate[b.date] = b.reason || 'Blocked' })
 
   let cells = ''
   for (let i = 0; i < firstDay; i++) cells += `<div class="cal-day other-month"></div>`
@@ -5002,13 +5261,16 @@ function buildDocCalCells(year, month, docDays) {
     const dateStr  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const avail    = (docDays || []).includes(dayAbb)
     const hasAppts = doc ? appointments.some(a => a.date === dateStr && a.doctorId === doc.id && !['cancelled','disapproved'].includes(a.status)) : false
+    const blockedReason = blockedByDate[dateStr]
 
     let cls = avail ? 'avail' : ''
     if (isToday) cls += (cls ? ' ' : '') + 'today'
     if (hasAppts) cls += ' has-appts'
+    if (blockedReason) cls = (isToday ? 'today date-blocked' : 'date-blocked') + (hasAppts ? ' has-appts' : '')
     const fadeStyle = isPast && !isToday ? 'opacity:0.5;' : ''
+    const titleAttr = blockedReason ? `title="Blocked: ${blockedReason.replace(/"/g,'&quot;')}"` : ''
 
-    cells += `<div class="cal-day ${cls}" style="${fadeStyle}"
+    cells += `<div class="cal-day ${cls}" style="${fadeStyle}" ${titleAttr}
       onclick="window.docSchedClickDay('${dateStr}','${avail}','${dayAbb}',this)">${d}</div>`
   }
   return cells
@@ -5070,6 +5332,15 @@ function docSchedClickDay(dateStr, availStr, dayAbb, cellEl) {
   if (!listEl) return
   if (titleEl) titleEl.textContent = dateLabel
 
+  const blocked = (doc?.blockedDates || []).find(b => b.date === dateStr)
+  if (blocked) {
+    listEl.innerHTML = `<div style="padding:28px 20px;text-align:center;color:#9CA3AF;font-size:.85rem">
+      ${icon('x-circle','icon-lg')}<br><br>
+      <strong style="color:#B91C1C;font-size:.9rem">Blocked</strong><br>
+      <span style="font-size:.82rem">${blocked.reason ? esc(blocked.reason) : 'You are marked unavailable on this date.'}</span></div>`
+    return
+  }
+
   if (!avail && isWeekend) {
     listEl.innerHTML = `<div style="padding:28px 20px;text-align:center;color:#9CA3AF;font-size:.85rem">
       ${icon('calendar','icon-lg')}<br><br>
@@ -5126,6 +5397,121 @@ function docSchedClickDay(dateStr, availStr, dayAbb, cellEl) {
 }
 window.docSchedClickDay = docSchedClickDay
 
+// Doctor schedule page — "Upcoming Appointments" panel with an adjustable
+// Week/Month scope (mirrors the range toggle on the dashboard charts).
+// Pulls from the real, backend-synced `appointments` array — no mock data.
+// Paginated by date group (a handful of days per page) rather than by row,
+// so each page still reads as a clean mini day-by-day agenda.
+const DOC_UPCOMING_DAYS_PER_PAGE = 5
+let _docUpcomingScope = 'week'
+let _docUpcomingPage  = 1
+
+function renderDoctorUpcoming(scope) {
+  if (scope && scope !== _docUpcomingScope) {
+    _docUpcomingScope = scope
+    _docUpcomingPage  = 1
+  }
+  _renderDoctorUpcomingList()
+}
+window.renderDoctorUpcoming = renderDoctorUpcoming
+
+function docUpcomingGoPage(delta) {
+  _docUpcomingPage += delta
+  _renderDoctorUpcomingList()
+}
+window.docUpcomingGoPage = docUpcomingGoPage
+
+function _renderDoctorUpcomingList() {
+  const scope = _docUpcomingScope
+
+  document.querySelectorAll('.doc-upcoming-scope-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.scope === scope)
+  })
+
+  const subEl  = document.getElementById('doc-upcoming-sub')
+  const listEl = document.getElementById('doc-upcoming-list')
+  if (!listEl) return
+
+  const doc = doctors.find(d => d.id === state.user?.id)
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+
+  let start, end, rangeLabel
+  if (scope === 'week') {
+    start = new Date(now); start.setDate(now.getDate() - now.getDay())
+    end   = new Date(start); end.setDate(start.getDate() + 6)
+    rangeLabel = `${start.toLocaleDateString('en-PH',{month:'short',day:'numeric'})} – ${end.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}`
+  } else {
+    start = new Date(now.getFullYear(), now.getMonth(), 1)
+    end   = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    rangeLabel = start.toLocaleDateString('en-PH', { month:'long', year:'numeric' })
+  }
+  const startStr = start.toISOString().split('T')[0]
+  const endStr   = end.toISOString().split('T')[0]
+
+  const timeVal = t => { if (!t) return 0; const cl = t.includes('PM') && !t.startsWith('12'); const [h, m] = t.replace(/ [AP]M$/, '').split(':').map(Number); return (cl ? h + 12 : (t.includes('AM') && h === 12 ? 0 : h)) * 60 + m }
+
+  const list = appointments
+    .filter(a => doc && a.doctorId === doc.id && a.date >= startStr && a.date <= endStr && !['cancelled', 'disapproved'].includes(a.status))
+    .sort((a, b) => a.date.localeCompare(b.date) || timeVal(a.time) - timeVal(b.time))
+
+  if (subEl) subEl.textContent = `${rangeLabel} · ${list.length} appointment${list.length !== 1 ? 's' : ''}`
+
+  if (!list.length) {
+    listEl.innerHTML = `<div class="table-empty">No appointments scheduled ${scope === 'week' ? 'this week' : 'this month'}.</div>`
+    return
+  }
+
+  // Group by date so the list reads like a mini day-by-day agenda
+  const byDate = {}
+  list.forEach(a => { (byDate[a.date] = byDate[a.date] || []).push(a) })
+  const dateKeys = Object.keys(byDate).sort()
+
+  const totalPages = Math.max(1, Math.ceil(dateKeys.length / DOC_UPCOMING_DAYS_PER_PAGE))
+  if (_docUpcomingPage > totalPages) _docUpcomingPage = totalPages
+  if (_docUpcomingPage < 1) _docUpcomingPage = 1
+  const pageStart = (_docUpcomingPage - 1) * DOC_UPCOMING_DAYS_PER_PAGE
+  const pageDates = dateKeys.slice(pageStart, pageStart + DOC_UPCOMING_DAYS_PER_PAGE)
+
+  const days = pageDates.map(dateStr => {
+    const dt       = new Date(dateStr + 'T00:00:00')
+    const isToday  = dateStr === todayStr
+    const dayLabel = dt.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric' })
+    const dayAppts = byDate[dateStr]
+
+    const rows = dayAppts.map(a => `
+      <div class="doc-upcoming-row">
+        <div style="width:64px;flex-shrink:0;font-size:.78rem;font-weight:700;color:#374151;white-space:nowrap">${a.time}</div>
+        ${avatar(a.patientName, 'patient-avatar', patients.find(p => p.id === a.patientId)?.photoUrl || null)}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.85rem;font-weight:600;color:#1C1C1C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.patientName}</div>
+          <div style="font-size:.75rem;color:#9CA3AF">${a.type}</div>
+        </div>
+        ${badge(a.status)}
+      </div>`).join('')
+
+    return `
+      <div class="doc-upcoming-day">
+        <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:${isToday ? '#E8760A' : '#6B7280'}">${dayLabel}${isToday ? ' · Today' : ''}</span>
+        <span style="font-size:.7rem;color:#9CA3AF">${dayAppts.length} appt${dayAppts.length !== 1 ? 's' : ''}</span>
+      </div>
+      ${rows}`
+  }).join('')
+
+  const pager = totalPages > 1 ? `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-top:1px solid #F3F4F6">
+      <span style="font-size:.78rem;color:#6B7280">Days ${pageStart + 1}–${Math.min(pageStart + DOC_UPCOMING_DAYS_PER_PAGE, dateKeys.length)} of ${dateKeys.length}</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn-icon" title="Previous days" ${_docUpcomingPage === 1 ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}
+                onclick="window.docUpcomingGoPage(-1)">${icon('chevron-left','icon-sm')}</button>
+        <button class="btn-icon" title="Next days" ${_docUpcomingPage === totalPages ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}
+                onclick="window.docUpcomingGoPage(1)">${icon('chevron-right','icon-sm')}</button>
+      </div>
+    </div>` : ''
+
+  listEl.innerHTML = days + pager
+}
+
 // Staff/Admin schedule page — update all doctor calendar grids in place
 function schedGoMonth(year, month) {
   const now    = new Date()
@@ -5170,10 +5556,37 @@ window.switchPatDocDoctor = switchPatDocDoctor
 // ════════════════════════════════════════════════════════════════
 //  BLOCK DATE MODAL (Admin/Staff)
 // ════════════════════════════════════════════════════════════════
-function openBlockDateModal(doctorName) {
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+}
+
+function _blockedListHtml(doctorId) {
+  const doc = doctors.find(d => d.id === doctorId)
+  const list = (doc?.blockedDates || []).slice().sort((a, b) => a.date.localeCompare(b.date))
+  if (!list.length) {
+    return `<div style="font-size:.8rem;color:#9CA3AF;text-align:center;padding:12px 0">No dates blocked yet.</div>`
+  }
+  return list.map(b => {
+    const dt = new Date(b.date + 'T00:00:00')
+    const label = dt.toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+    return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid #FEE2E2;background:#FFF5F5;border-radius:8px;margin-bottom:6px">
+      <div style="min-width:0">
+        <div style="font-size:.8rem;font-weight:600;color:#1C1C1C">${label}</div>
+        ${b.reason ? `<div style="font-size:.74rem;color:#9CA3AF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(b.reason)}</div>` : ''}
+      </div>
+      <button class="btn-icon" title="Unblock this date" style="color:#DC2626;flex-shrink:0"
+              onclick="window.doUnblockDate('${doctorId}','${b.date}')">
+        ${ic('x', 'icon-sm')}
+      </button>
+    </div>`
+  }).join('')
+}
+
+function openBlockDateModal(doctorId, doctorName) {
   showModal(`
     <div class="modal-header">
-      <div class="modal-title">Block Date — ${doctorName}</div>
+      <div class="modal-title">Block Date — ${esc(doctorName)}</div>
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -5187,18 +5600,80 @@ function openBlockDateModal(doctorName) {
         <input id="block-date-reason" type="text" class="form-input"
                placeholder="e.g. Leave, Conference, Holiday…">
       </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Currently Blocked Dates</label>
+        <div id="block-date-list" style="margin-top:6px;max-height:220px;overflow-y:auto">
+          ${_blockedListHtml(doctorId)}
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="
-        const d = document.getElementById('block-date-input').value;
-        if (!d) { window.toast('Please select a date.','error'); return; }
-        window.closeModal();
-        window.toast('Date blocked for ${doctorName.replace(/'/g,"\\'")}.');
-      ">Block Date</button>
+      <button class="btn-primary" onclick="window.doBlockDate('${doctorId}','${doctorName.replace(/'/g,"\\'")}')">Block Date</button>
     </div>`)
 }
 window.openBlockDateModal = openBlockDateModal
+
+async function doBlockDate(doctorId, doctorName) {
+  const dateEl   = document.getElementById('block-date-input')
+  const reasonEl = document.getElementById('block-date-reason')
+  const date     = dateEl?.value
+  const reason   = reasonEl?.value?.trim() || ''
+  if (!date) { toast('Please select a date.', 'error'); return }
+
+  const btn = document.querySelector('.modal-footer .btn-primary')
+  if (btn) { btn.disabled = true; btn.textContent = 'Blocking…' }
+
+  try {
+    const r = await fetch('api/doctors/block-date.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ doctorId, date, reason, blockedBy: state.user?.name || '' }),
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not block date.', 'error'); return }
+
+    addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
+      action: `Blocked ${date} for ${doctorName}${reason ? ' — ' + reason : ''}`,
+      timestamp: nowTimestamp(), type: 'settings' })
+
+    if (window._syncDoctors) await window._syncDoctors()
+    toast(`Date blocked for ${doctorName}.`)
+
+    // Refresh the modal in place instead of closing, so staff can block
+    // several dates in one go and see the running list update live.
+    if (dateEl) dateEl.value = ''
+    if (reasonEl) reasonEl.value = ''
+    const listEl = document.getElementById('block-date-list')
+    if (listEl) listEl.innerHTML = _blockedListHtml(doctorId)
+  } catch (_) {
+    toast('Network error — date not blocked.', 'error')
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Block Date' }
+  }
+}
+window.doBlockDate = doBlockDate
+
+async function doUnblockDate(doctorId, date) {
+  try {
+    const r = await fetch('api/doctors/unblock-date.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ doctorId, date }),
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not unblock date.', 'error'); return }
+
+    if (window._syncDoctors) await window._syncDoctors()
+    toast('Date unblocked.')
+
+    const listEl = document.getElementById('block-date-list')
+    if (listEl) listEl.innerHTML = _blockedListHtml(doctorId)
+  } catch (_) {
+    toast('Network error — date not unblocked.', 'error')
+  }
+}
+window.doUnblockDate = doUnblockDate
 
 // ════════════════════════════════════════════════════════════════
 //  CALENDAR APPOINTMENT TOOLTIP
@@ -5332,10 +5807,12 @@ function handlePhotoUpload(input, avatarId) {
 
       if (state.user) {
         state.user.photoUrl = d.photoUrl
-        if (state.role === 'patient') {
-          const entry = patients.find(pt => pt.id === state.user.id)
-          if (entry) entry.photoUrl = d.photoUrl
-        }
+        // Keep the in-memory role array (used by My Schedule, doctor lists,
+        // patient lists, etc.) in sync so the new photo shows up everywhere
+        // without needing a full re-login.
+        const roleArray = { patient: patients, doctor: doctors, staff: staff, admin: admins }[state.role]
+        const entry = roleArray && roleArray.find(u => u.id === state.user.id)
+        if (entry) entry.photoUrl = d.photoUrl
       }
 
       // Swap the preview src to the permanent server path
@@ -5891,7 +6368,7 @@ function generateReport() {
     // Report header card
     const fromFmt = from ? fmtDate(from) : '\u2014'
     const toFmt   = to   ? fmtDate(to)   : '\u2014'
-    const now = new Date().toLocaleString('en-PH', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })
+    const now = new Date().toLocaleString('en-PH', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
     const count = def.rows.length
 
     if (hdr) {

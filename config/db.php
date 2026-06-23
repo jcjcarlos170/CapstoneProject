@@ -29,6 +29,12 @@ function getDB(): PDO {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
+
+        // Match MySQL's session clock to the clinic's local time (Philippines)
+        // so NOW()/CURRENT_TIMESTAMP line up with PHP's date_default_timezone_set()
+        // in helpers.php — otherwise timestamps stored by the DB (e.g. on
+        // CURRENT_TIMESTAMP defaults) drift from what the app displays.
+        $pdo->exec("SET time_zone = '+08:00'");
     }
 
     return $pdo;

@@ -55,6 +55,19 @@ try {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = SMTP_PORT;
 
+        // Fail fast instead of hanging — cloud hosts (Railway included) can be slow
+        // or unreliable reaching external SMTP servers, and minimal container images
+        // sometimes lack an up-to-date CA bundle for the TLS handshake.
+        $mail->Timeout        = 10;
+        $mail->SMTPKeepAlive  = false;
+        $mail->SMTPOptions    = [
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false,
+                'allow_self_signed' => true,
+            ],
+        ];
+
         $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
         $mail->addAddress($email);
         $mail->isHTML(true);

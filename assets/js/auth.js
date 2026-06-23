@@ -15,8 +15,9 @@ function _showLoginError(msg) {
 }
 
 async function handleLogin() {
-  const email   = document.getElementById('login-email').value.trim()
-  const pass    = document.getElementById('login-password').value
+  const email    = document.getElementById('login-email').value.trim()
+  const pass     = document.getElementById('login-password').value
+  const remember = document.getElementById('login-remember')?.checked || false
   document.getElementById('login-error').style.display = 'none'
   clearTimeout(window._loginErrTimer)
 
@@ -36,7 +37,7 @@ async function handleLogin() {
     const res  = await fetch('api/auth/login.php', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ email, password: pass }),
+      body:    JSON.stringify({ email, password: pass, remember }),
     })
     const data = await res.json()
 

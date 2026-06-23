@@ -10,11 +10,13 @@ require_once '../../config/db.php';
 require_once '../helpers.php';
 
 requireMethod('POST');
-startSession();
 
-$body  = getBody();
-$email = trim($body['email']    ?? '');
-$pass  = trim($body['password'] ?? '');
+$body     = getBody();
+$email    = trim($body['email']    ?? '');
+$pass     = trim($body['password'] ?? '');
+$remember = !empty($body['remember']);
+
+startSession($remember ? 30 : 1);
 
 if (!$email || !$pass) {
     jsonResponse(['success' => false, 'message' => 'Email and password are required.']);

@@ -56,14 +56,25 @@ class DbSessionHandler implements SessionHandlerInterface {
     }
 
     public function gc(int $max_lifetime): int|false {
+        // "Remember me" logins use a longer cookie lifetime than the default
+        // session, but PHP's gc_maxlifetime is a single global ini value —
+        // whichever request happens to trigger garbage collection sets it.
+        // Floor it at 30 days so a short-lived (non "remember me") session's
+        // cleanup pass never prunes another user's still-valid remembered one.
+        $threshold = max($max_lifetime, 30 * 86400);
         $stmt = $this->pdo->prepare('DELETE FROM sessions WHERE last_access < ?');
-        $stmt->execute([time() - $max_lifetime]);
+        $stmt->execute([time() - $threshold]);
         return $stmt->rowCount();
     }
 }
 
-function startSession(): void {
+// $days controls both the session cookie lifetime and how long the DB-backed
+// session row survives — pass a larger value for "remember me" logins.
+function startSession(int $days = 1): void {
     if (session_status() === PHP_SESSION_NONE) {
+        $lifetimeSeconds = $days * 86400;
+        ini_set('session.gc_maxlifetime', (string)$lifetimeSeconds);
+
         // Railway terminates TLS at its edge proxy and forwards plain HTTP,
         // so $_SERVER['HTTPS'] is never set — check the forwarded proto too,
         // otherwise the session cookie never gets marked Secure in production.
@@ -71,7 +82,7 @@ function startSession(): void {
             || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 
         session_set_cookie_params([
-            'lifetime' => 86400,
+            'lifetime' => $lifetimeSeconds,
             'path'     => '/',
             'httponly' => true,
             'samesite' => 'Lax',

@@ -50,15 +50,10 @@ async function handleLogin() {
 
     _bootAfterAuth(data.role, data.user)
   } catch (_) {
-    // PHP not available — fall back to client-side credential check
-    const match = _clientSideLogin(email, pass)
-    if (match) {
-      _bootAfterAuth(match.role, match.user)
-    } else {
-      _showLoginError('The email or password you entered is incorrect. Please try again.')
-      _shakeCard()
-      document.getElementById('login-password').value = ''
-    }
+    // Real network/server failure — surface it instead of silently
+    // logging in against mock data (which would hide a broken backend).
+    _showLoginError('Unable to reach the server. Please check your connection and try again.')
+    _shakeCard()
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; btn.style.opacity = '1' }
   }
@@ -664,24 +659,6 @@ async function _syncActivityLog() {
   } catch (_) {}
 }
 window._syncActivityLog = _syncActivityLog
-
-function _clientSideLogin(email, pass) {
-  const sources = [
-    { list: typeof admins  !== 'undefined' ? admins  : [], role: 'admin'   },
-    { list: typeof doctors !== 'undefined' ? doctors : [], role: 'doctor'  },
-    { list: typeof staff   !== 'undefined' ? staff   : [], role: 'staff'   },
-    { list: typeof patients!== 'undefined' ? patients: [], role: 'patient' },
-  ]
-  for (const { list, role } of sources) {
-    const u = list.find(x => x.email === email && x.password === pass)
-    if (u) {
-      const user = Object.assign({}, u)
-      delete user.password
-      return { role, user }
-    }
-  }
-  return null
-}
 
 function _shakeCard() {
   const card = document.querySelector('.login-card')

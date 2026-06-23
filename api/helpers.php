@@ -23,13 +23,68 @@ function getBody(): array {
     return is_array($data) ? $data : [];
 }
 
+// ── DB-backed session storage ──────────────────────────────────────
+// Railway's container filesystem isn't a reliable place for PHP's
+// default file-based sessions (ephemeral/non-shared across restarts
+// or replicas), which is why logins "succeed" but later requests
+// can't see the session. Storing sessions in MySQL makes them as
+// durable as everything else in the app.
+class DbSessionHandler implements SessionHandlerInterface {
+    public function __construct(private PDO $pdo) {}
+
+    public function open(string $path, string $name): bool { return true; }
+    public function close(): bool { return true; }
+
+    public function read(string $id): string {
+        $stmt = $this->pdo->prepare('SELECT data FROM sessions WHERE id = ? LIMIT 1');
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ? $row['data'] : '';
+    }
+
+    public function write(string $id, string $data): bool {
+        $stmt = $this->pdo->prepare(
+            'INSERT INTO sessions (id, data, last_access) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE data = VALUES(data), last_access = VALUES(last_access)'
+        );
+        return $stmt->execute([$id, $data, time()]);
+    }
+
+    public function destroy(string $id): bool {
+        $stmt = $this->pdo->prepare('DELETE FROM sessions WHERE id = ?');
+        return $stmt->execute([$id]);
+    }
+
+    public function gc(int $max_lifetime): int|false {
+        $stmt = $this->pdo->prepare('DELETE FROM sessions WHERE last_access < ?');
+        $stmt->execute([time() - $max_lifetime]);
+        return $stmt->rowCount();
+    }
+}
+
 function startSession(): void {
     if (session_status() === PHP_SESSION_NONE) {
+        // Railway terminates TLS at its edge proxy and forwards plain HTTP,
+        // so $_SERVER['HTTPS'] is never set — check the forwarded proto too,
+        // otherwise the session cookie never gets marked Secure in production.
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
         session_set_cookie_params([
             'lifetime' => 86400,
+            'path'     => '/',
             'httponly' => true,
             'samesite' => 'Lax',
+            'secure'   => $isHttps,
         ]);
+
+        try {
+            session_set_save_handler(new DbSessionHandler(getDB()), true);
+        } catch (Throwable $e) {
+            // DB unreachable — fall back to PHP's default file handler
+            // rather than fatal-erroring the whole request.
+        }
+
         session_start();
     }
 }

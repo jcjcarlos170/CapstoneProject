@@ -44,6 +44,24 @@
 --    ALTER TABLE `contact_messages` ADD INDEX `idx_email` (`email`);
 --    ALTER TABLE `contact_messages` ADD COLUMN `archived_at` DATETIME NULL DEFAULT NULL;
 --    ALTER TABLE `clinic_settings` ADD COLUMN `logo_url` VARCHAR(255) NULL DEFAULT NULL AFTER `phic_no`;
+--    CREATE TABLE IF NOT EXISTS `sessions` (
+--      `id`          VARCHAR(128) NOT NULL,
+--      `data`        MEDIUMTEXT   NOT NULL,
+--      `last_access` INT UNSIGNED NOT NULL DEFAULT 0,
+--      PRIMARY KEY (`id`)
+--    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+--    CREATE TABLE IF NOT EXISTS `password_resets` (
+--      `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+--      `email`      VARCHAR(255) NOT NULL,
+--      `otp`        VARCHAR(6)   NOT NULL,
+--      `token`      VARCHAR(64)  NULL DEFAULT NULL,
+--      `used`       TINYINT(1)   NOT NULL DEFAULT 0,
+--      `expires_at` DATETIME     NOT NULL,
+--      `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--      PRIMARY KEY (`id`),
+--      INDEX `idx_email_otp` (`email`, `otp`),
+--      INDEX `idx_token` (`token`)
+--    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- ================================================================
 
 SET NAMES utf8mb4;
@@ -327,6 +345,30 @@ CREATE TABLE IF NOT EXISTS `archived_records` (
   `data_json`   TEXT         DEFAULT NULL,
   `date`        VARCHAR(50)  DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── PHP Sessions (DB-backed so logins survive container restarts /
+--    multiple replicas on hosts like Railway, instead of relying on
+--    the local filesystem) ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `sessions` (
+  `id`          VARCHAR(128) NOT NULL,
+  `data`        MEDIUMTEXT   NOT NULL,
+  `last_access` INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Password Resets (forgot-password OTP + reset-token flow) ──────
+CREATE TABLE IF NOT EXISTS `password_resets` (
+  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `email`      VARCHAR(255) NOT NULL,
+  `otp`        VARCHAR(6)   NOT NULL,
+  `token`      VARCHAR(64)  NULL DEFAULT NULL,
+  `used`       TINYINT(1)   NOT NULL DEFAULT 0,
+  `expires_at` DATETIME     NOT NULL,
+  `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_email_otp` (`email`, `otp`),
+  INDEX `idx_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

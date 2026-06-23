@@ -30,8 +30,7 @@ try {
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 } catch (PDOException $e) {
-    // TEMPORARY DEBUG — remove this exact line after diagnosing the Railway DB connection issue.
-    jsonResponse(['success' => false, 'message' => 'DEBUG: ' . $e->getMessage()], 500);
+    jsonResponse(['success' => false, 'message' => 'Database error. Please try again.'], 500);
 }
 
 // Account temporarily locked from too many failed attempts

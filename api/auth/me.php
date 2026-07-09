@@ -38,6 +38,6 @@ if (!$result) {
     jsonResponse(['success' => false]);
 }
 
-$userObj = buildUserObject($role, $result['profile'], $userRow['email'], $result['days']);
+$userObj = buildUserObject($role, $result['profile'], $userRow['email'], $result['days'], $userId);
 
 jsonResponse(['success' => true, 'role' => $role, 'user' => $userObj]);

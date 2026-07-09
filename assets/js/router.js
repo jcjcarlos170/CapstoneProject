@@ -21,10 +21,10 @@ const SIDEBAR_CONFIG = {
     { section: 'Overview' },
     { key: 'admin-dashboard',      label: 'Dashboard',        icon: 'home' },
     { section: 'Clinic' },
-    { key: 'appointments',         label: 'Appointments',     icon: 'calendar',
+    { key: 'appointments',         label: 'Appointments',     icon: 'calendar', badgeKey: '_apptPendingCount',
       children: [
         { key: 'appointments', filter: 'today',       label: 'Today' },
-        { key: 'appointments', filter: 'pending',     label: 'Pending' },
+        { key: 'appointments', filter: 'pending',     label: 'Pending', badgeKey: '_apptPendingCount' },
         { key: 'appointments', filter: 'approved',    label: 'Approved' },
         { key: 'appointments', filter: 'cancelled',   label: 'Cancelled' },
         { key: 'appointments', filter: 'disapproved', label: 'Disapproved' },
@@ -67,10 +67,10 @@ const SIDEBAR_CONFIG = {
     { section: 'Overview' },
     { key: 'staff-dashboard',      label: 'Dashboard',        icon: 'home' },
     { section: 'Clinic' },
-    { key: 'appointments',         label: 'Appointments',     icon: 'calendar',
+    { key: 'appointments',         label: 'Appointments',     icon: 'calendar', badgeKey: '_apptPendingCount',
       children: [
         { key: 'appointments', filter: 'today',       label: 'Today' },
-        { key: 'appointments', filter: 'pending',     label: 'Pending' },
+        { key: 'appointments', filter: 'pending',     label: 'Pending', badgeKey: '_apptPendingCount' },
         { key: 'appointments', filter: 'approved',    label: 'Approved' },
         { key: 'appointments', filter: 'cancelled',   label: 'Cancelled' },
         { key: 'appointments', filter: 'disapproved', label: 'Disapproved' },
@@ -253,6 +253,7 @@ function renderPage() {
   el.innerHTML = fn()
   el.className = 'fade-up'
 
+  wrapTableScroll()
   renderTopbar()
   highlightSidebarActive()
 
@@ -301,11 +302,14 @@ function renderSidebar() {
 
     if (hasChildren) {
       const isOpen = item.children.some(c => c.key === state.page)
+      const pBadgeCount = item.badgeKey ? (window[item.badgeKey] || 0) : 0
+      const pBadgeHtml  = pBadgeCount > 0 ? `<span class="nav-badge">${pBadgeCount > 99 ? '99+' : pBadgeCount}</span>` : ''
       nav += `
         <div>
           <div class="nav-item${isOpen ? ' nav-parent-open' : ''}" onclick="window.toggleDropdown('dd-${item.key}')">
             ${window.icon(item.icon, 'icon')}
             <span class="nav-item-label">${item.label}</span>
+            ${pBadgeHtml}
             <svg class="nav-arrow${isOpen ? ' open' : ''}" id="arrow-dd-${item.key}"
                  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 9 12 15 18 9"/>
@@ -318,10 +322,12 @@ function renderSidebar() {
               const cClick  = c.action
                 ? `window.${c.action}()`
                 : `window.navigate('${c.key}'${c.filter ? `, {filter:'${c.filter}'}` : ''})`
+              const cBadgeCount = c.badgeKey ? (window[c.badgeKey] || 0) : 0
+              const cBadgeHtml  = cBadgeCount > 0 ? `<span class="nav-badge">${cBadgeCount > 99 ? '99+' : cBadgeCount}</span>` : ''
               return `
               <div class="nav-sub-item${cActive ? ' active' : ''}" onclick="${cClick}">
                 <span class="nav-sub-dot"></span>
-                ${c.label}
+                ${c.label}${cBadgeHtml}
               </div>`
             }).join('')}
           </div>
@@ -357,7 +363,7 @@ function renderSidebar() {
       </div>
     </div>`
   document.getElementById('sidebar-foot').innerHTML = `
-    <a class="sidebar-logout" href="index.html" style="text-decoration:none">
+    <a class="sidebar-logout sidebar-view-link" href="index.html" style="text-decoration:none">
       ${window.icon('external-link', 'icon')}
       <span>View Website</span>
     </a>
@@ -460,27 +466,30 @@ window._notifTimeAgo = _notifTimeAgo
 const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'star', info:'info', contact_message:'mail' }
 const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', welcome:'purple', info:'gray', contact_message:'orange' }
 
+// Returns { page, params } so callers always pass an explicit filter,
+// preventing stale state.filter from a previous navigation bleeding in.
 function _notifNavTarget(type, role) {
-  const apptPage = role === 'patient' ? 'patient-appts' : 'appointments'
   const dashPage = role === 'admin'  ? 'admin-dashboard'
                  : role === 'staff'  ? 'staff-dashboard'
                  : role === 'doctor' ? 'doctor-dashboard'
                  :                     'patient-dashboard'
-  const map = {
-    approved:           apptPage,
-    cancelled:          apptPage,
-    disapproved:        apptPage,
-    rescheduled:        apptPage,
-    new_appointment:    apptPage,
-    reschedule_request: apptPage,
-    reminder:           apptPage,
-    record:             role === 'patient' ? 'patient-records'       : 'patient-list',
-    prescription:       role === 'patient' ? 'patient-prescriptions' : 'patient-list',
-    welcome:            dashPage,
-    info:               dashPage,
-    contact_message:    'contact-messages',
+
+  // Route appointment notifications to the correct appointments list per role
+  const apptTypes = new Set(['approved','cancelled','disapproved','rescheduled','new_appointment','reschedule_request','reminder'])
+  if (apptTypes.has(type)) {
+    if (role === 'patient') return { page: 'patient-appts',        params: { filter: 'history' } }
+    if (role === 'doctor')  return { page: 'doctor-appointments',  params: {} }
+    return                         { page: 'appointments',         params: {} }
   }
-  return map[type] || dashPage
+
+  const map = {
+    record:          role === 'patient' ? 'patient-records'       : 'patient-list',
+    prescription:    role === 'patient' ? 'patient-prescriptions' : 'patient-list',
+    welcome:         dashPage,
+    info:            dashPage,
+    contact_message: 'contact-messages',
+  }
+  return { page: map[type] || dashPage, params: {} }
 }
 window._notifNavTarget = _notifNavTarget
 
@@ -528,7 +537,8 @@ function _markNotifDropdown(id) {
     }).catch(() => {})
   }
   closeAllDropdowns()
-  navigate(_notifNavTarget(notif.type, state.role))
+  const { page: _np, params: _npar } = _notifNavTarget(notif.type, state.role)
+  navigate(_np, _npar)
 }
 window._markNotifDropdown = _markNotifDropdown
 

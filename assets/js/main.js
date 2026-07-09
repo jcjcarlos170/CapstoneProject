@@ -60,6 +60,20 @@ function icon(name, cls = 'icon') {
 }
 
 // ── Attach globals (called in onclick="" attributes) ────────────
+// Wrap every .tbl in a .tbl-scroll div so the scroll container is always
+// 100%-wide (viewport-bounded) while the table itself can be wider than the screen.
+function wrapTableScroll() {
+  document.querySelectorAll('.tbl').forEach(tbl => {
+    const p = tbl.parentElement
+    if (!p || p.classList.contains('tbl-scroll')) return
+    const wrap = document.createElement('div')
+    wrap.className = 'tbl-scroll'
+    p.insertBefore(wrap, tbl)
+    wrap.appendChild(tbl)
+  })
+}
+window.wrapTableScroll = wrapTableScroll
+
 window.icon                  = icon
 window.state                 = state
 window.navigate              = navigate
@@ -784,7 +798,7 @@ function viewAppt(id) {
                   border:2px solid ${stepColor(i)};z-index:1">${i+1}</div>
       <div style="font-size:.7rem;margin-top:5px;color:${textColor(i)};font-weight:${i===stepIdx?'700':'400'};text-align:center">${s}</div>
     </div>
-    ${i < steps.length-1 ? `<div style="flex:1;height:2px;margin-top:14px;background:${i < stepIdx ? '#E8760A' : '#E5E7EB'};min-width:16px"></div>` : ''}`
+    ${i < steps.length-1 ? `<div style="flex:1;height:2px;margin-top:14px;background:${i < stepIdx ? 'linear-gradient(90deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)' : '#E5E7EB'};min-width:16px"></div>` : ''}`
   ).join('')
 
   const isAdmin   = state.role === 'admin' || state.role === 'staff'
@@ -953,7 +967,8 @@ function markNotifRead(id) {
     }).catch(() => {})
   }
   if (notif && window._notifNavTarget) {
-    navigate(window._notifNavTarget(notif.type, state.role))
+    const { page: _np, params: _npar } = window._notifNavTarget(notif.type, state.role)
+    navigate(_np, _npar)
   }
 }
 window.markNotifRead = markNotifRead
@@ -1014,7 +1029,7 @@ function _syncRadioPills(radioName) {
     if (ring) ring.style.borderColor = on ? '#E8891C' : '#d1d5db'
     const dot = ring ? ring.querySelector('span') : null
     if (dot) {
-      dot.style.background = on ? '#E8891C' : 'transparent'
+      dot.style.background = on ? 'linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)' : 'transparent'
       dot.style.transform  = on ? 'scale(1)' : 'scale(0)'
     }
   })
@@ -1123,8 +1138,21 @@ async function savePatientSettings() {
       body:    JSON.stringify({ action: 'profile', firstName: fn, lastName: ln, phone: contact, email, address })
     })
     const d = await r.json()
-    if (d.success) toast('Profile updated successfully.', 'success')
-    else           toast(d.message || 'Failed to update profile.', 'error')
+    if (d.success) {
+      toast('Profile updated successfully.', 'success')
+      const fullName = fn + ' ' + ln
+      if (state.user) {
+        state.user.firstName = fn
+        state.user.lastName  = ln
+        state.user.name      = fullName
+        if (email)   state.user.email   = email
+        if (contact) state.user.contact = contact
+        if (address) state.user.address = address
+      }
+      window.navigate(state.page, { ...state.params })
+    } else {
+      toast(d.message || 'Failed to update profile.', 'error')
+    }
   } catch (_) {
     toast('Network error — please try again.', 'error')
   }
@@ -1410,13 +1438,9 @@ function getPHHolidays(year) {
 }
 window.getPHHolidays = getPHHolidays
 
-const _takenSlots = {
-  mon: ['9:00 AM','2:00 PM'],
-  wed: ['10:00 AM','3:00 PM'],
-  fri: ['8:00 AM','1:00 PM'],
-  tue: ['9:30 AM'],
-  thu: ['2:30 PM']
-}
+// Populated dynamically per doctor+date fetch — not hardcoded
+let _takenSlotTimes = []   // raw booked times from the DB for current doctor+date
+let _takenSlotDur   = 30   // duration in minutes from clinic settings
 
 // ── Time-slot generation from Consultation Settings ─────────────────
 // Booking time slots used to be a hardcoded list — these read the live
@@ -1486,11 +1510,23 @@ function wizGo(dir) {
     _wiz.type  = document.getElementById('appt-type')?.value || 'Eye Examination'
     _wiz.notes = document.getElementById('appt-notes')?.value || ''
   }
+  // Going back from doctor step — clear selected doctor so the list resets
+  if (_wiz.step === 1 && dir === -1) {
+    _wiz.doctorId   = null
+    _wiz.doctorName = ''
+    _wiz.doctorSpec = ''
+    const inp = document.getElementById('appt-doctor')
+    if (inp) inp.value = ''
+    const sd = document.getElementById('sum-doctor')
+    if (sd) { sd.textContent = 'Not selected yet'; sd.classList.add('empty') }
+    const st = document.getElementById('sum-time')
+    if (st) { st.textContent = 'Not selected yet'; st.classList.add('empty') }
+  }
   if (nextStep === 4) wizPopulateReview()
   _wiz.step = nextStep
   wizShowStep(nextStep, dir)
   if (nextStep === 1) wizBuildDoctorCards()
-  if (nextStep === 2) wizBuildTimeSlots()
+  if (nextStep === 2) wizBuildTimeSlots()   // async — fire-and-forget is fine here
   window.scrollTo(0, 0)
 }
 window.wizGo = wizGo
@@ -1501,7 +1537,7 @@ function wizJump(targetStep) {
   _wiz.step = targetStep
   wizShowStep(targetStep, dir)
   if (targetStep === 1) wizBuildDoctorCards()
-  if (targetStep === 2) wizBuildTimeSlots()
+  if (targetStep === 2) wizBuildTimeSlots()   // async — fire-and-forget is fine here
 }
 window.wizJump = wizJump
 
@@ -1532,7 +1568,7 @@ function amcInit() {
       _wiz.calMonth = dt.getMonth()
       _wiz.step = 2
       wizShowStep(2, 1)
-      wizBuildTimeSlots()
+      wizBuildTimeSlots()   // async — fire-and-forget is fine here
     } else {
       // Doctor only — land on Step 1, show prefill banner, filter calendar to doctor's days
       wizShowStep(0, 1)
@@ -1683,7 +1719,7 @@ function amcSelectDate(dateStr, dayAbb) {
     setTimeout(() => {
       _wiz.step = 2
       wizShowStep(2, 1)
-      wizBuildTimeSlots()
+      wizBuildTimeSlots()   // async — fire-and-forget is fine here
     }, 120)
   }
 }
@@ -1716,12 +1752,15 @@ function wizBuildDoctorCards() {
   ).length
 
   const getInitials = name => name.replace('Dr. ','').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
+  const docAvatar = d => d.photoUrl
+    ? `<div class="doc-card-avatar" style="overflow:hidden;padding:0"><img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block"></div>`
+    : `<div class="doc-card-avatar">${getInitials(d.name)}</div>`
 
   container.innerHTML = availDocs.map(d => {
     const isFull = apptCountFor(d.id) >= maxPerDay
     if (isFull) return `
       <div class="doc-card" style="opacity:.55;cursor:not-allowed" title="This doctor is fully booked on the selected date.">
-        <div class="doc-card-avatar">${getInitials(d.name)}</div>
+        ${docAvatar(d)}
         <div style="flex:1;min-width:0">
           <div style="font-size:.9rem;font-weight:700;color:#1C1C1C">${d.name}</div>
           <div style="font-size:.78rem;color:#DC2626;margin-top:2px">Fully booked on this date</div>
@@ -1730,7 +1769,7 @@ function wizBuildDoctorCards() {
     return `
     <button class="doc-card${d.id === _wiz.doctorId ? ' selected' : ''}"
             onclick="window.wizSelectDoctor('${d.id}','${d.name}','${d.specialization}',this)">
-      <div class="doc-card-avatar">${getInitials(d.name)}</div>
+      ${docAvatar(d)}
       <div style="flex:1;min-width:0">
         <div style="font-size:.9rem;font-weight:700;color:#1C1C1C">${d.name}</div>
         <div style="font-size:.78rem;color:#6B7280;margin-top:2px">${d.specialization} &bull; Available ${(d.days||[]).join(', ')}</div>
@@ -1772,14 +1811,32 @@ function wizSelectDoctor(id, name, spec, btnEl) {
 window.wizSelectDoctor = wizSelectDoctor
 
 // ── Step 3: Time slots ────────────────────────────────────────────
-function wizBuildTimeSlots() {
-  const dt     = new Date(_wiz.selectedDate + 'T00:00:00')
-  const dayAbb = ['sun','mon','tue','wed','thu','fri','sat'][dt.getDay()]
-  const taken  = _takenSlots[dayAbb] || []
+// A slot is unavailable if its start time is within _takenSlotDur minutes
+// of any already-booked appointment (same doctor, same date).
+function _slotConflicts(slotTime) {
+  const slotMins = _clockToMinutes(slotTime)
+  return _takenSlotTimes.some(bt => {
+    const btMins = _clockToMinutes(bt)
+    return btMins >= 0 && slotMins >= 0 && Math.abs(slotMins - btMins) < _takenSlotDur + 15
+  })
+}
+
+async function wizBuildTimeSlots() {
+  const el = document.getElementById('appt-time-slots')
+  if (el) el.innerHTML = '<div style="color:#9CA3AF;font-size:.82rem;padding:8px 0">Loading available slots…</div>'
+
+  // Fetch real booked times for this doctor + date
+  try {
+    const r = await fetch(`api/appointments/taken.php?doctorId=${encodeURIComponent(_wiz.doctorId)}&date=${encodeURIComponent(_wiz.selectedDate)}`)
+    const d = await r.json()
+    _takenSlotTimes = d.taken   || []
+    _takenSlotDur   = d.duration || _durationMinutes(consultationSettings.defaultDuration)
+  } catch (_) {
+    _takenSlotTimes = []
+    _takenSlotDur   = _durationMinutes(consultationSettings.defaultDuration)
+  }
+
   const stepMin = _durationMinutes(consultationSettings.defaultDuration)
-  // With no lunch break, the clinic runs one continuous session (morning
-  // start → afternoon end) rather than two blocks split around a gap that
-  // no longer means anything.
   let morning, afternoon
   if (consultationSettings.lunchBreak) {
     morning   = _buildSessionSlots(consultationSettings.morningStart,   consultationSettings.morningEnd,   stepMin)
@@ -1788,14 +1845,15 @@ function wizBuildTimeSlots() {
     morning   = _buildSessionSlots(consultationSettings.morningStart, consultationSettings.afternoonEnd, stepMin)
     afternoon = []
   }
+
   const slotBtn = t => {
-    const isTaken  = taken.includes(t)
+    const isTaken  = _slotConflicts(t)
     const isSel    = t === _wiz.time
     const cls      = 'time-slot' + (isTaken ? ' taken' : isSel ? ' selected' : '')
-    const disabled = isTaken ? 'disabled title="This time slot is already booked. Please choose from the available slots."' : ''
+    const disabled = isTaken ? 'disabled title="This time slot is already booked or too close to an existing appointment."' : ''
     return `<button class="${cls}" ${disabled} onclick="window.wizSelectTime('${t}',this)">${t}</button>`
   }
-  const el = document.getElementById('appt-time-slots')
+
   if (el) el.innerHTML = `
     <div style="margin-bottom:14px">
       <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">${afternoon.length ? 'Morning' : 'Available Times'}</div>
@@ -1806,6 +1864,7 @@ function wizBuildTimeSlots() {
       <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">Afternoon</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">${afternoon.map(slotBtn).join('')}</div>
     </div>` : ''}`
+
   const lbl2 = document.getElementById('wiz-doc-lbl3')
   const lbl3 = document.getElementById('wiz-date-lbl3')
   if (lbl2) lbl2.textContent = _wiz.doctorName
@@ -2150,7 +2209,7 @@ function onAddUserRoleChange(role) {
 }
 window.onAddUserRoleChange = onAddUserRoleChange
 
-function doAddUser() {
+async function doAddUser() {
   const gv    = id => (document.getElementById(id)||{}).value?.trim() || ''
   const first   = gv('nu-first')
   const last    = gv('nu-last')
@@ -2159,47 +2218,62 @@ function doAddUser() {
   const role    = gv('nu-role') || 'Admin'
   const pass    = gv('nu-pass')
 
-  if (!first || !last || !email || !pass) { toast('Please fill in all required fields.', 'error'); return }
+  if (!first || !last || !email) { toast('Please fill in all required fields.', 'error'); return }
+  if (role !== 'Patient' && !pass) { toast('Password is required.', 'error'); return }
 
-  const name = `${first} ${last}`
-  const base = { name, firstName: first, lastName: last, email, contact, password: pass, status: 'active' }
+  const btn = document.querySelector('.modal-footer .btn-primary')
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…' }
 
-  if (role === 'Staff')  { base.id = 'S' + Date.now(); staff.push(base) }
-  if (role === 'Admin')  { base.id = 'ADM' + Date.now(); admins.push(base) }
-  if (role === 'Doctor') {
-    base.id             = 'D' + Date.now()
-    base.specialization = gv('nu-specialization') || 'Optometrist'
-    base.prc            = gv('nu-prc')
-    base.ptr            = gv('nu-ptr')
-    base.available      = true
-    base.days           = []
-    base.availableDays  = []
-    base.hours          = '8:00 AM – 5:00 PM'
-    doctors.push(base)
+  try {
+    let endpoint, body
+
+    if (role === 'Patient') {
+      endpoint = '/opticana/api/patients/create.php'
+      body = {
+        firstName: first, lastName: last, email, contact,
+        dob: gv('nu-dob'), gender: gv('nu-gender'),
+        address: gv('nu-address'), bloodType: gv('nu-blood') || 'Unknown',
+        occupation: gv('nu-occupation'),
+      }
+    } else {
+      endpoint = '/opticana/api/users/create.php'
+      body = { role, firstName: first, lastName: last, email, password: pass, contact }
+      if (role === 'Doctor') {
+        body.specialization = gv('nu-specialization') || 'Optometrist'
+        body.prcLicense     = gv('nu-prc')
+      }
+    }
+
+    const res  = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const data = await res.json()
+
+    if (!data.success) { toast(data.message || 'Failed to create account.', 'error'); return }
+
+    const name = `${first} ${last}`
+    if (role === 'Patient') patients.push(data.patient)
+    else if (role === 'Admin')  admins.push(data.user)
+    else if (role === 'Staff')  staff.push(data.user)
+    else if (role === 'Doctor') doctors.push(data.user)
+
+    addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
+      action: `Created new ${role} account: ${name}`,
+      timestamp: nowTimestamp(), type:'user' })
+
+    closeModal()
+    let msg = `Account created. ${name} can now log in.`
+    if (data.tempPassword) msg += ` Temp password: ${data.tempPassword}`
+    toast(msg)
+    renderPage()
+
+  } catch(e) {
+    toast('Network error. Please try again.', 'error')
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Account' }
   }
-  if (role === 'Patient') {
-    base.id = 'P' + String(patients.length+1).padStart(3,'0')
-    const dobVal = gv('nu-dob')
-    base.dob    = dobVal
-    base.gender = gv('nu-gender')
-    base.age    = dobVal ? (new Date().getFullYear() - new Date(dobVal).getFullYear()) : 0
-    base.address      = gv('nu-address')
-    base.bloodType    = gv('nu-blood') || 'Unknown'
-    base.occupation   = gv('nu-occupation')
-    base.registeredDate = new Date().toISOString().split('T')[0]
-    base.lastVisit    = '—'
-    base.qrData       = `OPTICANA-${base.id}-${first.toUpperCase()}${last.toUpperCase()}`
-    base.prescriptions = []; base.consultations = []; base.examinations = []
-    patients.push(base)
-  }
-
-  addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
-    action: `Created new ${role} account: ${name}`,
-    timestamp: nowTimestamp(), type:'user' })
-
-  closeModal()
-  toast(`Account created successfully. ${name} can now log in with their credentials.`)
-  renderPage()
 }
 
 function editUserModal(id, role) {
@@ -2232,8 +2306,8 @@ function editUserModal(id, role) {
       <p style="font-size:.74rem;color:#9CA3AF;margin:-8px 0 14px">Locked on the doctor's own Settings page — only admins can update these.</p>` : ''}
       <div class="form-group"><label class="form-label">Status</label>
         <select id="eu-status" class="form-select">
-          <option${u.status==='active'?' selected':''}>active</option>
-          <option${u.status==='inactive'?' selected':''}>inactive</option>
+          <option value="active"${u.status==='active'?' selected':''}>Active</option>
+          <option value="inactive"${u.status==='inactive'?' selected':''}>Inactive</option>
         </select></div>
 
       <!-- Reset Password (collapsible) -->
@@ -2541,6 +2615,7 @@ function openEditPatientModal(patientId) {
             ${['Male','Female','Other'].map(g=>`<option${g===p.gender?' selected':''}>${g}</option>`).join('')}
           </select></div>
       </div>
+      <p style="font-size:.74rem;color:#9CA3AF;margin:-8px 0 14px">Locked on the patient's own Settings page — only admins can update these.</p>
       <div class="form-group"><label class="form-label">Contact</label>
         <input id="ep-contact" class="form-input" value="${p.contact}"></div>
       <div class="form-group"><label class="form-label">Email</label>
@@ -2623,7 +2698,7 @@ function confirmArchivePatient(id) {
     </div>
     <div class="modal-body">
       <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#F9FAFB;border-radius:8px;margin-bottom:16px">
-        <div style="width:42px;height:42px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">
           ${p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}
         </div>
         <div>
@@ -2911,7 +2986,7 @@ function confirmDeleteContactMessage(id) {
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button style="background:#DC2626;color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px"
+      <button style="background:linear-gradient(135deg,#FCA5A5 0%,#EF4444 60%,#DC2626 100%);color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"
               onclick="window.doDeleteContactMessage(${id})">
         ${icon('trash-2','icon-sm')}<span>Delete</span>
       </button>
@@ -2961,7 +3036,7 @@ function confirmRestore(id, name) {
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button style="background:#16a34a;color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px"
+      <button style="background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%);color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"
               onclick="window.doRestore('${safeId}','${safeName}')">
         ${icon('rotate-ccw','icon-sm')} Restore
       </button>
@@ -3026,7 +3101,7 @@ function confirmPermDelete(id, name) {
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
       <button id="perm-delete-btn"
-              style="background:#dc2626;color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;opacity:.45;pointer-events:none;display:inline-flex;align-items:center;gap:6px"
+              style="background:linear-gradient(135deg,#FCA5A5 0%,#EF4444 60%,#DC2626 100%);color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;opacity:.45;pointer-events:none;display:inline-flex;align-items:center;gap:6px"
               disabled
               onclick="window.doPermDelete('${id}','${name.replace(/'/g,"\\'")}')" >
         ${icon('trash','icon-sm')} Delete Forever
@@ -3140,7 +3215,7 @@ function viewArchivedRecord(id) {
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Close</button>
-      <button style="background:#16a34a;color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px"
+      <button style="background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%);color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:opacity .15s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'"
               onclick="window.confirmRestore('${r.id}','${r.name.replace(/'/g, "\\'")}')">
         ${icon('rotate-ccw','icon-sm')} Restore
       </button>
@@ -3628,7 +3703,7 @@ function _renderPatientResult(p) {
     <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:10px"
          onmouseover="this.style.background='#FFFBF5'" onmouseout="this.style.background=''"
          onclick="window.selectPatientResult('${p.id}')">
-      <div style="width:32px;height:32px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;font-weight:700;flex-shrink:0;overflow:hidden">
+      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;font-weight:700;flex-shrink:0;overflow:hidden">
         ${avatarHtml}
       </div>
       <div>
@@ -3857,14 +3932,14 @@ function examWizRender(next, dir) {
     if (!circle) continue
     if (i < next) {
       // Completed
-      circle.style.background = '#E8891C'
+      circle.style.background = 'linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)'
       circle.style.color = 'white'
       circle.style.boxShadow = 'none'
       circle.style.border = 'none'
       circle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>'
     } else if (i === next) {
       // Active
-      circle.style.background = '#E8891C'
+      circle.style.background = 'linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)'
       circle.style.color = 'white'
       circle.style.boxShadow = '0 2px 8px rgba(232,137,28,0.35)'
       circle.style.border = 'none'
@@ -3887,7 +3962,7 @@ function examWizRender(next, dir) {
     }
     // Connector line color
     var line = document.getElementById('wiz-line-' + i)
-    if (line) line.style.background = i < next ? '#E8891C' : '#e5e7eb'
+    if (line) line.style.background = i < next ? 'linear-gradient(90deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)' : '#e5e7eb'
   }
 
   // Update step label
@@ -4355,7 +4430,7 @@ function viewExamRecord(examId) {
           <div style="font-size:.88rem;font-weight:600">${fmtDate(e.date)}</div>
           <div style="font-size:.78rem;color:rgba(255,255,255,.65)">${e.doctor}</div>
         </div>
-        <div style="background:#059669;color:#fff;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700">Completed</div>
+        <div style="background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%);color:#fff;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700">Completed</div>
       </div>
       <div style="padding:18px 22px;display:flex;flex-direction:column;gap:16px">
         <div>
@@ -4712,7 +4787,7 @@ function _openExamPrintWindow(p, e) {
       <td style="padding:8px 12px;font-size:13px;font-weight:800;color:#1D4ED8;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
       <td style="padding:8px 12px;font-size:13px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
     </tr>`
-  const pill    = txt => `<span style="display:inline-block;background:#E8760A;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin:2px 3px 2px 0">${txt}</span>`
+  const pill    = txt => `<span style="display:inline-block;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin:2px 3px 2px 0">${txt}</span>`
   const secLbl  = txt => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin:14px 0 6px">${txt}</div>`
   const noteBox = txt => `<div style="background:#fffbf0;border:1px solid #fde68a;border-radius:6px;padding:9px 12px;font-size:11px;color:#444;line-height:1.6;margin-bottom:12px">${txt}</div>`
 
@@ -4974,7 +5049,7 @@ function viewPrescriptionModal(patientId, examId) {
       <div style="margin-bottom:12px">
         <div style="font-size:.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Lens Coatings</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${e.lensCoating.map(c=>`<span style="background:#E8760A;color:#fff;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px">${c}</span>`).join('')}
+          ${e.lensCoating.map(c=>`<span style="background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px">${c}</span>`).join('')}
         </div>
       </div>` : ''}
 
@@ -5054,7 +5129,8 @@ function updateAdminDashboard() {
   const completedCnt = appointments.filter(a => a.status === 'completed').length
   const cancelledCnt = appointments.filter(a => a.status === 'cancelled').length
   const totalDocs    = doctors.length
-  const availDocs    = doctors.filter(d => d.status === 'active' && d.available).length
+  const _todayShort  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()]
+  const availDocs    = doctors.filter(d => d.status === 'active' && d.available && (d.days || []).includes(_todayShort)).length
   const pendingCnt   = appointments.filter(a => a.status === 'pending').length
 
   // ── Update stat cards ─────────────────────────────────────────
@@ -5076,7 +5152,7 @@ function updateAdminDashboard() {
       const avail   = d.available && d.status === 'active'
       const docAvatar = d.photoUrl
         ? `<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block"></div>`
-        : `<div style="width:32px;height:32px;border-radius:50%;background:#E8760A;color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${d.name.split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`
+        : `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${d.name.split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`
       return `<div class="doctor-avail-item">
         <div class="doctor-avail-info">
           <div class="avail-dot ${avail ? 'available' : 'unavailable'}"></div>
@@ -5379,7 +5455,7 @@ function docSchedClickDay(dateStr, availStr, dayAbb, cellEl) {
 
   const apptItems = appts.map(a => `
     <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:16px">
-      <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0;margin-top:5px"></div>
+      <div style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);flex-shrink:0;margin-top:5px"></div>
       <div>
         <div style="font-size:.82rem;font-weight:700;color:#1C1C1C">${a.time}</div>
         <div style="font-size:.88rem;color:#1C1C1C;margin-top:2px">${a.patient}</div>
@@ -5684,13 +5760,31 @@ window.doUnblockDate = doUnblockDate
   document.body.appendChild(tip)
 })()
 
+let _calTipOutsideHandler = null
+
 function showCalTip(el, json) {
   const tip = document.getElementById('cal-tooltip')
   if (!tip) return
   let appts
   try { appts = JSON.parse(json) } catch { return }
 
-  const statusColor = s => ({ approved:'#10B981', pending:'#F59E0B', completed:'#9CA3AF', cancelled:'#EF4444', disapproved:'#EF4444' })[s] || '#9CA3AF'
+  const STATUS_META = {
+    approved:    { color: '#10B981', label: 'Approved' },
+    pending:     { color: '#F59E0B', label: 'Pending' },
+    completed:   { color: '#9CA3AF', label: 'Completed' },
+    cancelled:   { color: '#EF4444', label: 'Cancelled' },
+    disapproved: { color: '#EF4444', label: 'Disapproved' },
+  }
+  const statusColor = s => (STATUS_META[s] || STATUS_META.completed).color
+
+  // Build legend only for statuses that appear in this tooltip
+  const seenStatuses = [...new Set(appts.map(a => a.status))]
+  const legendHTML = seenStatuses.map(s => {
+    const m = STATUS_META[s] || { color: '#9CA3AF', label: s }
+    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:.62rem;color:#9CA3AF;white-space:nowrap">
+      <span style="width:6px;height:6px;border-radius:50%;background:${m.color};flex-shrink:0"></span>${m.label}
+    </span>`
+  }).join('')
 
   tip.innerHTML = `
     <div style="font-weight:600;margin-bottom:6px;font-size:.73rem;color:#F9FAFB">
@@ -5702,6 +5796,9 @@ function showCalTip(el, json) {
       <span style="font-size:.7rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.patientName}</span>
       <span style="width:7px;height:7px;border-radius:50%;background:${statusColor(a.status)};flex-shrink:0" title="${a.status}"></span>
     </div>`).join('')}
+    <div style="margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);display:flex;flex-wrap:wrap;gap:4px 10px">
+      ${legendHTML}
+    </div>
   `
 
   const rect = el.getBoundingClientRect()
@@ -5723,12 +5820,30 @@ function showCalTip(el, json) {
     tip.style.top  = (rect.bottom + window.scrollY + 9) + 'px'
     tip.classList.add('tip-below')
   }
+
+  // Fade in
+  requestAnimationFrame(() => { tip.style.opacity = '1' })
+
+  // Mobile: dismiss on tap outside a .has-appts cell
+  if ('ontouchstart' in window) {
+    if (_calTipOutsideHandler) document.removeEventListener('touchstart', _calTipOutsideHandler)
+    _calTipOutsideHandler = function(e) {
+      if (!e.target.closest('.has-appts')) hideCalTip()
+    }
+    setTimeout(() => document.addEventListener('touchstart', _calTipOutsideHandler, { once: true }), 0)
+  }
 }
 window.showCalTip = showCalTip
 
 function hideCalTip() {
   const tip = document.getElementById('cal-tooltip')
-  if (tip) tip.style.display = 'none'
+  if (!tip) return
+  if (_calTipOutsideHandler) {
+    document.removeEventListener('touchstart', _calTipOutsideHandler)
+    _calTipOutsideHandler = null
+  }
+  tip.style.opacity = '0'
+  setTimeout(() => { if (tip.style.opacity === '0') tip.style.display = 'none' }, 150)
 }
 window.hideCalTip = hideCalTip
 
@@ -5847,17 +5962,35 @@ async function handleLogoUpload(input, previewId) {
     const r = await fetch('api/clinic/upload_logo.php', { method: 'POST', body: formData })
     const d = await r.json()
     if (!d.success) { toast(d.message || 'Could not upload logo.', 'error'); return }
-    clinicInfo.logoUrl = d.logoUrl
-    window._clinicLogoUrl = d.logoUrl
+    clinicInfo.logoUrl = d.logoUrl          // clean URL for DB/form state
+    const bust = d.logoUrl + '?t=' + Date.now()
+    window._clinicLogoUrl = bust            // busted URL so renderTopbar() always shows fresh image
     const el = document.getElementById(previewId)
-    if (el) { el.src = d.logoUrl; el.style.opacity = '1' }
+    if (el) { el.src = bust; el.style.opacity = '1' }
+    syncLogoImages(bust)
     renderSidebar()
+    renderTopbar()
     toast('Logo updated.', 'success')
   } catch (_) {
     toast('Network error — could not upload logo.', 'error')
   }
 }
 window.handleLogoUpload = handleLogoUpload
+
+// Updates every logo <img> and the favicon in the current document.
+// Called on upload and at boot when clinic settings are loaded.
+function syncLogoImages(url) {
+  if (!url) return
+  // Static auth screens (login, forgot-password, register) — hardcoded in app.html
+  document.querySelectorAll('.login-logo, .fp-logo, .reg-logo').forEach(img => { img.src = url })
+  // Topbar clinic logo — re-rendered by renderTopbar() but also update directly
+  // in case renderTopbar hasn't run yet
+  document.querySelectorAll('.topbar-clinic-img').forEach(img => { img.src = url })
+  // Browser tab favicon
+  const favicon = document.querySelector('link[rel="icon"]')
+  if (favicon) favicon.href = url
+}
+window.syncLogoImages = syncLogoImages
 
 // ════════════════════════════════════════════════════════════════
 //  ACTIVITY LOG FILTERS
@@ -6464,9 +6597,12 @@ function renderReportCharts(key, from, to) {
   const lCanvas = document.getElementById('rpt-chart-left')
   if (lCanvas) {
     const isDoughnut = cfg.left.type === 'doughnut' || cfg.left.type === 'pie'
+    const lDatasets = window.applyDatasetGradients
+      ? window.applyDatasetGradients(cfg.left.datasets, lCanvas, cfg.left.indexAxis === 'y')
+      : cfg.left.datasets
     _rptChartLeft = new Chart(lCanvas, {
       type: cfg.left.type,
-      data: { labels: cfg.left.labels, datasets: cfg.left.datasets },
+      data: { labels: cfg.left.labels, datasets: lDatasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -6486,9 +6622,12 @@ function renderReportCharts(key, from, to) {
   const rCanvas = document.getElementById('rpt-chart-right')
   if (rCanvas) {
     const isDoughnut = cfg.right.type === 'doughnut' || cfg.right.type === 'pie'
+    const rDatasets = window.applyDatasetGradients
+      ? window.applyDatasetGradients(cfg.right.datasets, rCanvas, cfg.right.indexAxis === 'y')
+      : cfg.right.datasets
     _rptChartRight = new Chart(rCanvas, {
       type: cfg.right.type,
-      data: { labels: cfg.right.labels, datasets: cfg.right.datasets },
+      data: { labels: cfg.right.labels, datasets: rDatasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,

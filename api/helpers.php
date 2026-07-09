@@ -9,6 +9,53 @@
 // end up 8 hours behind the actual local time.
 date_default_timezone_set('Asia/Manila');
 
+// ── IP-based rate limiting ────────────────────────────────────────
+// Reads hits from the `rate_limits` table keyed by IP + endpoint.
+// Fails open if the table doesn't exist yet so no legitimate request
+// is ever blocked by a missing migration.
+function clientIp(): string {
+    $fwd = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+    if ($fwd) {
+        $ip = trim(explode(',', $fwd)[0]);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+function rateLimit(string $endpoint, int $maxHits, int $windowSeconds): void {
+    try {
+        $pdo         = getDB();
+        $ip          = clientIp();
+        $now         = time();
+        $windowStart = $now - $windowSeconds;
+
+        // Probabilistic GC — cleans rows older than 24 h, 1-in-10 requests
+        if (mt_rand(1, 10) === 1) {
+            $pdo->prepare('DELETE FROM rate_limits WHERE created_at < ?')
+                ->execute([$now - 86400]);
+        }
+
+        $stmt = $pdo->prepare(
+            'SELECT COUNT(*) FROM rate_limits WHERE ip = ? AND endpoint = ? AND created_at >= ?'
+        );
+        $stmt->execute([$ip, $endpoint, $windowStart]);
+
+        if ((int)$stmt->fetchColumn() >= $maxHits) {
+            header('Retry-After: ' . $windowSeconds);
+            jsonResponse([
+                'success' => false,
+                'message' => 'Too many requests. Please wait a moment and try again.',
+            ], 429);
+        }
+
+        $pdo->prepare('INSERT INTO rate_limits (ip, endpoint, created_at) VALUES (?, ?, ?)')
+            ->execute([$ip, $endpoint, $now]);
+
+    } catch (PDOException) {
+        // Fail open — never block users due to a missing table or DB hiccup
+    }
+}
+
 function jsonResponse(array $data, int $status = 200): void {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -114,11 +161,41 @@ function minAdvanceBookingDays(PDO $pdo): int {
     return 1;
 }
 
+// ── Appointment time helpers ──────────────────────────────────────
+function apptTimeToMinutes(string $t): int {
+    if (!preg_match('/^(\d+)(?::(\d+))?\s*(AM|PM)$/i', trim($t), $m)) return -1;
+    $h = (int)$m[1]; $min = isset($m[2]) ? (int)$m[2] : 0;
+    $ampm = strtoupper($m[3]);
+    if ($ampm === 'PM' && $h !== 12) $h += 12;
+    if ($ampm === 'AM' && $h === 12) $h = 0;
+    return $h * 60 + $min;
+}
+
+// Returns the conflicting appointment time string, or null if clear.
+// Pass $excludeId to skip the appointment being rescheduled.
+function checkApptConflict(PDO $pdo, string $doctorId, string $date, string $time, int $durationMin, string $excludeId = ''): ?string {
+    $q = "SELECT time FROM appointments
+          WHERE doctor_id = ? AND date = ? AND status NOT IN ('cancelled','disapproved')"
+       . ($excludeId ? ' AND id != ?' : '');
+    $params = $excludeId ? [$doctorId, $date, $excludeId] : [$doctorId, $date];
+    $stmt = $pdo->prepare($q);
+    $stmt->execute($params);
+    $newMins = apptTimeToMinutes($time);
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $existing) {
+        $existMins = apptTimeToMinutes($existing);
+        if ($existMins >= 0 && $newMins >= 0 && abs($newMins - $existMins) < $durationMin + 15) {
+            return $existing;
+        }
+    }
+    return null;
+}
+
 // ── Build the frontend-compatible user object ─────────────────────
 // Maps snake_case DB columns to camelCase keys expected by pages.js.
-function buildUserObject(string $role, array $p, string $email, array $days = []): array {
+function buildUserObject(string $role, array $p, string $email, array $days = [], ?int $usersId = null): array {
     $base = [
         'id'        => $p['id'],
+        'dbId'      => $usersId,   // users.id integer — used for activity log photo join
         'firstName' => $p['first_name'],
         'lastName'  => $p['last_name'],
         'name'      => ($role === 'doctor' ? 'Dr. ' : '') . $p['first_name'] . ' ' . $p['last_name'],

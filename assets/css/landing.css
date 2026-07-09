@@ -14,58 +14,38 @@ body { overflow-x: hidden; }
 }
 .nav-logo-name { color: #fff; }
 .nav-logo-sub  { color: rgba(255,255,255,0.65); }
-#navbar.scrolled .nav-logo-name { color: var(--orange); }
+#navbar.scrolled .nav-logo-name { color: var(--text); }
 #navbar.scrolled .nav-logo-sub  { color: var(--muted); }
 
-.nav-links .nav-link { color: rgba(255,255,255,0.85); }
-.nav-links .nav-link:hover { color: #fff; }
-.nav-links .nav-link.active { color: #fff; font-weight: 600; }
-#navbar.scrolled .nav-links .nav-link { color: var(--orange); }
-#navbar.scrolled .nav-links .nav-link:hover { color: var(--orange-dk); }
-#navbar.scrolled .nav-links .nav-link.active { color: var(--orange); font-weight: 600; }
+/* White text only on desktop where the navbar floats over the dark hero.
+   On mobile the dropdown is white so navbar.css colour defaults apply. */
+@media (min-width: 992px) {
+  .nav-links .nav-link { color: rgba(255,255,255,0.85); }
+  .nav-links .nav-link:hover { color: #fff; }
+  .nav-links .nav-link.active { color: #fff; font-weight: 600; }
+  #navbar.scrolled .nav-links .nav-link { color: var(--muted); }
+  #navbar.scrolled .nav-links .nav-link:hover { color: var(--orange); }
+  #navbar.scrolled .nav-links .nav-link.active { color: var(--orange); font-weight: 600; }
 
-.nav-actions .nav-login { color: rgba(255,255,255,0.85); }
-.nav-actions .nav-login:hover { color: #fff; }
-#navbar.scrolled .nav-actions .nav-login { color: var(--orange); }
-#navbar.scrolled .nav-actions .nav-login:hover { color: var(--orange-dk); }
+  .nav-actions .nav-login { color: rgba(255,255,255,0.85); }
+  .nav-actions .nav-login:hover { color: #fff; }
+  #navbar.scrolled .nav-actions .nav-login { color: var(--muted); }
+  #navbar.scrolled .nav-actions .nav-login:hover { color: var(--orange); }
 
-/* Profile dropdown trigger needs the same transparent-to-white treatment
-   as the rest of the nav — it defaults to muted-gray text/icon which would
-   be unreadable over the hero photo before the page is scrolled. */
-.nav-profile-name, .nav-profile-chevron { color: rgba(255,255,255,0.85); }
-.nav-profile-btn:hover { background: rgba(255,255,255,0.14); }
-#navbar.scrolled .nav-profile-name, #navbar.scrolled .nav-profile-chevron { color: var(--muted); }
-#navbar.scrolled .nav-profile-btn:hover { background: rgba(127,127,127,0.1); }
+  .nav-profile-name, .nav-profile-chevron { color: rgba(255,255,255,0.85); }
+  .nav-profile-btn:hover { background: rgba(255,255,255,0.14); }
+  #navbar.scrolled .nav-profile-name, #navbar.scrolled .nav-profile-chevron { color: var(--muted); }
+  #navbar.scrolled .nav-profile-btn:hover { background: rgba(127,127,127,0.1); }
+}
 
 .nav-toggle span { background: #fff; }
-#navbar.scrolled .nav-toggle span { background: var(--orange); }
+#navbar.scrolled .nav-toggle span { background: var(--text); }
 
-/* On mobile the dropdown panel stays a solid dark glass surface regardless
-   of scroll state, since it overlays the hero image either way. */
 @media (max-width: 991.98px) {
-  .navbar-collapse.show {
-    background: rgba(15,15,20,0.97);
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.18);
-    margin: 0 -48px; padding-left: 48px; padding-right: 48px; padding-bottom: 12px;
-  }
-  .nav-links .nav-link, .nav-actions .nav-login { color: rgba(255,255,255,0.85); }
-  .nav-links .nav-link:hover, .nav-actions .nav-login:hover { color: #fff; }
-  .nav-links .nav-link.active,
-  #navbar.scrolled .nav-links .nav-link,
-  #navbar.scrolled .nav-links .nav-link:hover,
-  #navbar.scrolled .nav-actions .nav-login,
-  #navbar.scrolled .nav-actions .nav-login:hover { color: rgba(255,255,255,0.85); }
-  #navbar.scrolled .nav-links .nav-link.active,
-  .nav-links .nav-link.active { color: var(--orange); background: rgba(232,137,28,0.16); }
-  .nav-link-login .nav-link,
-  .nav-link-account { border-top-color: rgba(255,255,255,0.12); }
-  .nav-mobile-account-name { color: rgba(255,255,255,0.92); }
-  .nav-toggle span, #navbar.scrolled .nav-toggle span { background: #fff; }
-  #navbar.scrolled .nav-toggle[aria-expanded="false"] span { background: var(--orange); }
-}
-@media (max-width: 768px) {
-  .navbar-collapse.show { margin: 0 -20px; padding-left: 20px; padding-right: 20px; }
+  /* Hamburger lines are white over the hero; revert to dark once scrolled */
+  .nav-toggle span { background: #fff; }
+  #navbar.scrolled .nav-toggle span { background: var(--text); }
+  #navbar.scrolled .nav-toggle[aria-expanded="false"] span { background: var(--text); }
 }
 
 /* Hero */
@@ -78,8 +58,8 @@ body { overflow-x: hidden; }
 .hero-heading .orange { color: var(--orange); }
 .hero-sub { font-size: clamp(0.85rem, 0.78rem + 0.35vw, 1.05rem); color: rgba(255,255,255,0.8); line-height: 1.7; max-width: 580px; margin: 0 auto 32px auto; }
 .hero-btns { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
-.btn-solid { display: inline-flex; align-items: center; gap: 7px; padding: 13px 28px; background: var(--orange); color: #fff; font-size: 0.88rem; font-weight: 600; font-family: 'Poppins', sans-serif; border-radius: 8px; border: none; cursor: pointer; white-space: nowrap; transition: background 0.25s ease, transform 0.25s ease; }
-.btn-solid:hover { background: var(--orange-dk); transform: translateY(-2px); }
+.btn-solid { display: inline-flex; align-items: center; gap: 7px; padding: 13px 28px; background: linear-gradient(135deg, #F59E0B 0%, #E8891C 55%, #C4620A 100%); color: #fff; font-size: 0.88rem; font-weight: 600; font-family: 'Poppins', sans-serif; border-radius: 8px; border: none; cursor: pointer; white-space: nowrap; transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease; box-shadow: 0 4px 16px rgba(232,137,28,0.38), 0 1px 4px rgba(196,98,10,0.2); }
+.btn-solid:hover { opacity: 0.92; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(232,137,28,0.48), 0 2px 6px rgba(196,98,10,0.25); }
 .btn-solid:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .btn-outline { display: inline-flex; align-items: center; gap: 7px; padding: 13px 28px; background: transparent; color: #fff; font-size: 0.88rem; font-weight: 500; font-family: 'Poppins', sans-serif; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.5); cursor: pointer; white-space: nowrap; transition: border-color 0.25s ease, background 0.25s ease; }
 .btn-outline:hover { border-color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.08); }
@@ -125,10 +105,6 @@ body { overflow-x: hidden; }
 .ld-role  { font-size: 0.72rem; color: var(--orange); font-weight: 600; margin-bottom: 10px; }
 .ld-sched { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; color: #374151; background: var(--light); border-radius: 999px; padding: 4px 10px; font-weight: 500; border: 1px solid var(--border); white-space: nowrap; }
 
-/* Landing footer (normal page flow, unlike inner pages' fixed mini footer) */
-#footer { background: #ffffff; padding: 18px 24px; text-align: center; border-top: 1px solid var(--border); }
-.footer-line { font-size: 0.72rem; color: #9ca3af; white-space: nowrap; }
-
 @media (max-width: 991.98px) {
   .nav-inner { padding: 0 24px; }
   #about { padding: 64px 32px; min-height: auto; }
@@ -138,24 +114,34 @@ body { overflow-x: hidden; }
 @media (max-width: 768px) {
   .hero-btns { flex-direction: column; align-items: center; }
   .nav-inner { padding: 0 20px; }
-  #about { padding: 48px 24px; }
-  .about-img-main { height: 220px; }
+  #about { padding: 48px 20px; }
+  /* Zero out the Bootstrap column gutters so image and text share the same
+     left/right edge as the section's own padding. Add vertical gap instead. */
+  .about-inner { --bs-gutter-x: 0px; row-gap: 24px; }
+  .about-img-main { height: 240px; }
+  .about-img-main img { object-position: center 40%; }
   .about-heading { font-size: 1.25rem; }
   .about-stat-num { font-size: 1.1rem; }
 }
 
 @media (max-width: 480px) {
-  .nav-logo-sub { display: none; }
   .nav-logo img { height: 28px; width: 28px; }
   .hero-inner { padding: 0 18px; }
   .hero-sub { margin-bottom: 24px; }
   .btn-solid, .btn-outline { width: 100%; justify-content: center; }
-  #about { padding: 40px 18px; }
-  /* Three stats no longer fit two-per-row without leaving an orphaned,
-     half-empty third row — stack them full-width instead. */
-  .about-stats { flex-direction: column; gap: 14px; }
+  #about { padding: 40px 20px; }
+  .about-inner { --bs-gutter-x: 0px; row-gap: 24px; }
+  .about-img-main { height: 230px; }
+  .about-img-main img { object-position: center 40%; }
+  /* Keep stats in a horizontal row to match the desktop layout */
+  .about-stats { flex-direction: row; gap: 0; }
+  .about-stat { flex: 1; }
   .about-stat,
   .about-stat:last-child,
-  .about-stat:not(:first-child):not(:last-child) { flex: none; width: 100%; padding-left: 0 !important; padding-right: 0 !important; border-right: none !important; }
+  .about-stat:not(:first-child):not(:last-child) { padding-left: 12px !important; padding-right: 12px !important; border-right: 1px solid var(--border) !important; }
+  .about-stat:first-child { padding-left: 0 !important; }
+  .about-stat:last-child { border-right: none !important; padding-right: 0 !important; }
+  .about-stat-num { font-size: 1.1rem; }
+  .about-stat-label { font-size: 0.68rem; }
   .about-cta-btn { width: 100%; justify-content: center; }
 }

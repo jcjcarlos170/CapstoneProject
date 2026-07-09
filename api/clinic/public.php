@@ -2,9 +2,9 @@
 // ================================================================
 //  OPTICANA — api/clinic/public.php
 //  GET — public endpoint, no auth required.
-//  Returns the clinic info shown on the public marketing pages
-//  (name, address, phone, email, hours, logo) — never the internal
-//  consultation/scheduling rules, which are admin-only via settings.php.
+//  Returns clinic info + a computed schedule string built from the
+//  structured day/time fields so the contact page always reflects
+//  whatever the admin saved in Clinic Settings.
 // ================================================================
 
 require_once '../../config/db.php';
@@ -14,22 +14,78 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     jsonResponse(['success' => false, 'message' => 'Method not allowed.'], 405);
 }
 
+// Convert a "HH:MM" 24-hour string to "H:MM AM/PM"
+function fmt12h(string $t): string {
+    if (!$t) return '';
+    [$h, $m] = explode(':', $t . ':00');
+    $h = (int)$h; $m = (int)$m;
+    $ampm = $h >= 12 ? 'PM' : 'AM';
+    $h = $h % 12 ?: 12;
+    return $h . ($m > 0 ? ':' . str_pad($m, 2, '0', STR_PAD_LEFT) : '') . ' ' . $ampm;
+}
+
+// Collapse an ordered list of day abbreviations into human-readable ranges
+// e.g. ['Mon','Tue','Wed','Thu','Fri','Sat'] → "Mon – Sat"
+function buildDayRanges(array $openDays): string {
+    $ORDERED = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    usort($openDays, fn($a, $b) => array_search($a, $ORDERED) - array_search($b, $ORDERED));
+
+    if (!$openDays) return '';
+    $ranges = [];
+    $start  = $openDays[0];
+    $prev   = $openDays[0];
+    for ($i = 1; $i < count($openDays); $i++) {
+        $cur = $openDays[$i];
+        if (array_search($cur, $ORDERED) === array_search($prev, $ORDERED) + 1) {
+            $prev = $cur;
+            continue;
+        }
+        $ranges[] = $start === $prev ? $start : "$start \u{2013} $prev";
+        $start = $prev = $cur;
+    }
+    $ranges[] = $start === $prev ? $start : "$start \u{2013} $prev";
+    return implode(', ', $ranges);
+}
+
 try {
     $pdo = getDB();
-    $r = $pdo->query('SELECT name, tagline, address, phone, email, hours, logo_url FROM clinic_settings WHERE id = 1 LIMIT 1')->fetch();
+    $r = $pdo->query(
+        'SELECT name, tagline, address, phone, email, hours, logo_url,
+                clinic_days, morning_start, morning_end, afternoon_start, afternoon_end
+         FROM clinic_settings WHERE id = 1 LIMIT 1'
+    )->fetch();
 
     if (!$r) {
         jsonResponse(['success' => false, 'message' => 'Clinic settings not found.'], 404);
     }
 
+    // Build schedule string from structured fields
+    $ORDERED    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    $openDays   = json_decode($r['clinic_days'] ?? '[]', true) ?: [];
+    $dayRanges  = buildDayRanges($openDays);
+    $openTime   = fmt12h($r['morning_start'] ?? '');
+    $closeTime  = fmt12h($r['afternoon_end'] ?: $r['morning_end'] ?? '');
+    $closedDays = array_values(array_diff($ORDERED, $openDays));
+
+    $schedule = '';
+    if ($dayRanges && $openTime && $closeTime) {
+        $schedule = "$dayRanges: $openTime \u{2013} $closeTime";
+        if (count($closedDays) <= 2 && $closedDays) {
+            $schedule .= '  |  ' . implode(', ', $closedDays) . ': Closed';
+        }
+    }
+
+    // Fall back to the manual hours text if schedule fields are not configured
+    $displayHours = $schedule ?: $r['hours'];
+
     jsonResponse(['success' => true, 'clinic' => [
-        'name'    => $r['name'],
-        'tagline' => $r['tagline'],
-        'address' => $r['address'],
-        'phone'   => $r['phone'],
-        'email'   => $r['email'],
-        'hours'   => $r['hours'],
-        'logoUrl' => $r['logo_url'],
+        'name'     => $r['name'],
+        'tagline'  => $r['tagline'],
+        'address'  => $r['address'],
+        'phone'    => $r['phone'],
+        'email'    => $r['email'],
+        'hours'    => $displayHours,
+        'logoUrl'  => $r['logo_url'],
     ]]);
 
 } catch (PDOException $e) {

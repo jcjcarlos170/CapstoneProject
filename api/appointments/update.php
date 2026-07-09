@@ -140,6 +140,18 @@ try {
             jsonResponse(['success' => false, 'message' => 'Date and time are required.']);
         }
 
+        // Conflict check — exclude the appointment being rescheduled itself.
+        $durStr = $pdo->query('SELECT default_duration FROM clinic_settings WHERE id = 1 LIMIT 1')->fetchColumn();
+        preg_match('/(\d+)/', $durStr ?: '30', $dm);
+        $durationMin = isset($dm[1]) ? (int)$dm[1] : 30;
+        $conflict = checkApptConflict($pdo, $appt['doctor_id'], $newDate, $newTime, $durationMin, $id);
+        if ($conflict !== null) {
+            $totalGap = $durationMin + 15;
+            jsonResponse(['success' => false, 'message' =>
+                "This time conflicts with an existing appointment at {$conflict}. "
+              . "Please choose a slot at least {$totalGap} minutes before or after it."]);
+        }
+
         if ($fulfillRequest) {
             // Only apply if the request is still pending — guards against the
             // same request being accepted twice from two different sessions/tabs

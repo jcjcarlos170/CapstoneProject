@@ -12,20 +12,33 @@
     var s = document.createElement('style')
     s.textContent =
       '.th-sortable{cursor:pointer;user-select:none;white-space:nowrap}' +
-      '.th-sortable:hover{color:#E8891C}' +
-      '.th-sortable .sort-icon{display:inline-flex;margin-left:4px;opacity:.4;vertical-align:-2px}' +
-      '.th-sortable.th-sort-asc .sort-icon,.th-sortable.th-sort-desc .sort-icon{opacity:1;color:#E8891C}' +
+      '.th-sortable:hover{color:#E8760A}' +
+      // Arrow is always orange — full opacity when active, dimmed when idle
+      '.th-sortable .sort-icon{display:inline-flex;margin-left:4px;color:#E8760A;opacity:.35;vertical-align:-2px;transition:transform .2s ease,opacity .15s ease}' +
+      '.th-sortable.th-sort-asc .sort-icon,.th-sortable.th-sort-desc .sort-icon{opacity:1}' +
       '.th-sortable.th-sort-desc .sort-icon{transform:rotate(180deg)}'
     document.head.appendChild(s)
   }
 
-  var ICON = '<svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="6 9 12 15 18 9"/></svg>'
+  var ICON = '<svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="6 15 12 9 18 15"/></svg>'
 
   // ── Public: init ──────────────────────────────────────────────────
   // Call from afterRender, after the table is in the DOM. Wires up any
   // <th data-sort-key="..." data-sort-type="text|date|number"> headers
   // found in the same table as the given tbody.
-  function initSortable(tbodyId) {
+  // Sets or clears the active sort visual on a <th>: class + ASC/DESC label + tooltip.
+  function _setThVisual(th, dir, type) {
+    th.classList.remove('th-sort-asc', 'th-sort-desc')
+    if (dir === 1 || dir === -1) {
+      th.classList.add(dir === 1 ? 'th-sort-asc' : 'th-sort-desc')
+      th.title = _nextTip(type || 'text', dir)
+    } else {
+      th.title = _nextTip(type || 'text', 0)
+    }
+  }
+
+  // defaultSort: optional { key, type, dir } applied only when no prior sort exists for this tbody.
+  function initSortable(tbodyId, defaultSort) {
     ensureCSS()
     var tbody = document.getElementById(tbodyId)
     if (!tbody) return
@@ -33,15 +46,23 @@
     if (!table) return
 
     var st = _sort[tbodyId]
+    if (!st) {
+      // Use the explicit default if given, otherwise fall back to ascending on the first sortable column
+      var auto = defaultSort
+      if (!auto) {
+        var firstTh = table.querySelector('th[data-sort-key]')
+        if (firstTh) auto = { key: firstTh.getAttribute('data-sort-key'), type: firstTh.getAttribute('data-sort-type') || 'text', dir: 1 }
+      }
+      if (auto) st = _sort[tbodyId] = auto
+    }
 
     table.querySelectorAll('th[data-sort-key]').forEach(function (th) {
       th.classList.add('th-sortable')
       if (!th.querySelector('.sort-icon')) th.insertAdjacentHTML('beforeend', ICON)
       th.onclick = function () { _toggleSort(tbodyId, th) }
-      th.classList.remove('th-sort-asc', 'th-sort-desc')
-      if (st && st.key === th.getAttribute('data-sort-key')) {
-        th.classList.add(st.dir === 1 ? 'th-sort-asc' : 'th-sort-desc')
-      }
+      var thKey  = th.getAttribute('data-sort-key')
+      var thType = th.getAttribute('data-sort-type') || 'text'
+      _setThVisual(th, (st && st.key === thKey) ? st.dir : 0, thType)
     })
 
     // Re-apply a previously chosen sort (e.g. after the table re-rendered)
@@ -56,12 +77,30 @@
 
     var table = th.closest('table')
     table.querySelectorAll('th[data-sort-key]').forEach(function (h) {
-      h.classList.remove('th-sort-asc', 'th-sort-desc')
+      _setThVisual(h, h === th ? dir : 0, h.getAttribute('data-sort-type') || 'text')
     })
-    th.classList.add(dir === 1 ? 'th-sort-asc' : 'th-sort-desc')
 
     _sort[tbodyId] = { key: key, type: type, dir: dir }
     _applySort(tbodyId, key, type, dir)
+  }
+
+  // Returns a tooltip showing the current sort state and what the next click will do.
+  // dir=0 means unsorted (next click = ascending).
+  function _nextTip(type, dir) {
+    if (dir === 1) {
+      return type === 'date'   ? 'Ascending · Click to sort newest first'
+           : type === 'number' ? 'Ascending · Click to sort highest first'
+           :                     'Ascending · Click to sort Z → A'
+    }
+    if (dir === -1) {
+      return type === 'date'   ? 'Descending · Click to sort oldest first'
+           : type === 'number' ? 'Descending · Click to sort lowest first'
+           :                     'Descending · Click to sort A → Z'
+    }
+    // Unsorted
+    return   type === 'date'   ? 'Click to sort oldest first'
+           : type === 'number' ? 'Click to sort lowest first'
+           :                     'Click to sort A → Z'
   }
 
   function _applySort(tbodyId, key, type, dir) {

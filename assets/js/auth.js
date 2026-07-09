@@ -8,10 +8,8 @@
 function _showLoginError(msg) {
   const errEl  = document.getElementById('login-error')
   const errMsg = document.getElementById('login-error-msg')
-  clearTimeout(window._loginErrTimer)
-  errMsg.textContent   = msg
-  errEl.style.display  = 'flex'
-  window._loginErrTimer = setTimeout(() => { errEl.style.display = 'none' }, 5000)
+  errMsg.textContent  = msg
+  errEl.style.display = 'flex'
 }
 
 async function handleLogin() {
@@ -19,7 +17,6 @@ async function handleLogin() {
   const pass     = document.getElementById('login-password').value
   const remember = document.getElementById('login-remember')?.checked || false
   document.getElementById('login-error').style.display = 'none'
-  clearTimeout(window._loginErrTimer)
 
   if (!email || !pass) {
     _showLoginError(
@@ -281,10 +278,28 @@ window.acceptTerms = acceptTerms
 
 // ── Session restore (called from index.html on page load) ─────────
 async function restoreSession() {
+  const loadingEl  = document.getElementById('loading-screen')
+  const loginEl    = document.getElementById('login-screen')
+  const _startedAt = Date.now()
+  const MIN_SHOW   = 900 // ms — long enough to see the loader, short enough not to feel slow
+
+  const hideLoader = () => {
+    const elapsed = Date.now() - _startedAt
+    const delay   = Math.max(0, MIN_SHOW - elapsed)
+    setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none' }, delay)
+  }
+  const showLogin = (delay = 0) => {
+    setTimeout(() => { if (loginEl) loginEl.style.display = 'flex' }, delay)
+  }
+
   try {
     const res  = await fetch('api/auth/me.php')
     const data = await res.json()
-    if (!data.success) return // no active session — login screen stays as-is
+    if (!data.success) {
+      hideLoader()
+      showLogin(Math.max(0, MIN_SHOW - (Date.now() - _startedAt)))
+      return
+    }
 
     // Sync in-memory state with the logged-in user so pages.js works
     const { role, user } = data
@@ -293,9 +308,13 @@ async function restoreSession() {
       if (idx === -1) patients.push({ ...user, password: '' })
     }
 
-    _bootAfterAuth(role, user)
+    hideLoader()
+    const elapsed = Date.now() - _startedAt
+    setTimeout(() => _bootAfterAuth(role, user), Math.max(0, MIN_SHOW - elapsed))
   } catch (_) {
-    // PHP not available — leave the login screen showing
+    // PHP not available — fall back to login screen
+    hideLoader()
+    showLogin(Math.max(0, MIN_SHOW - (Date.now() - _startedAt)))
   }
 }
 
@@ -445,6 +464,7 @@ async function fpS3Submit() {
     const data = await res.json()
     if (!data.success) {
       btn.disabled = false; btn.innerHTML = 'Verify OTP'
+      fpShowWrongOTP(!!data.locked, data.attemptsLeft ?? null)
       fpGoToStep(3.5)
       return
     }
@@ -496,20 +516,52 @@ async function fpS4Submit() {
   }
 }
 
+function fpShowWrongOTP(locked, attemptsLeft) {
+  const title   = document.getElementById('fp-3b-title')
+  const msg     = document.getElementById('fp-3b-msg')
+  const retry   = document.getElementById('fp-3b-retry')
+  const newCode = document.getElementById('fp-3b-new-code')
+  if (!title || !msg || !retry || !newCode) return
+  if (locked) {
+    title.textContent        = 'Too Many Attempts'
+    msg.textContent          = 'You\'ve used all 5 attempts. Please request a new code to try again.'
+    retry.style.display      = 'none'
+    newCode.style.display    = 'block'
+  } else {
+    const left   = attemptsLeft ?? 2
+    const plural = left === 1 ? 'attempt' : 'attempts'
+    title.textContent        = 'Invalid OTP Code'
+    msg.textContent          = `The code you entered is incorrect. You have ${left} ${plural} remaining.`
+    retry.style.display      = 'block'
+    newCode.style.display    = 'none'
+  }
+}
+
+function fpRestartFromLocked() {
+  clearInterval(window._fpTimerInterval)
+  clearInterval(window._fpResendCooldownInterval)
+  window._fpResendCooldownLeft = 0
+  window._fpTimeLeft = 0
+  document.querySelectorAll('#fp-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
+  const resendBtn = document.querySelector('.fp-resend-link')
+  if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = 'Resend Code' }
+  fpGoToStep(1)
+}
+
 function fpRetryOTP() {
   document.querySelectorAll('#fp-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
   document.getElementById('fp-s3-error').classList.remove('show')
   document.getElementById('fp-s3-btn').disabled = false
   document.getElementById('fp-s3-btn').innerHTML = 'Verify OTP'
-  document.getElementById('fp-otp-timer').classList.remove('expired')
-  document.getElementById('fp-otp-timer').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Expires in <span id="fp-timer-display">5:00</span>'
+  // Timer keeps running — don't reset it. The interval never stopped while on the
+  // wrong-OTP screen, so the countdown and expired state are already correct.
   const cur = document.getElementById('fp-step-3b')
   cur.style.opacity = '0'
   setTimeout(() => {
     cur.classList.remove('active'); cur.style.display = 'none'; window._fpStep = 3
     const next = document.getElementById('fp-step-3')
     next.style.opacity = '0'; next.style.display = 'block'
-    requestAnimationFrame(() => requestAnimationFrame(() => { next.style.transition = 'opacity 0.3s ease'; next.style.opacity = '1'; next.classList.add('active'); fpStartTimer() }))
+    requestAnimationFrame(() => requestAnimationFrame(() => { next.style.transition = 'opacity 0.3s ease'; next.style.opacity = '1'; next.classList.add('active') }))
   }, 300)
 }
 
@@ -624,6 +676,7 @@ function _bootAfterAuth(role, user) {
   if (role === 'admin') { _syncActivityLog(); _syncStaff(); _syncArchives() }
   if (role === 'staff') _syncStaff()
   if (['admin', 'staff', 'doctor'].includes(role)) _syncPatients()
+  if (role === 'patient') _syncMyRecords()
   // Doctors array (incl. schedule/availability/blocked dates) — every role needs
   // a synced copy, not just staff: patients book against it, doctors see their
   // own panel. Patients hit the public endpoint since they're not authorized
@@ -637,6 +690,8 @@ const _APPT_PAGES = new Set([
   'appointments','patient-appts','doctor-appointments'
 ])
 
+window._apptPendingCount = 0
+
 async function _syncAppointments(rerender = true) {
   try {
     const r = await fetch('api/appointments/index.php')
@@ -645,6 +700,8 @@ async function _syncAppointments(rerender = true) {
     if (!d.success || !Array.isArray(d.appointments)) return
     // Replace the mock array in-place so all existing references stay valid
     appointments.splice(0, appointments.length, ...d.appointments)
+    window._apptPendingCount = d.appointments.filter(a => a.status === 'pending').length
+    if (window._updateSidebarBadges) window._updateSidebarBadges()
     const page = window.state?.page
     if (rerender && _APPT_PAGES.has(page)) { window.renderPage(); return }
     // Update dashboard stat cards and charts without a full re-render
@@ -672,9 +729,46 @@ async function _syncPatients() {
     if (p === 'admin-dashboard' && window.updateAdminDashboard) window.updateAdminDashboard()
     if (p === 'staff-dashboard' && window.updateStaffDashboard) window.updateStaffDashboard()
     if (p === 'admin-users' && window.renderPage) window.renderPage()
+    if (p === 'activity-log' && window.renderPage) window.renderPage()
   } catch (_) {}
 }
 window._syncPatients = _syncPatients
+
+// ── Patient own records sync (examinations, prescriptions, consultations) ────
+async function _syncMyRecords() {
+  if (window.state?.role !== 'patient') return
+  try {
+    const r = await fetch('api/patients/me.php')
+    if (!r.ok) return
+    const d = await r.json()
+    if (!d.success) return
+    const exams = d.examinations  || []
+    const rxs   = d.prescriptions || []
+    const cons  = d.consultations || []
+    // Update state.user so patient-records page (reads user.examinations directly) works
+    if (window.state.user) {
+      window.state.user.examinations  = exams
+      window.state.user.prescriptions = rxs
+      window.state.user.consultations = cons
+    }
+    // Insert/update patient in patients[] so dashboard, exam-history, prescriptions pages work
+    const uid = window.state.user?.id
+    if (uid) {
+      const idx = patients.findIndex(p => p.id === uid)
+      if (idx >= 0) {
+        patients[idx].examinations  = exams
+        patients[idx].prescriptions = rxs
+        patients[idx].consultations = cons
+      } else {
+        patients.push({ ...window.state.user, examinations: exams, prescriptions: rxs, consultations: cons })
+      }
+    }
+    const page = window.state?.page
+    const dataPages = new Set(['patient-dashboard','patient-records','patient-prescriptions','patient-exam-history'])
+    if (dataPages.has(page)) window.renderPage()
+  } catch (_) {}
+}
+window._syncMyRecords = _syncMyRecords
 
 // ── Doctors sync ──────────────────────────────────────────────────
 async function _syncDoctors() {
@@ -694,6 +788,7 @@ async function _syncDoctors() {
     if (_dp === 'schedule' && window.renderPage) window.renderPage()
     if (_dp === 'admin-users' && window.renderPage) window.renderPage()
     if (['doctor-availability', 'patient-appts', 'patient-dashboard'].includes(_dp) && window.renderPage) window.renderPage()
+    if (_dp === 'activity-log' && window.renderPage) window.renderPage()
   } catch (_) { /* keep mock data on network failure */ }
 }
 window._syncDoctors = _syncDoctors
@@ -709,6 +804,7 @@ async function _syncStaff() {
     if (Array.isArray(d.admins)) admins.splice(0, admins.length, ...d.admins)
     // Re-render user management page if currently open so photos appear
     if (window.state?.page === 'admin-users' && window.renderPage) window.renderPage()
+    if (window.state?.page === 'activity-log' && window.renderPage) window.renderPage()
   } catch (_) {}
 }
 window._syncStaff = _syncStaff
@@ -767,7 +863,10 @@ async function _syncClinicSettings() {
       afternoonStart: s.afternoonStart, afternoonEnd: s.afternoonEnd,
       lunchBreak: s.lunchBreak, clinicDays: s.clinicDays
     })
-    if (s.logoUrl) window._clinicLogoUrl = s.logoUrl
+    if (s.logoUrl) {
+      window._clinicLogoUrl = s.logoUrl
+      if (window.syncLogoImages) window.syncLogoImages(s.logoUrl)
+    }
     if (window.renderSidebar) window.renderSidebar()
     if (window.renderTopbar) window.renderTopbar()
     if (_CLINIC_SETTINGS_PAGES.has(window.state?.page) && window.renderPage) window.renderPage()

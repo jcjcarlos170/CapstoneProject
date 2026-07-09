@@ -12,12 +12,32 @@
 ;(function () {
   var base = window.location.pathname.indexOf('/pages/') !== -1 ? '../' : ''
 
+  // ── Mobile nav toggle (replaces Bootstrap collapse to avoid inline-height interference) ──
+  var navToggle = document.querySelector('.nav-toggle')
+  var navMenu   = document.getElementById('navMenu')
+  if (navToggle && navMenu) {
+    navToggle.addEventListener('click', function () {
+      var isOpen = navMenu.classList.toggle('show')
+      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false')
+    })
+    document.addEventListener('click', function (e) {
+      if (!navToggle.contains(e.target) && !navMenu.contains(e.target)) {
+        navMenu.classList.remove('show')
+        navToggle.setAttribute('aria-expanded', 'false')
+      }
+    })
+  }
+
   fetch(base + 'api/auth/me.php')
     .then(function (r) { return r.json() })
     .then(function (d) {
       if (!d || !d.success || !d.user) return
       applyProfileUI(d.user, base)
       prefillContactForm(d.user)
+      // Hide the hero "Register" button — logged-in users already have an account
+      document.querySelectorAll('a[href*="#register"]').forEach(function (el) {
+        el.style.display = 'none'
+      })
     })
     .catch(function () { /* not logged in, or PHP unavailable — leave the default Login UI */ })
 
@@ -127,10 +147,11 @@
 
   function applyClinicBranding(clinic, base) {
     if (clinic.logoUrl) {
-      document.querySelectorAll('#site-logo-img').forEach(function (img) { img.src = base + clinic.logoUrl })
+      document.querySelectorAll('#site-logo-img, .footer-logo-img').forEach(function (img) { img.src = base + clinic.logoUrl })
       document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = base + clinic.logoUrl })
     }
 
+    // Contact page info card (phone/email stay clickable there)
     var addressEl = document.getElementById('ci-pub-address')
     if (addressEl && clinic.address) addressEl.textContent = clinic.address
 
@@ -148,6 +169,16 @@
 
     var hoursEl = document.getElementById('ci-pub-hours')
     if (hoursEl && clinic.hours) hoursEl.textContent = clinic.hours
+
+    // Footer contact details (plain text, no links)
+    var fAddr  = document.getElementById('footer-address')
+    var fPhone = document.getElementById('footer-phone')
+    var fEmail = document.getElementById('footer-email')
+    var fHours = document.getElementById('footer-hours')
+    if (fAddr  && clinic.address) fAddr.textContent  = clinic.address
+    if (fPhone && clinic.phone)   fPhone.textContent = clinic.phone
+    if (fEmail && clinic.email)   fEmail.textContent = clinic.email
+    if (fHours && clinic.hours)   fHours.textContent = clinic.hours
   }
 
   function signOut(logoutHref, indexHref) {

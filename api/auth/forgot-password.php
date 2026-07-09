@@ -17,6 +17,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 requireMethod('POST');
+rateLimit('forgot-password', 5, 900); // 5 per IP per 15 min — each hit sends an email
 
 $b     = getBody();
 $email = strtolower(trim($b['email'] ?? ''));
@@ -49,8 +50,6 @@ try {
         ->execute([$email, $otp]);
 
     // Send OTP via SMTP
-    $logoPath = realpath(__DIR__ . '/../../brand_assests/cana logo.png');
-
     $mail = new PHPMailer(true);
     $mail->isSMTP();
     $mail->Host       = SMTP_HOST;
@@ -78,13 +77,7 @@ try {
     $mail->isHTML(true);
     $mail->Subject = 'Your Opticana Password Reset Code';
 
-    $hasCidLogo = false;
-    if ($logoPath && file_exists($logoPath)) {
-        $mail->addEmbeddedImage($logoPath, 'opticana_logo', 'cana logo.png', 'base64', 'image/png');
-        $hasCidLogo = true;
-    }
-
-    $mail->Body    = emailBody($otp, $hasCidLogo);
+    $mail->Body    = emailBody($otp);
     $mail->AltBody = "Your Opticana password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone.";
 
     $mail->send();
@@ -97,10 +90,7 @@ try {
     jsonResponse(['success' => false, 'message' => 'Server error. Please try again.'], 500);
 }
 
-function emailBody(string $otp, bool $hasCidLogo): string {
-    $logoTag = $hasCidLogo
-        ? '<img src="cid:opticana_logo" alt="Opticana" width="60" height="60" style="display:block;margin:0 auto 12px;border-radius:50%;object-fit:contain;background:#fff;">'
-        : '';
+function emailBody(string $otp): string {
 
     return <<<HTML
 <!DOCTYPE html>
@@ -123,9 +113,8 @@ function emailBody(string $otp, bool $hasCidLogo): string {
 
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,#E8760A 0%,#C4620A 100%);
+          <td style="background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
                      padding:32px 40px 28px;text-align:center;">
-            {$logoTag}
             <div style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                         font-size:22px;font-weight:800;color:#ffffff;
                         letter-spacing:1px;line-height:1;margin-bottom:4px;">

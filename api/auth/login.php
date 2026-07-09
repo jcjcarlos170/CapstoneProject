@@ -10,6 +10,7 @@ require_once '../../config/db.php';
 require_once '../helpers.php';
 
 requireMethod('POST');
+rateLimit('login', 60, 900); // 60 attempts per IP per 15 min
 
 $body     = getBody();
 $email    = trim($body['email']    ?? '');
@@ -96,7 +97,7 @@ if (!$result) {
     jsonResponse(['success' => false, 'message' => 'User profile not found. Contact support.']);
 }
 
-$userObj = buildUserObject($role, $result['profile'], $user['email'], $result['days']);
+$userObj = buildUserObject($role, $result['profile'], $user['email'], $result['days'], (int)$user['id']);
 
 $_SESSION['user_id']    = (int)$user['id'];
 $_SESSION['profile_id'] = $result['profile']['id'];
@@ -110,12 +111,12 @@ try {
 
 // Persist login to activity log
 try {
-    $fullName = trim(($result['profile']['first_name'] ?? '') . ' ' . ($result['profile']['last_name'] ?? ''));
+    $fullName = ($role === 'doctor' ? 'Dr. ' : '') . trim(($result['profile']['first_name'] ?? '') . ' ' . ($result['profile']['last_name'] ?? ''));
     $logId    = 'L' . date('YmdHis') . substr((string)microtime(true), -3);
     $pdo->prepare(
-        'INSERT IGNORE INTO activity_log (id, user_name, role, action, timestamp, type)
-         VALUES (?,?,?,\'Logged in to the system\',NOW(),\'login\')'
-    )->execute([substr($logId, 0, 20), $fullName, ucfirst($role)]);
+        'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type)
+         VALUES (?,?,?,?,\'Logged in to the system\',NOW(),\'login\')'
+    )->execute([substr($logId, 0, 20), (int)$user['id'], $fullName, ucfirst($role)]);
 } catch (PDOException $e) { /* non-critical */ }
 
 jsonResponse(['success' => true, 'role' => $role, 'user' => $userObj]);

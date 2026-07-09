@@ -32,14 +32,15 @@
 .nav-login { font-size: 0.85rem; font-weight: 500; color: var(--muted); padding: 6px 12px; transition: color 0.2s ease; }
 .nav-login:hover { color: var(--orange); }
 .nav-login:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
-.nav-book { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; background: var(--orange); color: #fff; font-size: 0.85rem; font-weight: 600; border-radius: 999px; transition: background 0.25s ease, transform 0.25s ease; box-shadow: 0 2px 10px rgba(232,137,28,0.3); }
-.nav-book:hover { background: var(--orange-dk); transform: translateY(-1px); }
+.nav-book { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; background: linear-gradient(135deg, #F59E0B 0%, #E8891C 55%, #C4620A 100%); color: #fff; font-size: 0.85rem; font-weight: 600; border-radius: 999px; transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease; box-shadow: 0 2px 12px rgba(232,137,28,0.38), 0 1px 3px rgba(196,98,10,0.2); }
+.nav-book:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(232,137,28,0.48), 0 1px 4px rgba(196,98,10,0.25); }
 .nav-book:active { transform: translateY(0); }
 .nav-book:focus-visible { outline: 2px solid var(--orange-dk); outline-offset: 2px; }
 .nav-link-login { display: none; }
 .nav-link-logout { display: none; }
 .nav-link-account { display: none; }
 .nav-link-dashboard { display: none; }
+.nav-link-book { display: none; }
 
 /* Logged-in profile dropdown (replaces the desktop "Login" link via
    public-nav.js when a session is active) */
@@ -47,7 +48,7 @@
 .nav-profile-btn { display: flex; align-items: center; gap: 8px; background: transparent; border: none; cursor: pointer; padding: 4px 10px 4px 4px; border-radius: 999px; transition: background 0.2s ease; }
 .nav-profile-btn:hover { background: rgba(127,127,127,0.1); }
 .nav-profile-btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
-.nav-profile-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+.nav-profile-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #FAA84F 0%, #E8760A 60%, #C4620A 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
 .nav-profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .nav-profile-name { font-size: 0.85rem; font-weight: 600; color: var(--muted); white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .nav-profile-chevron { flex-shrink: 0; color: var(--muted); transition: transform 0.2s ease; }
@@ -67,13 +68,12 @@
 /* Hamburger toggle (mobile) — a circular tap target that visibly responds
    to hover/press and shows a distinct "open" state, instead of three bare
    lines floating with no affordance. */
-.nav-toggle.navbar-toggler { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 5px; width: 40px; height: 40px; background: transparent; border: none; border-radius: 50%; padding: 0; cursor: pointer; flex-shrink: 0; transition: background 0.2s ease; }
-.nav-toggle:hover { background: rgba(127,127,127,0.14); }
-.nav-toggle:active { background: rgba(127,127,127,0.22); }
-.nav-toggle[aria-expanded="true"] { background: rgba(127,127,127,0.18); }
+.nav-toggle.navbar-toggler { display: none; flex-direction: column; justify-content: center; align-items: center; gap: 5px; width: 40px; height: 40px; background: transparent; border: none; border-radius: 50%; padding: 0; cursor: pointer; flex-shrink: 0; }
+.nav-toggle[aria-expanded="true"] { background: rgba(232,137,28,0.14); }
 .nav-toggle:focus { box-shadow: none; }
 .nav-toggle:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
 .nav-toggle span { display: block; width: 20px; height: 2px; border-radius: 2px; background: var(--text); transition: transform 0.25s ease, opacity 0.25s ease; }
+.nav-toggle[aria-expanded="true"] span { background: var(--orange); }
 .nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
 .nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
 .nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
@@ -94,7 +94,43 @@
 
 @media (max-width: 991.98px) {
   .nav-toggle.navbar-toggler { display: flex; }
-  .navbar-collapse { flex-basis: 100%; width: 100%; order: 3; }
+  /* Bypass Bootstrap's collapse JS entirely — it sets inline height styles
+     that made the dropdown render taller than its content (extra white space).
+     We use a max-height CSS toggle driven by our own JS click handler instead.
+     display:block !important overrides Bootstrap's .collapse { display:none }. */
+  /* opacity+transform animation avoids the max-height "white sliver" flash.
+     visibility delays to 0 on close so the element hides only after the
+     fade completes; on open it snaps to visible immediately. */
+  .navbar-collapse {
+    display: block !important;
+    /* 100vw bypasses any containing-block created by backdrop-filter on the
+       navbar ancestor — using 100% can resolve to a narrower ancestor width.
+       z-index must be explicit: position:fixed takes the element out of the
+       navbar's stacking context, so without it the collapse sits at z-index:auto
+       (effectively 0) and hero section layers (image, overlays) render on top. */
+    position: fixed; top: 70px; left: 0; width: 100vw; z-index: 999;
+    box-sizing: border-box;
+    background: #fff;
+    border-bottom: 1px solid rgba(229,231,235,0.7);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-6px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .navbar-collapse.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0s linear 0s;
+  }
+  /* Prevent the flex row from wrapping now that the collapse is out of flow */
+  .nav-inner { flex-wrap: nowrap; }
+  /* backdrop-filter creates a GPU compositor layer that can flash white when
+     a child changes visibility — not needed on mobile since the bar is opaque */
+  #navbar { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(255,255,255,1); }
   /* .navbar-nav.nav-links (2 classes) elsewhere sets align-items:center —
      more specific than a plain .nav-links rule, so it would silently win
      over align-items:stretch here regardless of media-query order. Match
@@ -102,14 +138,14 @@
      item collapses to a short, centered, content-width box instead of a
      full-width left-aligned row (which is what made the menu look broken/
      "compressed" rather than a normal mobile dropdown). */
-  .navbar-nav.nav-links { flex-direction: column; align-items: stretch; width: 100%; gap: 2px; padding-top: 10px; }
+  .navbar-nav.nav-links { flex-direction: column !important; align-items: stretch !important; width: 100%; box-sizing: border-box; gap: 2px; padding: 10px 16px 16px !important; }
   .nav-links .nav-link { display: block; width: 100%; text-align: left; padding: 13px 14px; border-radius: 10px; border-bottom: none; transition: color 0.2s ease, background 0.2s ease; }
   .nav-links .nav-link::after { display: none; }
   .nav-links .nav-link:hover { background: rgba(127,127,127,0.1); }
   .nav-links .nav-link.active { background: rgba(232,137,28,0.12); }
   .nav-links .nav-link { display: flex; align-items: center; gap: 10px; }
   .nav-link-login { display: list-item; }
-  .nav-link-login .nav-link { border-top: 1px solid var(--border); border-radius: 0; margin-top: 6px; padding-top: 16px; }
+  .nav-link-login .nav-link { border-top: 2px solid rgba(0,0,0,0.10); border-radius: 0; margin-top: 4px; padding-top: 16px; }
   .nav-link-account { display: list-item; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 16px; }
   .nav-mobile-account { display: flex; align-items: center; gap: 10px; padding: 4px 14px 10px; }
   .nav-mobile-account-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
@@ -121,5 +157,14 @@
   /* The desktop profile button never appears collapsed — its content
      already lives in the mobile menu via the items above. */
   .nav-actions .nav-profile { display: none; }
+  /* Reduce padding so logo + hamburger fit without overflow on small screens */
+  .nav-inner { padding: 0 16px; }
+  /* Hide the pill Book Now button — it's too wide to share the bar with the logo and hamburger */
+  .nav-book { display: none; }
+  /* Show Book Now as a styled link inside the mobile menu instead */
+  .nav-link-book { display: list-item; position: relative; margin-top: 8px; }
+  .nav-link-book::before { content: ''; display: block; height: 2px; background: rgba(232,137,28,0.45); margin: 0 14px 4px; }
+  .nav-link-book .nav-link { color: var(--orange); font-weight: 600; border-top: none; border-radius: 10px; margin-top: 0; padding-top: 13px; }
+  .nav-link-book .nav-link:hover { background: rgba(232,137,28,0.12); color: var(--orange-dk); }
 }
 

@@ -11,6 +11,7 @@ require_once '../../config/db.php';
 require_once '../helpers.php';
 
 requireMethod('POST');
+rateLimit('register', 10, 3600); // 10 new accounts per IP per hour
 startSession();
 
 $b = getBody();

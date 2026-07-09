@@ -10,6 +10,46 @@ const GRID    = '#F3F4F6'
 const TEAL    = '#0D9488'
 const BLUE    = '#2563EB'
 
+// Canvas gradient helpers for bar/line fills
+function _makeGrad(ctx, stops, horizontal) {
+  const grad = horizontal
+    ? ctx.createLinearGradient(0, 0, 420, 0)
+    : ctx.createLinearGradient(0, 0, 0, 320)
+  stops.forEach(([pos, color]) => grad.addColorStop(pos, color))
+  return grad
+}
+function orangeGrad(ctx, horizontal = false) { return _makeGrad(ctx, [[0,'#FAA84F'],[0.6,'#E8760A'],[1,'#C4620A']], horizontal) }
+function greenGrad (ctx, horizontal = false) { return _makeGrad(ctx, [[0,'#6EE7B7'],[0.6,'#10B981'],[1,'#059669']], horizontal) }
+function blueGrad  (ctx, horizontal = false) { return _makeGrad(ctx, [[0,'#93C5FD'],[0.6,'#3B82F6'],[1,'#1D4ED8']], horizontal) }
+function redGrad   (ctx, horizontal = false) { return _makeGrad(ctx, [[0,'#FCA5A5'],[0.6,'#EF4444'],[1,'#DC2626']], horizontal) }
+function tealGrad  (ctx, horizontal = false) { return _makeGrad(ctx, [[0,'#5EEAD4'],[0.6,'#14B8A6'],[1,'#0D9488']], horizontal) }
+
+// Map a hex color string to its gradient. Falls back to the original value if unrecognized.
+function makeColorGrad(ctx, hex, horizontal = false) {
+  if (!hex || typeof hex !== 'string') return hex
+  const h = hex.toLowerCase()
+  if (/e87|e88|faa|fa9|f59|c462/.test(h))     return orangeGrad(ctx, horizontal)
+  if (/10b9|16a3|059|6ee7|2e7d|a3f/.test(h))   return greenGrad(ctx, horizontal)
+  if (/2563|1d4e|3b82|60a5|93c5/.test(h))       return blueGrad(ctx, horizontal)
+  if (/dc26|ef44|c628|fca5|f871|b91c/.test(h))  return redGrad(ctx, horizontal)
+  if (/0d94|14b8|5eea|0e7a/.test(h))            return tealGrad(ctx, horizontal)
+  return hex
+}
+
+// Transform solid-color backgroundColor strings/arrays to canvas gradients.
+// Call before new Chart(). Returns transformed datasets array.
+function applyDatasetGradients(datasets, canvas, horizontal = false) {
+  if (!canvas || !datasets) return datasets
+  const ctx = canvas.getContext('2d')
+  return datasets.map(ds => {
+    const bg = ds.backgroundColor
+    if (typeof bg === 'string') return { ...ds, backgroundColor: makeColorGrad(ctx, bg, horizontal) }
+    if (Array.isArray(bg))      return { ...ds, backgroundColor: bg.map(c => makeColorGrad(ctx, c, horizontal)) }
+    return ds
+  })
+}
+window.applyDatasetGradients = applyDatasetGradients
+
 // Center-text plugin for doughnut charts
 const centerTextPlugin = {
   id: 'centerText',
@@ -83,7 +123,7 @@ function initAppointmentsChart(canvasId = 'chart-appointments') {
       datasets: [{
         label: 'Appointments',
         data: [18, 22, 28, 25, 32, 38],
-        backgroundColor: ORANGE,
+        backgroundColor: orangeGrad(ctx),
         borderRadius: 6,
         borderSkipped: false
       }]
@@ -184,7 +224,7 @@ function initReportMonthlyChart(canvasId = 'chart-report-monthly') {
         {
           label: 'Appointments',
           data: [28, 35, 42, 31, 38, 44, 34, 41, 38, 52, 47, 61],
-          backgroundColor: ORANGE,
+          backgroundColor: orangeGrad(ctx),
           borderRadius: 5,
           borderSkipped: false
         },
@@ -258,15 +298,16 @@ function initAnalyticsStacked(canvasId = 'chart-analytics-stacked') {
   const el = document.getElementById(canvasId)
   if (!el) return
   const a = window.ANALYTICS || {}
-  _charts.aStacked = new Chart(el.getContext('2d'), {
+  const ctx = el.getContext('2d')
+  _charts.aStacked = new Chart(ctx, {
     type: 'bar',
     data: {
       labels: a.monthlyLabels || ['Oct','Nov','Dec','Jan','Feb','Mar'],
       datasets: [
         { label: 'Completed', data: a.monthlyCompleted || [10,12,14,12,16,18],
-          backgroundColor: '#16a34a', borderRadius: 4, borderSkipped: false },
+          backgroundColor: greenGrad(ctx), borderRadius: 4, borderSkipped: false },
         { label: 'Cancelled', data: a.monthlyCancelled || [1,0,1,1,0,1],
-          backgroundColor: '#dc2626', borderRadius: 4, borderSkipped: false }
+          backgroundColor: redGrad(ctx), borderRadius: 4, borderSkipped: false }
       ]
     },
     options: {
@@ -343,7 +384,7 @@ function initDoctorUtilChart(canvasId = 'chart-analytics-doctor') {
     data: {
       labels: docs.map(d => d.name),
       datasets: [{ label: 'Appointments', data: docs.map(d => d.appointments),
-        backgroundColor: ORANGE, borderRadius: 4, borderSkipped: false }]
+        backgroundColor: orangeGrad(ctx, true), borderRadius: 4, borderSkipped: false }]
     },
     options: {
       indexAxis: 'y',
@@ -396,7 +437,7 @@ function initStaffOverviewChart(canvasId = 'chart-staff-overview') {
       datasets: [{
         label: 'Appointments this week',
         data: [8, 12, 7, 10, 9, 5],
-        backgroundColor: ORANGE,
+        backgroundColor: orangeGrad(ctx, true),
         borderRadius: 6,
         borderSkipped: false
       }]

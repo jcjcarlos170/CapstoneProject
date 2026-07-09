@@ -157,7 +157,8 @@ function pageAdminDashboard() {
   const _completedCnt = appointments.filter(a => a.status === 'completed').length
   const _cancelledCnt = appointments.filter(a => a.status === 'cancelled').length
   const _totalDocs  = doctors.length
-  const _availDocs  = doctors.filter(d => d.status === 'active' && d.available).length
+  const _todayShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date().getDay()]
+  const _availDocs  = doctors.filter(d => d.status === 'active' && d.available && (d.days || []).includes(_todayShort)).length
   const STATS = {
     patients:    { value: String(patients.length),       delta: `${patients.filter(p=>p.status==='active').length} active`,  deltaColor: '#10B981' },
     appointments:{ value: String(appointments.length),   delta: `${appointments.filter(a=>a.status==='pending').length} pending`, deltaColor: '#10B981' },
@@ -914,7 +915,7 @@ function pageContactMessages() {
 
   const unreadCount = contactMessages.filter(m => !m.isRead && !m.archivedAt).length
 
-  window.state.afterRender = () => { window.initPagination('contact-tbody'); window.initSortable('contact-tbody') }
+  window.state.afterRender = () => { window.initPagination('contact-tbody'); window.initSortable('contact-tbody', { key: 'received', type: 'date', dir: -1 }) }
 
   return `
   <div class="page-header">
@@ -1251,7 +1252,7 @@ function pageSchedule() {
             </div>
           </div>
           ${canEdit ? `
-          <div style="display:flex;gap:8px;flex-shrink:0">
+          <div class="sched-header-actions">
             <button class="btn-ghost" style="font-size:.78rem"
                     onclick="window.openBlockDateModal('${doctor.id}','${doctor.name.replace(/'/g,'&#39;')}')">
               ${ic('x','icon-sm')} Block Date
@@ -1280,9 +1281,9 @@ function pageSchedule() {
             <div class="calendar-grid" id="sched-cal-${doctor.id}">${calCells}</div>
             <div style="display:flex;gap:14px;margin-top:16px;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:#6B7280">
-                <div style="width:10px;height:10px;background:#E8760A;border-radius:50%"></div>Today
+                <div style="width:10px;height:10px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border-radius:50%"></div>Today
               </div>
-              <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:#6B7280">
+              <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:#6B7280">
                 <div style="width:10px;height:10px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:2px"></div>Available
               </div>
               <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:#6B7280">
@@ -1327,7 +1328,7 @@ function pageSchedule() {
     <!-- Doctor selector cards -->
     <div class="card" style="margin-bottom:20px">
       <div class="card-body" style="padding:16px">
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <div class="pat-doc-tabs-grid">
           ${allDocs.map(d => `
           <button class="doctor-sel-card sched-tab" data-doc="${d.id}"
                   onclick="window.switchScheduleDoctor('${d.id}')">
@@ -1632,7 +1633,7 @@ function pageAdminSettings() {
         <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
           <div style="position:relative;flex-shrink:0">
             <label for="ad-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-              <div id="ad-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              <div id="ad-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
                 ${user.photoUrl
                   ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                   : initials(admName)}
@@ -1641,7 +1642,7 @@ function pageAdminSettings() {
                    onmouseover="this.style.background='rgba(0,0,0,.45)'"
                    onmouseout="this.style.background='rgba(0,0,0,0)'"></div>
             </label>
-            <label for="ad-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+            <label for="ad-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
               ${ic('camera','icon-sm')}
             </label>
             <input type="file" id="ad-photo-input" accept="image/*" style="display:none"
@@ -2074,7 +2075,7 @@ function pageAdminSettings() {
     </div>`
   }
 
-  if (sec === 'archives') window.state.afterRender = () => { window.initPagination('archives-tbody'); window.initSortable('archives-tbody') }
+  if (sec === 'archives') window.state.afterRender = () => { window.initPagination('archives-tbody'); window.initSortable('archives-tbody', { key: 'date', type: 'date', dir: -1 }) }
   if (sec === 'services') window.state.afterRender = () => { window.initPagination('services-tbody'); window.initSortable('services-tbody') }
 
   const sections = { profile: sectionProfile, clinic: sectionClinic, services: sectionServices, consultation: sectionConsultation, archives: sectionArchives }
@@ -2107,7 +2108,21 @@ function pageActivityLog() {
   const today      = new Date().toISOString().split('T')[0]
   const monthStart = today.slice(0,8) + '01'
 
-  window.state.afterRender = () => { window.initPagination('log-tbody'); window.initSortable('log-tbody'); window.applyLogFilters() }
+  // Fallback photo map keyed by name for log entries that predate the users_id column.
+  // New entries get photoUrl directly from the API via a users JOIN.
+  const userPhotoMap = {}
+  getAllUsers().forEach(u => {
+    if (!u.name || !u.photoUrl) return
+    userPhotoMap[u.name] = u.photoUrl
+    const stripped = u.name.replace(/^Dr\.\s+/i, '')
+    if (stripped !== u.name) userPhotoMap[stripped] = u.photoUrl
+  })
+
+  window.state.afterRender = () => {
+    window.initPagination('log-tbody')
+    window.initSortable('log-tbody', { key: 'ts', type: 'date', dir: -1 })
+    window.applyLogFilters()
+  }
 
   return `
   <div class="page-header">
@@ -2190,7 +2205,7 @@ function pageActivityLog() {
             data-sort-user="${l.user.toLowerCase()}"
             data-sort-ts="${l.timestamp}">
             <td style="color:#9CA3AF;font-size:.75rem">${i+1}</td>
-            <td><div class="patient-name-cell">${avatar(l.user)}<strong style="font-size:.82rem">${l.user}</strong></div></td>
+            <td><div class="patient-name-cell">${avatar(l.user, 'patient-avatar', l.photoUrl || userPhotoMap[l.user] || null)}<strong style="font-size:.82rem">${l.user}</strong></div></td>
             <td>${badge(l.role.toLowerCase())}</td>
             <td style="font-size:.82rem;max-width:380px">${l.action}</td>
             <td style="font-size:.75rem;color:#9CA3AF;white-space:nowrap">${fmtTimestamp12h(l.timestamp)}</td>
@@ -2593,13 +2608,13 @@ function pageDoctorSchedule() {
               <div style="width:12px;height:12px;border-radius:3px;background:#ECFDF5;border:1px solid #6EE7B7"></div> Available
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:#6B7280">
-              <div style="width:12px;height:12px;border-radius:3px;background:#E8760A"></div> Today
+              <div style="width:12px;height:12px;border-radius:3px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)"></div> Today
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:#6B7280">
               <div style="width:12px;height:12px;border-radius:3px;background:#F3F4F6"></div> Not Scheduled
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:#6B7280">
-              <div style="width:6px;height:6px;border-radius:50%;background:#E8760A;margin:3px"></div> Has Appointments
+              <div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);margin:3px"></div> Has Appointments
             </div>
           </div>
         </div>
@@ -2670,7 +2685,7 @@ function pageDoctorSettings() {
         <!-- Clickable avatar -->
         <div style="position:relative;flex-shrink:0">
           <label for="doc-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-            <div id="doc-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div id="doc-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
                 ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                 : initials(docName)}
@@ -2679,7 +2694,7 @@ function pageDoctorSettings() {
                  onmouseover="this.style.background='rgba(0,0,0,.45)'"
                  onmouseout="this.style.background='rgba(0,0,0,0)'"></div>
           </label>
-          <label for="doc-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+          <label for="doc-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
             ${ic('camera','icon-sm')}
           </label>
           <input type="file" id="doc-photo-input" accept="image/*" style="display:none"
@@ -3016,7 +3031,7 @@ function pageExamRecords() {
           ${filtered.map(e => `<tr data-search="${e.patientName.toLowerCase()} ${(e.diagnosis||'').toLowerCase()} ${e.doctor.toLowerCase()}" data-sort-patient="${e.patientName.toLowerCase()}" data-sort-date="${e.date}">
             <td><code style="font-size:.73rem;color:#9CA3AF">${e.id}</code></td>
             <td><div class="patient-name-cell">
-              ${avatar(e.patientName)}
+              ${avatar(e.patientName, 'patient-avatar', patients.find(p=>p.id===e.patientId)?.photoUrl || null)}
               <div class="patient-name-info"><strong>${e.patientName}</strong><span>${e.patientId}</span></div>
             </div></td>
             <td style="font-size:.82rem">${e.doctor}</td>
@@ -3117,7 +3132,7 @@ function pageNewExamination() {
                    View Record
                  </button>`
               : `<button onclick="window.startExamFromAppt('${a.id}')"
-                         style="width:100%;padding:8px;border-radius:8px;border:none;background:#E8891C;color:white;font-size:.78rem;font-weight:600;cursor:pointer;transition:opacity .15s;text-align:center"
+                         style="width:100%;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;font-size:.78rem;font-weight:600;cursor:pointer;transition:opacity .15s;text-align:center"
                          onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
                    Start Examination
                  </button>`
@@ -3270,7 +3285,7 @@ function pageNewExamination() {
              style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0;padding:4px 4px;border-radius:8px;transition:background 0.2s;overflow:hidden"
              onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
           <div id="wiz-circle-${s.n}"
-               style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;transition:all 0.3s;${s.n === 1 ? 'background:#E8891C;color:white;box-shadow:0 2px 8px rgba(232,137,28,0.35)' : 'background:#f3f4f6;color:#9ca3af;border:2px solid #e5e7eb'}">${s.n}</div>
+               style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;transition:all 0.3s;${s.n === 1 ? 'background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;box-shadow:0 2px 8px rgba(232,137,28,0.35)' : 'background:#f3f4f6;color:#9ca3af;border:2px solid #e5e7eb'}">${s.n}</div>
           <div style="min-width:0;overflow:hidden">
             <div style="font-size:.72rem;font-weight:${s.n === 1 ? '700' : '500'};color:${s.n === 1 ? '#1f2937' : '#9ca3af'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.3s">${s.label}</div>
             <div style="font-size:.62rem;color:${s.n === 1 ? '#6b7280' : '#d1d5db'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.3s">${s.sub}</div>
@@ -3284,7 +3299,7 @@ function pageNewExamination() {
   const step1 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:#E8891C;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('user','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('user','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Patient Information</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Basic details for this examination record</div>
@@ -3328,7 +3343,7 @@ function pageNewExamination() {
   const step2 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:#E8891C;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('eye','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('eye','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Visual Examination</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Enter optical measurements for both eyes</div>
@@ -3351,7 +3366,7 @@ function pageNewExamination() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div style="border:1px solid #e5e7eb;border-left:4px solid #22c55e;border-radius:12px;padding:20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <div style="width:24px;height:24px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:#16a34a"></div></div>
+          <div style="width:24px;height:24px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%)"></div></div>
           <div><div style="font-size:.88rem;font-weight:700;color:#1f2937">Right Eye</div><div style="font-size:.7rem;color:#6b7280">OD — Oculus Dexter</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -3364,7 +3379,7 @@ function pageNewExamination() {
       </div>
       <div style="border:1px solid #e5e7eb;border-left:4px solid #E8891C;border-radius:12px;padding:20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <div style="width:24px;height:24px;border-radius:50%;background:#fff8f0;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:#E8891C"></div></div>
+          <div style="width:24px;height:24px;border-radius:50%;background:#fff8f0;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)"></div></div>
           <div><div style="font-size:.88rem;font-weight:700;color:#1f2937">Left Eye</div><div style="font-size:.7rem;color:#6b7280">OS — Oculus Sinister</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -3387,7 +3402,7 @@ function pageNewExamination() {
   const step3 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:#E8891C;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('activity','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('activity','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Diagnosis</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Final clinical findings</div>
@@ -3417,7 +3432,7 @@ function pageNewExamination() {
   const step4 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:#E8891C;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('clipboard','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('clipboard','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Results and Recommendations</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Clinical recommendations for the patient</div>
@@ -3433,7 +3448,7 @@ function pageNewExamination() {
         <label for="r-ish-n" id="rb-ish-n"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #E8891C;background:#FFF7ED;color:#C4720E;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
           <span style="width:14px;height:14px;border-radius:50%;border:2px solid #E8891C;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .2s">
-            <span style="width:7px;height:7px;border-radius:50%;background:#E8891C;display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
           </span>Normal</label>
         <label for="r-ish-d" id="rb-ish-d"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
@@ -3452,7 +3467,7 @@ function pageNewExamination() {
         <label for="r-eg-y" id="rb-eg-y"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #E8891C;background:#FFF7ED;color:#C4720E;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
           <span style="width:14px;height:14px;border-radius:50%;border:2px solid #E8891C;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .2s">
-            <span style="width:7px;height:7px;border-radius:50%;background:#E8891C;display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
           </span>Yes</label>
         <label for="r-eg-n" id="rb-eg-n"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
@@ -3498,7 +3513,7 @@ function pageNewExamination() {
   const step5 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:#E8891C;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('package','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('package','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Dispensing Information</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Eyeglass release and payment details</div>
@@ -3531,7 +3546,7 @@ function pageNewExamination() {
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px" id="rx-preview-wrapper">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div style="display:flex;align-items:center;gap:12px">
-        <div style="width:36px;height:36px;border-radius:50%;background:#E8891C;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('file-text','icon-sm')}</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('file-text','icon-sm')}</div>
         <div>
           <div style="font-size:.95rem;font-weight:700;color:#1f2937">Prescription Summary</div>
           <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Auto-generated from your entries</div>
@@ -3561,13 +3576,13 @@ function pageNewExamination() {
     <div id="wiz-step-label" style="font-size:.8rem;color:#6b7280;font-weight:600">Step 1 of 6: Patient Info</div>
     <div style="display:flex;gap:10px;align-items:center">
       <button id="wiz-btn-next" onclick="examWizGo(1)"
-              style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:#E8891C;color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(232,137,28,0.3);transition:background 0.25s"
-              onmouseover="this.style.background='#C4720E'" onmouseout="this.style.background='#E8891C'">
+              style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(232,137,28,0.3);transition:opacity 0.2s"
+              onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         Next ${ic('chevron-right','icon-sm')}
       </button>
       <button id="wiz-btn-save" onclick="window.saveNewExam(window._examPatientId)"
-              style="display:none;align-items:center;gap:8px;padding:10px 24px;background:#16a34a;color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,0.3);transition:background 0.25s"
-              onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+              style="display:none;align-items:center;gap:8px;padding:10px 24px;background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%);color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.3);transition:opacity 0.2s"
+              onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         ${ic('check','icon-sm')} Save Examination
       </button>
       <button id="wiz-btn-print" onclick="window.printNewExamDraft(window._examPatientId)"
@@ -3766,14 +3781,12 @@ function pagePatientExamHistory() {
 // ════════════════════════════════════════════════════════════════
 function pagePatientDashboard() {
   const { user } = st()
+  const today    = new Date().toISOString().split('T')[0]
   const myAppts  = appointments.filter(a => a.patientId === user.id)
-  const upcoming = myAppts.filter(a => ['pending','approved'].includes(a.status))
-    .sort((a,b) => a.date.localeCompare(b.date))
+  const upcoming = myAppts.filter(a => ['pending','approved'].includes(a.status) && a.date >= today)
+    .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
   const nextAppt = upcoming[0] || null
   const show3    = upcoming.slice(0, 3)
-
-  const patient  = patients.find(p => p.id === user.id)
-  const lastExam = patient?.examinations?.sort((a,b) => b.date.localeCompare(a.date))[0] || null
 
   return `
   <div class="page-header">
@@ -3788,10 +3801,39 @@ function pagePatientDashboard() {
       <div class="welcome-banner-text">
         <h2>Hello, ${user.firstName}!</h2>
         <p>Your patient ID is <strong style="color:#E8760A">${user.id}</strong> &bull; QR Code ready below</p>
-        <div style="display:flex;gap:8px;margin-top:12px;position:relative;z-index:1">
-          <button class="btn-primary" onclick="window.navigate('patient-appts',{filter:'request'})">${ic('plus','icon-sm')} Book Appointment</button>
-          <button class="btn-secondary" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff"
-                  onclick="window.navigate('patient-records')">${ic('file-text','icon-sm')} My Records</button>
+        <div class="hero-btn-row">
+          <button onclick="window.navigate('patient-appts',{filter:'request'})"
+            style="display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#F59E0B 0%,#C4620A 100%);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .15s,box-shadow .2s;box-shadow:0 4px 16px rgba(232,137,28,.38),0 1px 4px rgba(196,98,10,.2)"
+            onmouseover="this.style.opacity='.9';this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(232,137,28,.45)'"
+            onmouseout="this.style.opacity='1';this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(232,137,28,.38),0 1px 4px rgba(196,98,10,.2)'"
+            onmousedown="this.style.transform='scale(0.98)'"
+            onmouseup="this.style.transform='translateY(-1px)'">
+            ${ic('plus','icon-sm')} Book Appointment
+          </button>
+          <button onclick="window.navigate('patient-prescriptions')"
+            style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease"
+            onmouseover="this.style.background='rgba(255,255,255,.2)';this.style.borderColor='rgba(255,255,255,.4)';this.style.color='#fff';this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.background='rgba(255,255,255,.1)';this.style.borderColor='rgba(255,255,255,.18)';this.style.color='rgba(255,255,255,.85)';this.style.transform='translateY(0)'"
+            onmousedown="this.style.transform='translateY(0)'"
+            onmouseup="this.style.transform='translateY(-2px)'">
+            ${ic('file-text','icon-sm')} Prescriptions
+          </button>
+          <button onclick="window.navigate('patient-records')"
+            style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease"
+            onmouseover="this.style.background='rgba(255,255,255,.2)';this.style.borderColor='rgba(255,255,255,.4)';this.style.color='#fff';this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.background='rgba(255,255,255,.1)';this.style.borderColor='rgba(255,255,255,.18)';this.style.color='rgba(255,255,255,.85)';this.style.transform='translateY(0)'"
+            onmousedown="this.style.transform='translateY(0)'"
+            onmouseup="this.style.transform='translateY(-2px)'">
+            ${ic('eye','icon-sm')} Exam History
+          </button>
+          <button onclick="window.navigate('doctor-availability')"
+            style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease"
+            onmouseover="this.style.background='rgba(255,255,255,.2)';this.style.borderColor='rgba(255,255,255,.4)';this.style.color='#fff';this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.background='rgba(255,255,255,.1)';this.style.borderColor='rgba(255,255,255,.18)';this.style.color='rgba(255,255,255,.85)';this.style.transform='translateY(0)'"
+            onmousedown="this.style.transform='translateY(0)'"
+            onmouseup="this.style.transform='translateY(-2px)'">
+            ${ic('calendar','icon-sm')} Doctor Availability
+          </button>
         </div>
       </div>
     </div>
@@ -3808,39 +3850,8 @@ function pagePatientDashboard() {
               onclick="window.navigate('patient-appts')">${ic('calendar','icon-sm')} View All</button>
     </div>` : ''}
 
-    <!-- Quick Links -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
-      <button onclick="window.navigate('patient-appts',{filter:'request'})"
-              style="display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid #E5E7EB;border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;transition:border-color .2s,box-shadow .2s"
-              onmouseover="this.style.borderColor='#E8760A';this.style.boxShadow='0 2px 8px rgba(232,118,10,.1)'"
-              onmouseout="this.style.borderColor='#E5E7EB';this.style.boxShadow='none'">
-        <div style="width:36px;height:36px;border-radius:8px;background:#FFF0DC;display:flex;align-items:center;justify-content:center;color:#E8760A;flex-shrink:0">${ic('plus','icon-sm')}</div>
-        <div>
-          <div style="font-size:.85rem;font-weight:600;color:#1C1C1C">Book Appointment</div>
-          <div style="font-size:.72rem;color:#9CA3AF">Request a new visit</div>
-          <div style="font-size:.68rem;color:#9CA3AF;margin-top:3px;display:flex;align-items:center;gap:3px">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Book at least 1 day in advance
-          </div>
-        </div>
-      </button>
-      <button onclick="window.navigate('patient-prescriptions')"
-              style="display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid #E5E7EB;border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;transition:border-color .2s,box-shadow .2s"
-              onmouseover="this.style.borderColor='#E8760A';this.style.boxShadow='0 2px 8px rgba(232,118,10,.1)'"
-              onmouseout="this.style.borderColor='#E5E7EB';this.style.boxShadow='none'">
-        <div style="width:36px;height:36px;border-radius:8px;background:#ECFDF5;display:flex;align-items:center;justify-content:center;color:#059669;flex-shrink:0">${ic('file-text','icon-sm')}</div>
-        <div><div style="font-size:.85rem;font-weight:600;color:#1C1C1C">Prescriptions</div><div style="font-size:.72rem;color:#9CA3AF">View your prescriptions</div></div>
-      </button>
-      <button onclick="window.navigate('doctor-availability')"
-              style="display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid #E5E7EB;border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;transition:border-color .2s,box-shadow .2s"
-              onmouseover="this.style.borderColor='#E8760A';this.style.boxShadow='0 2px 8px rgba(232,118,10,.1)'"
-              onmouseout="this.style.borderColor='#E5E7EB';this.style.boxShadow='none'">
-        <div style="width:36px;height:36px;border-radius:8px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;color:#3B82F6;flex-shrink:0">${ic('calendar','icon-sm')}</div>
-        <div><div style="font-size:.85rem;font-weight:600;color:#1C1C1C">Doctor Availability</div><div style="font-size:.72rem;color:#9CA3AF">Check doctor schedules</div></div>
-      </button>
-    </div>
 
-    <div class="grid-sidebar">
+    <div class="grid-sidebar" style="align-items:start">
       <div class="card">
         <div class="card-header">
           <div class="card-title">Upcoming Appointments</div>
@@ -3888,22 +3899,6 @@ function pagePatientDashboard() {
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-header"><div class="card-title">Recent Record</div></div>
-          <div class="card-body">
-            ${lastExam ? `
-              <div style="font-size:.75rem;color:#9CA3AF;margin-bottom:4px">${fmtDate(lastExam.date)}</div>
-              <div style="font-size:.88rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">${lastExam.diagnosis}</div>
-              <div style="font-size:.78rem;color:#6B7280">${lastExam.doctor}</div>
-              <div style="font-family:monospace;font-size:.75rem;color:#374151;margin-top:6px">
-                OD ${lastExam.od.sph} ${lastExam.od.cyl} &times;${lastExam.od.axis}<br>
-                OS ${lastExam.os.sph} ${lastExam.os.cyl} &times;${lastExam.os.axis}
-              </div>
-              <button class="btn-ghost" style="margin-top:10px;width:100%;justify-content:center"
-                      onclick="window.navigate('patient-exam-history')">${ic('eye','icon-sm')} View Exam History</button>
-            ` : `<div style="text-align:center;color:#9CA3AF;font-size:.82rem">No records yet.</div>`}
-          </div>
-        </div>
       </div>
     </div>
   </div>`
@@ -3923,7 +3918,7 @@ function pagePatientAppts() {
   if (tab === 'request') {
     window.state.afterRender = () => window.amcInit()
   } else {
-    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody') }
+    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', { key: 'date', type: 'date', dir: -1 }) }
   }
 
   const _minAdv = minAdvanceDays()
@@ -3975,11 +3970,11 @@ function pagePatientAppts() {
       .wiz-step-item { display:flex; flex-direction:column; align-items:center; flex:1; position:relative; }
       .wiz-step-item:not(:last-child)::after { content:''; position:absolute; top:14px; left:50%; width:100%;
         height:2px; background:#e5e7eb; z-index:0; transition:background .3s; }
-      .wiz-step-item.done:not(:last-child)::after { background:#E8760A; }
+      .wiz-step-item.done:not(:last-child)::after { background:linear-gradient(90deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); }
       .wiz-circle { width:28px; height:28px; border-radius:50%; border:2px solid #e5e7eb; background:#fff;
         display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700;
         color:#9CA3AF; z-index:1; position:relative; transition:all .25s; flex-shrink:0; }
-      .wiz-step-item.done .wiz-circle { background:#E8760A; border-color:#E8760A; color:#fff; }
+      .wiz-step-item.done .wiz-circle { background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); border-color:#E8760A; color:#fff; }
       .wiz-step-item.active .wiz-circle { border-color:#E8760A; color:#E8760A;
         box-shadow:0 0 0 4px rgba(232,118,10,.15); }
       .wiz-step-label { font-size:.68rem; color:#9CA3AF; margin-top:5px; font-weight:500; }
@@ -3991,10 +3986,10 @@ function pagePatientAppts() {
         color:#6B7280; cursor:pointer; padding:8px 0; display:flex; align-items:center; gap:5px; }
       .wiz-btn-back:hover { color:#374151; }
       .wiz-btn-next { font-family:'Poppins',sans-serif; font-size:.88rem; font-weight:600; cursor:pointer;
-        padding:11px 28px; border-radius:8px; border:none; background:#E8760A; color:#fff;
-        display:flex; align-items:center; gap:7px; transition:opacity .2s,background .2s; }
+        padding:11px 28px; border-radius:8px; border:none; background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); color:#fff;
+        display:flex; align-items:center; gap:7px; transition:opacity .2s; }
       .wiz-btn-next:disabled { opacity:.38; cursor:not-allowed; }
-      .wiz-btn-next:not(:disabled):hover { background:#C4620A; }
+      .wiz-btn-next:not(:disabled):hover { opacity:.85; }
       /* ── Doctor cards ── */
       .doc-card { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:10px;
         border:1.5px solid #e5e7eb; background:#fff; cursor:pointer; margin-bottom:12px;
@@ -4002,9 +3997,9 @@ function pagePatientAppts() {
         font-family:'Poppins',sans-serif; }
       .doc-card:hover { border-color:#E8760A; background:#FFFBF5; }
       .doc-card.selected { border-color:#E8760A; background:#FFF7ED; }
-      .doc-card-avatar { width:40px; height:40px; border-radius:50%; background:#FFF0DC;
+      .doc-card-avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
         display:flex; align-items:center; justify-content:center; font-size:.78rem;
-        font-weight:700; color:#E8760A; flex-shrink:0; }
+        font-weight:700; color:#fff; flex-shrink:0; }
       /* ── Type cards ── */
       .appt-type-card { text-align:left; padding:16px; border-radius:10px; border:1.5px solid #e5e7eb;
         background:#fff; cursor:pointer; font-family:'Poppins',sans-serif;
@@ -4015,7 +4010,7 @@ function pagePatientAppts() {
       .time-slot { padding:9px 14px; border-radius:8px; border:1.5px solid #e5e7eb; background:#fff;
         font-family:'Poppins',sans-serif; font-size:.82rem; cursor:pointer; transition:all .15s; white-space:nowrap; }
       .time-slot:hover:not(.taken) { border-color:#E8760A; }
-      .time-slot.selected { background:#E8760A; color:#fff; border-color:#E8760A; }
+      .time-slot.selected { background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); color:#fff; border-color:#E8760A; }
       .time-slot.taken { background:#F3F4F6; color:#9CA3AF; cursor:default; text-decoration:line-through; }
       /* ── Mini calendar ── */
       .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
@@ -4025,7 +4020,7 @@ function pagePatientAppts() {
       .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
       .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
       .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
-      .amc-day.amc-selected { background:#E8760A !important; color:#fff !important; font-weight:700; }
+      .amc-day.amc-selected { background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%) !important; color:#fff !important; font-weight:700; }
       .amc-day.amc-past { opacity:.35; cursor:default; }
       .amc-day.amc-far { opacity:.3; cursor:default; background:#f9fafb; }
       .amc-day.amc-empty { cursor:default; }
@@ -4103,7 +4098,7 @@ function pagePatientAppts() {
             <div class="appt-mini-cal" id="amc-cells"></div>
             <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
               <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#ECFDF5;border:1px solid #6EE7B7;display:inline-block"></span>Available</span>
-              <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#E8760A;display:inline-block"></span>Today / Selected</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:inline-block"></span>Today / Selected</span>
               <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#F3F4F6;display:inline-block"></span>Unavailable</span>
               <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#FFF1F2;border:1px solid #fda4af;display:inline-block"></span>PH Holiday</span>
             </div>
@@ -4469,7 +4464,7 @@ function pagePatientQR() {
           ${steps.map(([title, desc], i) => `
           <div style="display:flex;gap:16px;${i < steps.length - 1 ? 'margin-bottom:20px' : ''}">
             <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
-              <div style="width:28px;height:28px;border-radius:50%;background:#E8760A;color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div>
+              <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div>
               ${i < steps.length - 1 ? `<div style="width:2px;flex:1;background:repeating-linear-gradient(to bottom,#E5E7EB 0,#E5E7EB 4px,transparent 4px,transparent 8px);margin-top:4px;min-height:24px"></div>` : ''}
             </div>
             <div style="padding-top:4px${i < steps.length - 1 ? ';padding-bottom:20px' : ''}">
@@ -4522,7 +4517,7 @@ function pageStaffSettings() {
         <!-- Clickable avatar -->
         <div style="position:relative;flex-shrink:0">
           <label for="st-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-            <div id="st-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div id="st-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
                 ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                 : initials(staffName)}
@@ -4531,7 +4526,7 @@ function pageStaffSettings() {
                  onmouseover="this.style.background='rgba(0,0,0,.45)'"
                  onmouseout="this.style.background='rgba(0,0,0,0)'"></div>
           </label>
-          <label for="st-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+          <label for="st-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
             ${ic('camera','icon-sm')}
           </label>
           <input type="file" id="st-photo-input" accept="image/*" style="display:none"
@@ -4748,7 +4743,7 @@ function pagePatientNotifications() {
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
             <span style="font-size:.87rem;font-weight:${n.isRead ? '500' : '700'};color:#1C1C1C">${n.title}</span>
-            ${n.isRead ? '' : `<span style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0;display:inline-block"></span>`}
+            ${n.isRead ? '' : `<span style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);flex-shrink:0;display:inline-block"></span>`}
           </div>
           <p style="font-size:.8rem;color:#6B7280;margin:0;line-height:1.5">${n.body}</p>
           <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">${window._notifTimeAgo ? window._notifTimeAgo(n.createdAt) : n.createdAt}</div>
@@ -4800,7 +4795,7 @@ function pagePatientSettings() {
         <!-- Clickable avatar -->
         <div style="position:relative;flex-shrink:0">
           <label for="pt-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-            <div id="pt-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div id="pt-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
                 ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                 : initials(user.name)}
@@ -4817,7 +4812,7 @@ function pagePatientSettings() {
             </div>
           </label>
           <!-- Camera badge -->
-          <label for="pt-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+          <label for="pt-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
             ${ic('camera','icon-sm')}
           </label>
           <input type="file" id="pt-photo-input" accept="image/*" style="display:none"
@@ -5164,8 +5159,8 @@ function pagePatientDoctorAvail() {
       <div style="font-size:.88rem;font-weight:700;color:#1C1C1C;margin-bottom:2px">${dayFull}</div>
       <div style="font-size:.78rem;color:#6B7280;margin-bottom:12px">${doc.name} &nbsp;·&nbsp; 8:00 AM – 5:00 PM</div>
       <button onclick="window.patCalBookAppt('${docId}')"
-              style="width:100%;background:#E8760A;color:#fff;border:none;border-radius:8px;padding:9px 0;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s"
-              onmouseover="this.style.background='#C4620A'" onmouseout="this.style.background='#E8760A'">
+              style="width:100%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;border:none;border-radius:8px;padding:9px 0;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s"
+              onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
         Book This Date →
       </button>`
     gridEl.insertAdjacentElement('afterend', pop)
@@ -5249,7 +5244,7 @@ function pagePatientDoctorAvail() {
         <div style="height:1px;background:#F3F4F6;margin:0 20px"></div>
 
         <!-- Two-column: calendar + details -->
-        <div class="card-body" style="display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start">
+        <div class="card-body pat-doc-cal-body">
 
           <!-- Left: navigable calendar -->
           <div>
@@ -5263,7 +5258,7 @@ function pagePatientDoctorAvail() {
             <div id="pat-cal-grid-${doctor.id}" class="calendar-grid">${calCells}</div>
             <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:#6B7280">
-                <div style="width:10px;height:10px;background:#E8760A;border-radius:50%"></div>Today
+                <div style="width:10px;height:10px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border-radius:50%"></div>Today
               </div>
               <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:#6B7280">
                 <div style="width:10px;height:10px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:2px"></div>Available
@@ -5319,7 +5314,7 @@ function pagePatientDoctorAvail() {
     <!-- Doctor cards -->
     <div class="card" style="margin-bottom:20px">
       <div class="card-body" style="padding:16px">
-        <div id="pat-doc-tabs" style="display:flex;flex-wrap:wrap;gap:10px;align-items:stretch">
+        <div id="pat-doc-tabs" class="pat-doc-tabs-grid">
           ${allDocs.map(d => `
           <button class="doctor-sel-card pat-doc-tab" data-doc="${d.id}"
                   onclick="window.switchPatDocDoctor('${d.id}')">

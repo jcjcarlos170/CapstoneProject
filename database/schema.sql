@@ -306,12 +306,14 @@ CREATE TABLE IF NOT EXISTS `contact_messages` (
 -- ── Activity Log ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS `activity_log` (
   `id`        VARCHAR(20)  NOT NULL,
+  `users_id`  INT UNSIGNED DEFAULT NULL,
   `user_name` VARCHAR(100) DEFAULT NULL,
   `role`      VARCHAR(20)  DEFAULT NULL,
   `action`    TEXT         DEFAULT NULL,
   `timestamp` DATETIME     DEFAULT NULL,
   `type`      VARCHAR(50)  DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  INDEX `idx_al_user` (`users_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── QR Scan Log ──────────────────────────────────────────────────
@@ -386,16 +388,29 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 
 -- ── Password Resets (forgot-password OTP + reset-token flow) ──────
 CREATE TABLE IF NOT EXISTS `password_resets` (
-  `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `email`      VARCHAR(255) NOT NULL,
-  `otp`        VARCHAR(6)   NOT NULL,
-  `token`      VARCHAR(64)  NULL DEFAULT NULL,
-  `used`       TINYINT(1)   NOT NULL DEFAULT 0,
-  `expires_at` DATETIME     NOT NULL,
-  `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`         INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `email`      VARCHAR(255)    NOT NULL,
+  `otp`        VARCHAR(6)      NOT NULL,
+  `token`      VARCHAR(64)     NULL DEFAULT NULL,
+  `used`       TINYINT(1)      NOT NULL DEFAULT 0,
+  `attempts`   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `expires_at` DATETIME        NOT NULL,
+  `created_at` TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   INDEX `idx_email_otp` (`email`, `otp`),
   INDEX `idx_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--    ALTER TABLE `password_resets` ADD COLUMN IF NOT EXISTS `attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0;
+
+-- ── Rate Limits (IP-based, keyed by endpoint) ────────────────────
+CREATE TABLE IF NOT EXISTS `rate_limits` (
+  `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ip`         VARCHAR(45)     NOT NULL,
+  `endpoint`   VARCHAR(64)     NOT NULL,
+  `created_at` INT UNSIGNED    NOT NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_rl_lookup` (`ip`, `endpoint`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

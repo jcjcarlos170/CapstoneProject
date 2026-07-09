@@ -93,6 +93,21 @@ try {
         }
     }
 
+    // Reject if the requested time conflicts with an existing appointment
+    // (same doctor, same date, within the clinic's default appointment duration).
+    // Applies to all roles — admin/staff bookings are equally subject to gaps.
+    $durStr = $pdo->query('SELECT default_duration FROM clinic_settings WHERE id = 1 LIMIT 1')->fetchColumn();
+    preg_match('/(\d+)/', $durStr ?: '30', $dm);
+    $durationMin = isset($dm[1]) ? (int)$dm[1] : 30;
+
+    $conflict = checkApptConflict($pdo, $doctorId, $date, $time, $durationMin);
+    if ($conflict !== null) {
+        $totalGap = $durationMin + 15;
+        jsonResponse(['success' => false, 'message' =>
+            "This time conflicts with an existing appointment at {$conflict}. "
+          . "Please choose a slot at least {$totalGap} minutes before or after it."]);
+    }
+
     // Generate next ID: A001, A002, …
     $last = $pdo->query("SELECT id FROM appointments ORDER BY id DESC LIMIT 1")->fetchColumn();
     $next = 1;

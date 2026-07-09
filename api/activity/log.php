@@ -26,7 +26,10 @@ if ($method === 'GET') {
     try {
         $pdo  = getDB();
         $rows = $pdo->query(
-            'SELECT * FROM activity_log ORDER BY timestamp DESC'
+            'SELECT al.*, u.photo_url
+               FROM activity_log al
+               LEFT JOIN users u ON u.id = al.users_id
+              ORDER BY al.timestamp DESC'
         )->fetchAll();
 
         $logs = array_map(fn($r) => [
@@ -36,6 +39,7 @@ if ($method === 'GET') {
             'action'    => $r['action']    ?? '',
             'timestamp' => $r['timestamp'] ?? '',
             'type'      => $r['type']      ?? 'info',
+            'photoUrl'  => $r['photo_url'] ?? null,
         ], $rows);
 
         jsonResponse(['success' => true, 'logs' => $logs]);
@@ -53,6 +57,7 @@ if ($method === 'POST') {
     $action    = trim($b['action']    ?? '');
     $timestamp = trim($b['timestamp'] ?? '');
     $type      = trim($b['type']      ?? 'info');
+    $usersId   = isset($b['userId']) && is_numeric($b['userId']) ? (int)$b['userId'] : null;
 
     if (!$id || !$user || !$action) {
         jsonResponse(['success' => false, 'message' => 'id, user and action are required.']);
@@ -64,10 +69,11 @@ if ($method === 'POST') {
     try {
         $pdo = getDB();
         $pdo->prepare(
-            'INSERT IGNORE INTO activity_log (id, user_name, role, action, timestamp, type)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
         )->execute([
             $id,
+            $usersId,
             $user,
             $role,
             $action,

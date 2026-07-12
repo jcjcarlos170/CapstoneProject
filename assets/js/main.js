@@ -6206,14 +6206,21 @@ window.handleLogoUpload = handleLogoUpload
 async function loadGalleryAdmin() {
   const grid = document.getElementById('gallery-admin-grid');
   if (!grid) return;
+
+  // Slide 0 is always the built-in static image — always visible, not deletable
+  const defaultTile = `
+    <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f3f4f6">
+      <img src="assets/images/about/cana.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center top" loading="lazy">
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:3px 6px;background:rgba(0,0,0,0.52);font-size:.6rem;color:#fff;text-align:center;letter-spacing:.02em">Default</div>
+    </div>`;
+
   try {
     const d = await fetch('api/clinic/gallery.php').then(r => r.json());
-    if (!d.success) { grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Failed to load gallery.</div>'; return; }
-    if (!d.images.length) {
-      grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">No photos yet. Click Add Photo to get started.</div>';
+    if (!d.success) {
+      grid.innerHTML = defaultTile + '<div style="color:#9CA3AF;font-size:.78rem;display:flex;align-items:center;padding:0 6px;font-style:italic">Could not load additional photos.</div>';
       return;
     }
-    grid.innerHTML = d.images.map(img => `
+    const extraTiles = d.images.map(img => `
       <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f3f4f6" id="gal-item-${img.id}">
         <img src="api/clinic/gallery-image.php?id=${img.id}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
         <button onclick="window.galleryDeletePhoto(${img.id})"
@@ -6223,8 +6230,10 @@ async function loadGalleryAdmin() {
         </button>
         ${img.caption ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:3px 6px;background:rgba(0,0,0,0.45);font-size:.6rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${img.caption}</div>` : ''}
       </div>`).join('');
+    const hint = d.images.length ? '' : '<div style="color:#9CA3AF;font-size:.72rem;display:flex;align-items:center;padding:0 6px;font-style:italic">Add photos to show after the default.</div>';
+    grid.innerHTML = defaultTile + extraTiles + hint;
   } catch (_) {
-    grid.innerHTML = '<div style="color:#EF4444;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Network error.</div>';
+    grid.innerHTML = defaultTile + '<div style="color:#EF4444;font-size:.78rem;display:flex;align-items:center;padding:0 6px">Network error.</div>';
   }
 }
 

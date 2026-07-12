@@ -6231,7 +6231,6 @@ async function loadGalleryAdmin() {
 async function galleryUploadPhoto(input) {
   const file = input.files[0];
   if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5 MB.', 'error'); input.value = ''; return; }
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {

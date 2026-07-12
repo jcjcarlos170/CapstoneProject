@@ -1818,8 +1818,8 @@ function pageAdminSettings() {
             ${ic('upload','icon-sm')} Add Photo
           </div>
         </label>
-        <span style="font-size:.72rem;color:#9CA3AF;margin-left:10px">PNG, JPG — max 5 MB</span>
-        <input type="file" id="gallery-upload-input" accept="image/*" style="display:none"
+        <span style="font-size:.72rem;color:#9CA3AF;margin-left:10px">Any image format accepted</span>
+        <input type="file" id="gallery-upload-input" style="display:none"
                onchange="window.galleryUploadPhoto(this)">
       </div>
     </div>`

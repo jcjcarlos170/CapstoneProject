@@ -79,6 +79,7 @@
           <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
         <div class="ac-dots" id="ac-dots"></div>
+        <div class="ac-counter ac-hidden" id="ac-counter"></div>
       </div>
     </div>
     <div class="about-text col-12 col-md-7">
@@ -187,10 +188,11 @@
   // ── About Carousel ─────────────────────────────────────────────
   (function () {
     const FALLBACK = 'assets/images/about/cana.jpg';
-    const track = document.getElementById('ac-track');
-    const dotsEl = document.getElementById('ac-dots');
+    const track   = document.getElementById('ac-track');
+    const dotsEl  = document.getElementById('ac-dots');
     const btnPrev = document.getElementById('ac-prev');
     const btnNext = document.getElementById('ac-next');
+    const counter = document.getElementById('ac-counter');
     let slides = [], cur = 0, timer, touchX;
 
     function go(i) {
@@ -198,6 +200,7 @@
       track.style.transform = 'translateX(-' + (cur * 100) + '%)';
       dotsEl.querySelectorAll('.ac-dot').forEach((d, j) =>
         d.classList.toggle('ac-dot-active', j === cur));
+      if (counter) counter.textContent = (cur + 1) + ' / ' + slides.length;
     }
 
     function startTimer() {
@@ -205,25 +208,23 @@
       if (slides.length > 1) timer = setInterval(() => go(cur + 1), 5000);
     }
 
-    function buildCarousel(images) {
-      slides = images;
-      track.innerHTML = slides.map(img =>
-        `<div class="ac-slide"><img src="api/clinic/gallery-image.php?id=${img.id}" alt="${img.caption || 'Cana Optical Clinic'}" loading="lazy"></div>`
+    function buildCarousel(dbImages) {
+      // Static clinic photo is always slide 0; DB images follow
+      slides = [{ id: null, caption: null }, ...dbImages];
+      track.innerHTML = slides.map(s =>
+        `<div class="ac-slide"><img src="${s.id ? 'api/clinic/gallery-image.php?id=' + s.id : FALLBACK}" alt="${s.caption || 'Cana Optical Clinic'}" loading="lazy"></div>`
       ).join('');
 
       if (slides.length > 1) {
         dotsEl.innerHTML = slides.map((_, i) =>
-          `<button class="ac-dot${i === 0 ? ' ac-dot-active' : ''}" onclick="window._acGo(${i})"></button>`
+          `<button class="ac-dot${i === 0 ? ' ac-dot-active' : ''}" onclick="window._acGo(${i})" aria-label="Slide ${i + 1}"></button>`
         ).join('');
         btnPrev.classList.remove('ac-hidden');
         btnNext.classList.remove('ac-hidden');
+        counter.classList.remove('ac-hidden');
       }
       go(0);
       startTimer();
-    }
-
-    function showFallback() {
-      track.innerHTML = `<div class="ac-slide"><img src="${FALLBACK}" alt="Cana Optical Clinic"></div>`;
     }
 
     btnPrev.onclick = () => { go(cur - 1); startTimer(); };
@@ -241,8 +242,8 @@
 
     fetch('api/clinic/gallery.php')
       .then(r => r.json())
-      .then(d => { d.success && d.images.length ? buildCarousel(d.images) : showFallback(); })
-      .catch(showFallback);
+      .then(d => buildCarousel(d.success ? d.images : []))
+      .catch(() => buildCarousel([]));
   })();
   fetch('api/stats/public.php').then(r => r.json()).then(d => {
     if (!d.success) return;

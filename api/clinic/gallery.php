@@ -51,14 +51,14 @@ try {
         $caption   = trim($b['caption'] ?? '');
         $sortOrder = (int)($b['sortOrder'] ?? 0);
 
-        if (!preg_match('/^data:(image\/[a-zA-Z+]+);base64,(.+)$/s', $dataUrl, $m)) {
-            jsonResponse(['success' => false, 'message' => 'Invalid image data.']);
+        if (!preg_match('/^data:([\w\/\-\+]+);base64,(.+)$/s', $dataUrl, $m)) {
+            jsonResponse(['success' => false, 'message' => 'Invalid file data.']);
         }
         $mimeType = $m[1];
         $binary   = base64_decode($m[2]);
 
-        if ($binary === false || strlen($binary) > 5 * 1024 * 1024) {
-            jsonResponse(['success' => false, 'message' => 'Image too large (max 5 MB).']);
+        if ($binary === false) {
+            jsonResponse(['success' => false, 'message' => 'Could not decode file.']);
         }
 
         $stmt = $pdo->prepare(

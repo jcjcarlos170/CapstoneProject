@@ -8,11 +8,7 @@
 
 require_once '../../config/db.php';
 require_once '../../config/smtp.php';
-require_once '../../vendor/autoload.php';
 require_once '../helpers.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 requireMethod('POST');
 rateLimit('contact', 5, 600); // 5 per IP per 10 min — public spam target
@@ -55,29 +51,13 @@ try {
         $clinicRow  = $pdo->query('SELECT email FROM clinic_settings WHERE id = 1 LIMIT 1')->fetch();
         $adminEmail = ($clinicRow['email'] ?? '') ?: SMTP_FROM;
 
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host        = SMTP_HOST;
-        $mail->SMTPAuth    = true;
-        $mail->Username    = SMTP_USERNAME;
-        $mail->Password    = SMTP_PASSWORD;
-        $mail->SMTPSecure  = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port        = SMTP_PORT;
-        $mail->Timeout     = 10;
-        $mail->SMTPOptions = ['ssl' => [
-            'verify_peer'       => false,
-            'verify_peer_name'  => false,
-            'allow_self_signed' => true,
-        ]];
-
-        $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
-        $mail->addAddress($adminEmail);
-        $mail->isHTML(true);
-        $mail->Subject = "New Contact Message from {$name}";
-        $mail->Body    = _contactEmailBody($name, $email, $service, $message);
-        $mail->AltBody = "From: {$name} <{$email}>\nService: " . ($service ?: 'Not specified') . "\n\n{$message}";
-        $mail->send();
-    } catch (Throwable $e) {
+        sendEmail(
+            $adminEmail, 'Cana Optical Clinic',
+            "New Contact Message from {$name}",
+            _contactEmailBody($name, $email, $service, $message),
+            "From: {$name} <{$email}>\nService: " . ($service ?: 'Not specified') . "\n\n{$message}"
+        );
+    } catch (\Throwable $e) {
         // Non-critical — message is already saved to DB and in-app notification sent
     }
 

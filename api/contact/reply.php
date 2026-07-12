@@ -9,11 +9,7 @@
 
 require_once '../../config/db.php';
 require_once '../../config/smtp.php';
-require_once '../../vendor/autoload.php';
 require_once '../helpers.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 requireMethod('POST');
 startSession();
@@ -57,41 +53,17 @@ try {
     $pdo->prepare('UPDATE contact_messages SET reply = ?, replied_by = ?, replied_at = NOW() WHERE id = ?')
         ->execute([$reply, $replierName, $id]);
 
-    // Email the reply to the original sender (best-effort — don't fail the request if SMTP is down)
+    // Email the reply to the original sender (best-effort — don't fail the request if email is down)
     $emailSent = false;
     try {
-        $mail = new PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USERNAME;
-        $mail->Password   = SMTP_PASSWORD;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
-
-        // Fail fast instead of hanging — cloud hosts (Railway included) can be slow
-        // or unreliable reaching external SMTP servers, and minimal container images
-        // sometimes lack an up-to-date CA bundle for the TLS handshake.
-        $mail->Timeout        = 10;
-        $mail->SMTPKeepAlive  = false;
-        $mail->SMTPOptions    = [
-            'ssl' => [
-                'verify_peer'       => false,
-                'verify_peer_name'  => false,
-                'allow_self_signed' => true,
-            ],
-        ];
-
-        $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
-        $mail->addAddress($msg['email'], $msg['name']);
-        $mail->isHTML(true);
-        $mail->Subject = 'Re: Your message to Cana Optical Clinic';
-        $mail->Body    = replyEmailBody($msg['name'], $msg['message'], $reply, $replierName);
-        $mail->AltBody = "Hi {$msg['name']},\n\n{$reply}\n\n— {$replierName}, Cana Optical Clinic";
-
-        $mail->send();
+        sendEmail(
+            $msg['email'], $msg['name'],
+            'Re: Your message to Cana Optical Clinic',
+            replyEmailBody($msg['name'], $msg['message'], $reply, $replierName),
+            "Hi {$msg['name']},\n\n{$reply}\n\n— {$replierName}, Cana Optical Clinic"
+        );
         $emailSent = true;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         // Non-fatal — reply is already saved
     }
 

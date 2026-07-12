@@ -10,11 +10,7 @@
 
 require_once '../../config/db.php';
 require_once '../../config/smtp.php';
-require_once '../../vendor/autoload.php';
 require_once '../helpers.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 requireMethod('POST');
 rateLimit('forgot-password', 5, 900); // 5 per IP per 15 min — each hit sends an email
@@ -62,43 +58,17 @@ try {
     $pdo->prepare('INSERT INTO password_resets (email, otp, total_attempts, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL 5 MINUTE)')
         ->execute([$email, $otp, $carriedTotal]);
 
-    // Send OTP via SMTP
-    $mail = new PHPMailer(true);
-    $mail->isSMTP();
-    $mail->Host       = SMTP_HOST;
-    $mail->SMTPAuth   = true;
-    $mail->Username   = SMTP_USERNAME;
-    $mail->Password   = SMTP_PASSWORD;
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = SMTP_PORT;
-
-    // Fail fast instead of hanging — cloud hosts (Railway included) can be slow
-    // or unreliable reaching external SMTP servers, and minimal container images
-    // sometimes lack an up-to-date CA bundle for the TLS handshake.
-    $mail->Timeout        = 10;
-    $mail->SMTPKeepAlive  = false;
-    $mail->SMTPOptions    = [
-        'ssl' => [
-            'verify_peer'       => false,
-            'verify_peer_name'  => false,
-            'allow_self_signed' => true,
-        ],
-    ];
-
-    $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
-    $mail->addAddress($email);
-    $mail->isHTML(true);
-    $mail->Subject = 'Your Opticana Password Reset Code';
-
-    $mail->Body    = emailBody($otp);
-    $mail->AltBody = "Your Opticana password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone.";
-
-    $mail->send();
+    sendEmail(
+        $email, '',
+        'Your Opticana Password Reset Code',
+        emailBody($otp),
+        "Your Opticana password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone."
+    );
 
     jsonResponse(['success' => true]);
 
-} catch (Exception $e) {
-    jsonResponse(['success' => false, 'message' => 'Failed to send email. Please try again later.'], 500);
+} catch (\Exception $e) {
+    jsonResponse(['success' => false, 'message' => 'Failed to send email. Please try again later.']);
 } catch (PDOException $e) {
     jsonResponse(['success' => false, 'message' => 'Server error. Please try again.'], 500);
 }

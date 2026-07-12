@@ -12,11 +12,7 @@
 
 require_once '../../config/db.php';
 require_once '../../config/smtp.php';
-require_once '../../vendor/autoload.php';
 require_once '../helpers.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 requireMethod('POST');
 rateLimit('register', 10, 3600);
@@ -94,25 +90,12 @@ try {
 }
 
 function sendVerificationEmail(string $to, string $otp, string $firstName = ''): void {
-    $mail = new PHPMailer(true);
-    $mail->isSMTP();
-    $mail->Host          = SMTP_HOST;
-    $mail->SMTPAuth      = true;
-    $mail->Username      = SMTP_USERNAME;
-    $mail->Password      = SMTP_PASSWORD;
-    $mail->SMTPSecure    = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port          = SMTP_PORT;
-    $mail->Timeout       = 10;
-    $mail->SMTPKeepAlive = false;
-    $mail->SMTPOptions   = ['ssl' => ['verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true]];
-
-    $mail->setFrom(SMTP_FROM, SMTP_FROM_NAME);
-    $mail->addAddress($to);
-    $mail->isHTML(true);
-    $mail->Subject = 'Verify Your Opticana Account';
-    $mail->Body    = verificationEmailBody($otp, $firstName);
-    $mail->AltBody = "Your Opticana email verification code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone.";
-    $mail->send();
+    sendEmail(
+        $to, $firstName,
+        'Verify Your Opticana Account',
+        verificationEmailBody($otp, $firstName),
+        "Your Opticana email verification code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone."
+    );
 }
 
 function verificationEmailBody(string $otp, string $firstName = ''): string {

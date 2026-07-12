@@ -68,7 +68,7 @@ try {
     jsonResponse(['success' => true]);
 
 } catch (\Exception $e) {
-    jsonResponse(['success' => false, 'message' => 'Failed to send email. Please try again later.']);
+    jsonResponse(['success' => false, 'message' => 'Failed to send email. Please try again later.', '_debug' => $e->getMessage()]);
 } catch (PDOException $e) {
     jsonResponse(['success' => false, 'message' => 'Server error. Please try again.'], 500);
 }

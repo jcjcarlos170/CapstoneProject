@@ -38,6 +38,20 @@ try {
         jsonResponse(['success' => false, 'message' => 'This account or email doesn\'t exist. Please enter a valid email.']);
     }
 
+    // Block check — 1-hour ban after 10 total wrong OTP guesses
+    $blk = $pdo->prepare('SELECT blocked_until FROM password_resets WHERE email = ? AND blocked_until IS NOT NULL AND blocked_until > NOW() ORDER BY id DESC LIMIT 1');
+    $blk->execute([$email]);
+    if ($blk->fetch()) {
+        jsonResponse(['success' => false, 'banned' => true,
+            'message' => 'Too many failed attempts. Please try again in 1 hour.']);
+    }
+
+    // Carry total_attempts forward so the counter survives across resends
+    $prev = $pdo->prepare('SELECT total_attempts FROM password_resets WHERE email = ? ORDER BY id DESC LIMIT 1');
+    $prev->execute([$email]);
+    $prevRow      = $prev->fetch();
+    $carriedTotal = $prevRow ? (int)$prevRow['total_attempts'] : 0;
+
     // Invalidate any previous unused OTPs for this email
     $pdo->prepare('UPDATE password_resets SET used = 1 WHERE email = ? AND used = 0')
         ->execute([$email]);
@@ -45,9 +59,8 @@ try {
     // Generate a cryptographically secure 6-digit OTP
     $otp = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
-    // Use MySQL's NOW() for expiry so timezone mismatches between PHP and MySQL don't break the check
-    $pdo->prepare('INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, NOW() + INTERVAL 5 MINUTE)')
-        ->execute([$email, $otp]);
+    $pdo->prepare('INSERT INTO password_resets (email, otp, total_attempts, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL 5 MINUTE)')
+        ->execute([$email, $otp, $carriedTotal]);
 
     // Send OTP via SMTP
     $mail = new PHPMailer(true);

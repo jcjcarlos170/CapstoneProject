@@ -21,7 +21,8 @@ if (!$email || strlen($otp) !== 6) {
     jsonResponse(['success' => false, 'message' => 'Invalid request.']);
 }
 
-const MAX_OTP_ATTEMPTS = 5;
+const MAX_OTP_ATTEMPTS   = 5;
+const MAX_FP_TOTAL       = 10; // hard limit across all OTP resends
 
 try {
     $pdo = getDB();
@@ -29,7 +30,7 @@ try {
     // Find the active (unused, not expired) OTP row — don't filter by otp here
     // so we can count wrong attempts even when the code doesn't match.
     $s = $pdo->prepare(
-        'SELECT id, otp, attempts FROM password_resets
+        'SELECT id, otp, attempts, total_attempts FROM password_resets
           WHERE email = ? AND used = 0 AND expires_at > NOW()
           ORDER BY id DESC LIMIT 1'
     );
@@ -46,20 +47,28 @@ try {
             'message' => 'Too many wrong attempts. Please request a new code.']);
     }
 
-    // Wrong code — increment attempts, then lock if limit reached
+    // Wrong code — increment attempts, then lock/ban if limits reached
     if ($row['otp'] !== $otp) {
-        $newAttempts = (int)$row['attempts'] + 1;
+        $newAttempts      = (int)$row['attempts'] + 1;
+        $newTotalAttempts = (int)$row['total_attempts'] + 1;
+
+        // Hard limit: block all further OTP requests for this email for 1 hour
+        if ($newTotalAttempts >= MAX_FP_TOTAL) {
+            $pdo->prepare('UPDATE password_resets SET attempts = ?, total_attempts = ?, blocked_until = NOW() + INTERVAL 1 HOUR, used = 1 WHERE id = ?')
+                ->execute([$newAttempts, $newTotalAttempts, $row['id']]);
+            jsonResponse(['success' => false, 'banned' => true,
+                'message' => 'Too many failed attempts. Please try again in 1 hour.']);
+        }
 
         if ($newAttempts >= MAX_OTP_ATTEMPTS) {
-            // Mark as used so the OTP is dead even if the timer hasn't expired
-            $pdo->prepare('UPDATE password_resets SET attempts = ?, used = 1 WHERE id = ?')
-                ->execute([$newAttempts, $row['id']]);
+            $pdo->prepare('UPDATE password_resets SET attempts = ?, total_attempts = ?, used = 1 WHERE id = ?')
+                ->execute([$newAttempts, $newTotalAttempts, $row['id']]);
             jsonResponse(['success' => false, 'locked' => true,
                 'message' => 'Too many wrong attempts. Please request a new code.']);
         }
 
-        $pdo->prepare('UPDATE password_resets SET attempts = ? WHERE id = ?')
-            ->execute([$newAttempts, $row['id']]);
+        $pdo->prepare('UPDATE password_resets SET attempts = ?, total_attempts = ? WHERE id = ?')
+            ->execute([$newAttempts, $newTotalAttempts, $row['id']]);
 
         $left = MAX_OTP_ATTEMPTS - $newAttempts;
         jsonResponse(['success' => false, 'attemptsLeft' => $left,

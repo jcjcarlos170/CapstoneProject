@@ -88,9 +88,10 @@ CREATE TABLE IF NOT EXISTS `users` (
   `is_active`     TINYINT(1)       NOT NULL DEFAULT 1,
   `last_login_at` DATETIME         NULL     DEFAULT NULL,
   `photo_url`     VARCHAR(255)     NULL     DEFAULT NULL,
-  `failed_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-  `locked_until`  DATETIME         NULL     DEFAULT NULL,
-  `created_at`    TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `failed_attempts`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `locked_until`     DATETIME         NULL     DEFAULT NULL,
+  `email_verified`   TINYINT(1)       NOT NULL DEFAULT 1,
+  `created_at`       TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -388,20 +389,48 @@ CREATE TABLE IF NOT EXISTS `sessions` (
 
 -- ── Password Resets (forgot-password OTP + reset-token flow) ──────
 CREATE TABLE IF NOT EXISTS `password_resets` (
-  `id`         INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-  `email`      VARCHAR(255)    NOT NULL,
-  `otp`        VARCHAR(6)      NOT NULL,
-  `token`      VARCHAR(64)     NULL DEFAULT NULL,
-  `used`       TINYINT(1)      NOT NULL DEFAULT 0,
-  `attempts`   TINYINT UNSIGNED NOT NULL DEFAULT 0,
-  `expires_at` DATETIME        NOT NULL,
-  `created_at` TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `id`             INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `email`          VARCHAR(255)     NOT NULL,
+  `otp`            VARCHAR(6)       NOT NULL,
+  `token`          VARCHAR(64)      NULL DEFAULT NULL,
+  `used`           TINYINT(1)       NOT NULL DEFAULT 0,
+  `attempts`       TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `total_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `blocked_until`  DATETIME         NULL DEFAULT NULL,
+  `expires_at`     DATETIME         NOT NULL,
+  `created_at`     TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   INDEX `idx_email_otp` (`email`, `otp`),
   INDEX `idx_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --    ALTER TABLE `password_resets` ADD COLUMN IF NOT EXISTS `attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0;
+--    ALTER TABLE `password_resets` ADD COLUMN IF NOT EXISTS `total_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `attempts`;
+--    ALTER TABLE `password_resets` ADD COLUMN IF NOT EXISTS `blocked_until` DATETIME NULL DEFAULT NULL AFTER `total_attempts`;
+
+-- ── Pending Registrations (staging until OTP confirmed) ───────────
+-- Self-registration form data lives here until the OTP is verified.
+-- Only then are rows inserted into users + patients. This prevents
+-- ghost accounts from fake or mistyped email addresses.
+CREATE TABLE IF NOT EXISTS `pending_registrations` (
+  `id`            INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `email`         VARCHAR(255)     NOT NULL,
+  `first_name`    VARCHAR(100)     NOT NULL,
+  `last_name`     VARCHAR(100)     NOT NULL,
+  `dob`           DATE             NOT NULL,
+  `gender`        VARCHAR(20)      NOT NULL,
+  `address`       TEXT             NOT NULL,
+  `contact`       VARCHAR(50)      NOT NULL,
+  `blood_type`    VARCHAR(10)      NOT NULL DEFAULT 'Unknown',
+  `password_hash` VARCHAR(255)     NOT NULL,
+  `otp`           VARCHAR(6)       NOT NULL,
+  `attempts`       TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `total_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `expires_at`     DATETIME         NOT NULL,
+  `created_at`    TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_pending_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Rate Limits (IP-based, keyed by endpoint) ────────────────────
 CREATE TABLE IF NOT EXISTS `rate_limits` (

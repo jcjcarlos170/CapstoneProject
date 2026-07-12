@@ -15,8 +15,8 @@ startSession();
 if (!isset($_SESSION['user_id'])) {
     jsonResponse(['success' => false, 'message' => 'Not authenticated.'], 401);
 }
-if ($_SESSION['role'] !== 'admin') {
-    jsonResponse(['success' => false, 'message' => 'Only admins may reset user passwords.'], 403);
+if (!in_array($_SESSION['role'], ['admin', 'staff'], true)) {
+    jsonResponse(['success' => false, 'message' => 'Only admins and staff may reset user passwords.'], 403);
 }
 
 $b         = getBody();

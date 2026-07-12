@@ -64,6 +64,7 @@ if ((int)$user['failed_attempts'] > 0 || $user['locked_until']) {
         ->execute([(int)$user['id']]);
 }
 
+
 // Auto-deactivate if inactive for 1 year
 // Use last_login_at if set, otherwise fall back to created_at
 $referenceDate = $user['last_login_at'] ?? $user['created_at'];

@@ -108,13 +108,13 @@ function apptActions(a, role) {
 }
 
 function appointmentsTable(list, role, tbodyId = 'appt-tbody') {
-  if (!list.length) return `<div class="table-empty">No appointments found.</div>`
+  const cols = role !== 'patient' ? 7 : 6
   return `
     <table class="tbl">
       <colgroup>
         <col style="width:6%"><col style="width:18%"><col style="width:18%">
         <col style="width:12%"><col style="width:10%"><col style="width:16%">
-        <col style="width:20%">
+        ${role !== 'patient' ? '<col style="width:20%">' : ''}
       </colgroup>
       <thead><tr>
         <th>ID</th>
@@ -125,7 +125,7 @@ function appointmentsTable(list, role, tbodyId = 'appt-tbody') {
         ${role !== 'patient' ? '<th>Actions</th>' : ''}
       </tr></thead>
       <tbody id="${tbodyId}">
-        ${list.map(a => `<tr data-search="${(a.patientName||'').toLowerCase()} ${String(a.patientId||'').toLowerCase()} ${(a.doctorName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-appt-status="${a.status}" data-sort-patient="${(a.patientName||'').toLowerCase()}" data-sort-date="${a.date}">
+        ${list.length ? list.map(a => `<tr data-search="${(a.patientName||'').toLowerCase()} ${String(a.patientId||'').toLowerCase()} ${(a.doctorName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-appt-status="${a.status}" data-sort-patient="${(a.patientName||'').toLowerCase()}" data-sort-date="${a.date}">
           <td><code style="font-size:.75rem;color:#9CA3AF">${a.id}</code></td>
           <td><div class="patient-name-cell">
             ${avatar(a.patientName, 'patient-avatar', patients.find(p=>p.id===a.patientId)?.photoUrl || null)}
@@ -136,7 +136,7 @@ function appointmentsTable(list, role, tbodyId = 'appt-tbody') {
           <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
           <td style="font-size:.82rem">${a.type}</td>
           ${role !== 'patient' ? `<td>${apptActions(a, role)}</td>` : ''}
-        </tr>`).join('')}
+        </tr>`).join('') : emptyRow(cols, 'calendar', 'No appointments found', 'Appointments will appear here once scheduled.')}
       </tbody>
     </table>`
 }
@@ -439,7 +439,7 @@ function pageAdminUsers() {
           <th>Email</th><th>Contact</th><th>Role</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="users-tbody">
-          ${filtered.map(u => `<tr data-search="${(u.name||'').toLowerCase()} ${(u.email||'').toLowerCase()}" data-sort-name="${(u.name||'').toLowerCase()}">
+          ${filtered.length ? filtered.map(u => `<tr data-search="${(u.name||'').toLowerCase()} ${(u.email||'').toLowerCase()}" data-sort-name="${(u.name||'').toLowerCase()}">
             <td><div class="patient-name-cell">
               ${avatar(u.name, 'patient-avatar', u.photoUrl || null)}
               <div class="patient-name-info"><strong>${u.name}</strong><span>${u.id}</span></div>
@@ -452,7 +452,7 @@ function pageAdminUsers() {
               <button class="btn-icon" title="Edit" onclick="window.editUserModal('${u.id}','${u.role}')">${ic('edit','icon-sm')}</button>
               <button class="btn-icon" title="Archive" style="color:#d97706;border-color:#fef3c7" onclick="window.archiveUserConfirm('${u.id}','${(u.name||'').replace(/'/g,"\\'")}')"> ${ic('archive','icon-sm')}</button>
             </div></td>
-          </tr>`).join('')}
+          </tr>`).join('') : emptyRow(6, 'users', 'No users found', 'Add a user or adjust your filter.')}
         </tbody>
       </table>
     </div>
@@ -585,7 +585,7 @@ function pagePatientList() {
           <th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="patients-tbody">
-          ${list.map(p => `<tr data-search="${(p.name||'').toLowerCase()} ${String(p.id||'').toLowerCase()} ${(p.contact||'').toLowerCase()}" data-sort-name="${(p.name||'').toLowerCase()}" data-sort-visit="${p.lastVisit && p.lastVisit !== '—' ? p.lastVisit : ''}">
+          ${list.length ? list.map(p => `<tr data-search="${(p.name||'').toLowerCase()} ${String(p.id||'').toLowerCase()} ${(p.contact||'').toLowerCase()}" data-sort-name="${(p.name||'').toLowerCase()}" data-sort-visit="${p.lastVisit && p.lastVisit !== '—' ? p.lastVisit : ''}">
             <td><div class="patient-name-cell">
               ${avatar(p.name, 'patient-avatar', p.photoUrl || null)}
               <div class="patient-name-info"><strong>${p.name}</strong><span>${p.id}</span></div>
@@ -610,7 +610,7 @@ function pagePatientList() {
                 ${ic('archive','icon-sm')}
               </button>` : ''}
             </div></td>
-          </tr>`).join('')}
+          </tr>`).join('') : emptyRow(7, 'users', 'No patients found', 'Add a patient or adjust your search.')}
         </tbody>
       </table>
     </div>
@@ -962,7 +962,7 @@ function pageContactMessages() {
           <th></th>
         </tr></thead>
         <tbody id="contact-tbody">
-          ${list.map(m => {
+          ${list.length ? list.map(m => {
             const excerpt = (m.message || '').length > 90 ? m.message.slice(0, 90) + '…' : (m.message || '')
             return `<tr data-search="${(m.name || '').toLowerCase()} ${(m.email || '').toLowerCase()} ${(m.message || '').toLowerCase()}"
                         data-sort-from="${(m.name || '').toLowerCase()}" data-sort-received="${m.createdAt || ''}"
@@ -992,7 +992,7 @@ function pageContactMessages() {
                 </div>
               </td>
             </tr>`
-          }).join('')}
+          }).join('') : emptyRow(5, 'mail', 'No messages', 'Contact messages will appear here.')}
         </tbody>
       </table>
       `}
@@ -1863,7 +1863,7 @@ function pageAdminSettings() {
             <th>Duration</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="services-tbody">
-            ${CLINIC_SERVICES.map((s, i) => `
+            ${CLINIC_SERVICES.length ? CLINIC_SERVICES.map((s, i) => `
             <tr data-search="${s.name.toLowerCase()} ${s.description.toLowerCase()}" data-sort-name="${s.name.toLowerCase()}">
               <td style="color:#9CA3AF;font-size:.75rem">${i + 1}</td>
               <td><strong style="font-size:.83rem">${s.name}</strong></td>
@@ -1878,7 +1878,7 @@ function pageAdminSettings() {
                   </button>
                 </div>
               </td>
-            </tr>`).join('')}
+            </tr>`).join('') : emptyRow(6, 'settings', 'No services configured', 'Add a service to get started.')}
           </tbody>
         </table>
       </div>
@@ -2070,7 +2070,7 @@ function pageAdminSettings() {
             </tr>`).join('')}
           </tbody>
         </table>` : `
-        <div class="table-empty" style="padding:40px">No archived records${arcFilter!=='all'?' of this type':''}.</div>`}
+        <table class="tbl"><tbody>${emptyRow(6, 'archive', arcFilter!=='all'?'No archived records of this type':'No archived records', 'Archived profiles will appear here.')}</tbody></table>`}
       </div>
     </div>`
   }
@@ -2211,12 +2211,18 @@ function pageActivityLog() {
             <td style="font-size:.75rem;color:#9CA3AF;white-space:nowrap">${fmtTimestamp12h(l.timestamp)}</td>
             <td>${logTypeBadge(l.type)}</td>
           </tr>`).join('')}
-          <tr id="log-empty-row" style="display:none">
-            <td colspan="6"><div class="table-empty">No activities found.</div></td>
+          <tr id="log-empty-row" style="display:none;pointer-events:none">
+            <td colspan="6" style="padding:52px 24px;text-align:center;border:none">
+              <div style="display:inline-flex;flex-direction:column;align-items:center;gap:12px">
+                <div style="width:52px;height:52px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#9CA3AF">${ic('activity','icon-lg')}</div>
+                <p style="margin:0 0 3px;font-size:.9rem;font-weight:600;color:#374151">No activities found</p>
+                <p style="margin:0;font-size:.78rem;color:#9CA3AF">Try adjusting your search or filters.</p>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
-      ` : `<div class="table-empty">No activities found.</div>`}
+      ` : `<table class="tbl"><tbody>${emptyRow(6, 'activity', 'No activity logged', 'System events will appear here.')}</tbody></table>`}
     </div>
   </div>`
 }
@@ -2229,7 +2235,6 @@ function pageStaffDashboard() {
   const approved = appointments.filter(a => a.status === 'approved')
 
   window.state.afterRender = () => {
-    window._charts.initStaffOverviewChart()
     window.updateStaffDashboard()
   }
 
@@ -2261,7 +2266,7 @@ function pageStaffDashboard() {
         <div class="card-header"><div class="card-title">Weekly Appointments</div></div>
         <div class="card-body"><div class="chart-wrap"><canvas id="chart-staff-overview"></canvas></div></div>
       </div>
-      <div class="card">
+      <div class="card" style="align-self:start">
         <div class="card-header">
           <div class="card-title">Pending Approvals</div>
           <button class="btn-ghost" onclick="window.navigate('appointments',{filter:'pending'})"
@@ -2381,7 +2386,9 @@ function pageDoctorDashboard() {
             <td>${badge(a.status)}</td>
             <td>${a.status === 'completed'
               ? `<button class="btn-ghost" style="font-size:.75rem;padding:4px 10px" onclick="window.navigate('patient-view',{patientId:'${a.patientId}',patientName:'${a.patientName}'})">${ic('eye','icon-sm')} View Record</button>`
-              : `<button class="btn-primary btn-sm" onclick="window.startExamFromAppt('${a.id}','${a.patientId}')">${ic('check','icon-sm')} Start Consultation</button>`
+              : a.status === 'approved'
+              ? `<button class="btn-primary btn-sm" onclick="window.startExamFromAppt('${a.id}','${a.patientId}')">${ic('check','icon-sm')} Start Consultation</button>`
+              : `<button class="btn-ghost btn-sm" disabled title="Awaiting staff/admin approval" style="opacity:.45;cursor:not-allowed">${ic('clock','icon-sm')} Pending Approval</button>`
             }</td>
           </tr>`).join('')}
         </tbody>
@@ -2463,9 +2470,12 @@ function pageDoctorAppointments() {
     const viewBtn  = `<button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>`
     const recBtn   = `<button class="btn-icon" title="Patient Record" onclick="window.navigate('patient-view',{patientId:'${a.patientId}',patientName:'${a.patientName}'})">${ic('user','icon-sm')}</button>`
     if (a.status === 'completed') return `<div style="display:flex;gap:4px">${viewBtn}${recBtn}</div>`
-    const startBtn = `<button class="btn-icon" title="Start Consultation" style="color:#E8760A"
-      onclick="window.startExamFromAppt('${a.id}','${a.patientId}')">${ic('check','icon-sm')}</button>`
-    return `<div style="display:flex;gap:4px">${viewBtn}${recBtn}${startBtn}</div>`
+    if (a.status === 'approved') {
+      const startBtn = `<button class="btn-icon" title="Start Consultation" style="color:#E8760A"
+        onclick="window.startExamFromAppt('${a.id}','${a.patientId}')">${ic('check','icon-sm')}</button>`
+      return `<div style="display:flex;gap:4px">${viewBtn}${recBtn}${startBtn}</div>`
+    }
+    return `<div style="display:flex;gap:4px">${viewBtn}${recBtn}</div>`
   }
 
   return `
@@ -2511,7 +2521,7 @@ function pageDoctorAppointments() {
             <td>${badge(a.status)}</td>
             <td>${docActions(a)}</td>
           </tr>`).join('')
-          : `<tr><td colspan="7"><div class="table-empty">No appointments found.</div></td></tr>`}
+          : emptyRow(7, 'calendar', 'No appointments found', 'Appointments assigned to you will appear here.')}
         </tbody>
       </table>
     </div>
@@ -3028,7 +3038,7 @@ function pageExamRecords() {
           <th>Diagnosis</th><th>Lens Type</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="exam-records-tbody">
-          ${filtered.map(e => `<tr data-search="${e.patientName.toLowerCase()} ${(e.diagnosis||'').toLowerCase()} ${e.doctor.toLowerCase()}" data-sort-patient="${e.patientName.toLowerCase()}" data-sort-date="${e.date}">
+          ${filtered.length ? filtered.map(e => `<tr data-search="${e.patientName.toLowerCase()} ${(e.diagnosis||'').toLowerCase()} ${e.doctor.toLowerCase()}" data-sort-patient="${e.patientName.toLowerCase()}" data-sort-date="${e.date}">
             <td><code style="font-size:.73rem;color:#9CA3AF">${e.id}</code></td>
             <td><div class="patient-name-cell">
               ${avatar(e.patientName, 'patient-avatar', patients.find(p=>p.id===e.patientId)?.photoUrl || null)}
@@ -3056,7 +3066,7 @@ function pageExamRecords() {
                 ${ic('award','icon-sm')}
               </button>` : ''}
             </td>
-          </tr>`).join('')}
+          </tr>`).join('') : emptyRow(8, 'file-text', 'No examination records', 'Records appear once examinations are completed.')}
         </tbody>
       </table>
     </div>
@@ -3333,9 +3343,13 @@ function pageNewExamination() {
       ${fl('Company / Employer')}
       <input id="ne-employer" class="form-input" style="${inp}" value="${p.occupation || ''}" placeholder="Optional">
     </div>
+    <div class="form-group" style="margin-bottom:16px">
+      ${fl('Medical History')}
+      <textarea id="ne-medical" class="form-textarea" style="${inp};resize:vertical;width:100%;min-height:70px" placeholder="Known conditions, allergies, medications…">${p.medicalHistory || ''}</textarea>
+    </div>
     <div class="form-group" style="margin:0">
-      ${fl('Medical / Optical History')}
-      <textarea id="ne-history" class="form-textarea" style="${inp};resize:vertical;width:100%;min-height:80px" placeholder="Previous conditions, medications, relevant history...">${(p.medicalHistory || '') + (p.medicalHistory && p.opticalHistory ? '\n\n' : '') + (p.opticalHistory || '')}</textarea>
+      ${fl('Optical History')}
+      <textarea id="ne-optical" class="form-textarea" style="${inp};resize:vertical;width:100%;min-height:70px" placeholder="Prior eye conditions, prescriptions, surgeries…">${p.opticalHistory || ''}</textarea>
     </div>
   </div>`
 
@@ -3584,11 +3598,6 @@ function pageNewExamination() {
               style="display:none;align-items:center;gap:8px;padding:10px 24px;background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%);color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.3);transition:opacity 0.2s"
               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         ${ic('check','icon-sm')} Save Examination
-      </button>
-      <button id="wiz-btn-print" onclick="window.printNewExamDraft(window._examPatientId)"
-              style="display:none;align-items:center;gap:8px;padding:10px 20px;background:white;color:#374151;border:1.5px solid #d1d5db;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:background 0.15s"
-              onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
-        ${ic('printer','icon-sm')} Print
       </button>
     </div>
   </div>`
@@ -3915,10 +3924,21 @@ function pagePatientAppts() {
   const cnt = s => myAppts.filter(a => a.status === s).length
   const subTabs = ['all','approved','pending','completed','cancelled','disapproved']
 
+  // History default: upcoming (pending/approved, future) ascending so soonest is at top,
+  // then past/completed descending so most recent history is just below.
+  const _today = new Date().toISOString().split('T')[0]
+  const _upcoming = myAppts
+    .filter(a => ['pending','approved'].includes(a.status) && a.date >= _today)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+  const _past = myAppts
+    .filter(a => !['pending','approved'].includes(a.status) || a.date < _today)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
+  const sortedAppts = [..._upcoming, ..._past]
+
   if (tab === 'request') {
     window.state.afterRender = () => window.amcInit()
   } else {
-    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', { key: 'date', type: 'date', dir: -1 }) }
+    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', { key: 'date', type: 'date', dir: 1 }) }
   }
 
   const _minAdv = minAdvanceDays()
@@ -4288,7 +4308,7 @@ function pagePatientAppts() {
           <th>Time</th><th>Type</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="pt-appt-tbody">
-          ${myAppts.map(a => `<tr data-search="${a.doctorName.toLowerCase()} ${a.type.toLowerCase()}" data-appt-status="${a.status}" data-sort-doctor="${a.doctorName.toLowerCase()}" data-sort-date="${a.date}">
+          ${sortedAppts.map(a => `<tr data-search="${a.doctorName.toLowerCase()} ${a.type.toLowerCase()}" data-appt-status="${a.status}" data-sort-doctor="${a.doctorName.toLowerCase()}" data-sort-date="${a.date}">
             <td style="font-size:.82rem;font-weight:500">${a.doctorName}</td>
             <td style="font-size:.82rem">${fmtDate(a.date)}</td>
             <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
@@ -4714,10 +4734,14 @@ function pagePatientNotifications() {
   const unreadCount = notifs.filter(n => !n.isRead).length
 
   const emptyHtml = `
-    <div style="text-align:center;padding:48px 24px;color:#9CA3AF">
-      ${ic('bell','icon-lg')}
-      <p style="margin:12px 0 4px;font-size:.9rem;font-weight:600;color:#6B7280">No notifications</p>
-      <p style="font-size:.8rem;margin:0">You're all caught up!</p>
+    <div style="text-align:center;padding:56px 24px">
+      <div style="width:60px;height:60px;background:#F3F4F6;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;color:#9CA3AF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28" style="display:block">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </div>
+      <p style="margin:0 0 4px;font-size:.9rem;font-weight:600;color:#6B7280">No notifications</p>
+      <p style="font-size:.8rem;margin:0;color:#9CA3AF">You're all caught up!</p>
     </div>`
 
   return `
@@ -4726,18 +4750,24 @@ function pagePatientNotifications() {
       <h1 class="page-title">Notifications</h1>
       <p class="page-subtitle">Stay updated on your appointments and records</p>
     </div>
-    ${unreadCount ? `
-    <button class="btn-secondary" onclick="window.markAllNotifsRead()">
-      ${ic('check','icon-sm')} Mark All as Read
-    </button>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${unreadCount ? `
+      <button class="btn-secondary" onclick="window.markAllNotifsRead()">
+        ${ic('check','icon-sm')} Mark All as Read
+      </button>` : ''}
+      ${notifs.length ? `
+      <button class="btn-ghost" style="color:#DC2626" onclick="window.deleteAllNotifs()">
+        ${ic('trash-2','icon-sm')} Clear All
+      </button>` : ''}
+    </div>
   </div>
   <div class="page-body">
     <div class="card">
       ${notifs.length ? notifs.map(n => `
       <div id="notif-${n.id}" onclick="window.markNotifRead(${n.id})"
-           style="display:flex;align-items:flex-start;gap:14px;padding:16px 20px;border-bottom:1px solid #F3F4F6;cursor:pointer;transition:background .15s;${n.isRead ? '' : 'background:#FAFAF8'}"
+           style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid #F3F4F6;cursor:pointer;transition:background .15s;${n.isRead ? '' : 'background:#FAFAF8'}"
            onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='${n.isRead ? 'transparent' : '#FAFAF8'}'">
-        <div style="width:38px;height:38px;border-radius:50%;background:${typeBg[n.type]||'#F3F4F6'};display:flex;align-items:center;justify-content:center;color:${typeColor[n.type]||'#6B7280'};flex-shrink:0;margin-top:1px">
+        <div style="width:38px;height:38px;border-radius:50%;background:${typeBg[n.type]||'#F3F4F6'};display:flex;align-items:center;justify-content:center;color:${typeColor[n.type]||'#6B7280'};flex-shrink:0">
           ${ic(typeIcon[n.type] || 'info','icon-sm')}
         </div>
         <div style="flex:1;min-width:0">
@@ -4748,6 +4778,10 @@ function pagePatientNotifications() {
           <p style="font-size:.8rem;color:#6B7280;margin:0;line-height:1.5">${n.body}</p>
           <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">${window._notifTimeAgo ? window._notifTimeAgo(n.createdAt) : n.createdAt}</div>
         </div>
+        <button class="btn-icon" title="Delete" style="flex-shrink:0;color:#9CA3AF"
+                onclick="event.stopPropagation();window.deleteNotif(${n.id})">
+          ${ic('trash-2','icon-sm')}
+        </button>
       </div>`).join('') : emptyHtml}
     </div>
   </div>`

@@ -54,7 +54,9 @@ function icon(name, cls = 'icon') {
     package:          '<line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
     grid:             '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
     hash:             '<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>',
-    'external-link':  '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>'
+    'external-link':  '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>',
+    copy:             '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+    key:              '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>'
   }
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${p[name] || ''}</svg>`
 }
@@ -73,6 +75,20 @@ function wrapTableScroll() {
   })
 }
 window.wrapTableScroll = wrapTableScroll
+
+// Shared empty-state row for all tables — cols = thead column count
+function emptyRow(cols, iconName, label, hint) {
+  return `<tr style="pointer-events:none"><td colspan="${cols}" style="padding:52px 24px;text-align:center;border:none">
+    <div style="display:inline-flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="width:52px;height:52px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#9CA3AF">
+        ${icon(iconName,'icon-lg')}
+      </div>
+      <p style="margin:0 0 3px;font-size:.9rem;font-weight:600;color:#374151">${label}</p>
+      ${hint ? `<p style="margin:0;font-size:.78rem;color:#9CA3AF">${hint}</p>` : ''}
+    </div>
+  </td></tr>`
+}
+window.emptyRow = emptyRow
 
 window.icon                  = icon
 window.state                 = state
@@ -190,7 +206,7 @@ function mockQRSvg(data, size = 120) {
 window.mockQRSvg = mockQRSvg
 
 // Show QR code modal after patient account is created
-function _showRegistrationQRModal(user, tempPassword) {
+function _showRegistrationQRModal(user, tempPassword, alreadyLoggedIn = false) {
   const wrapperId = 'reg-success-qr'
   const qrHtml    = window.mockQRSvg ? window.mockQRSvg(user.qrData, 180) : ''
   showModal(`
@@ -220,8 +236,8 @@ function _showRegistrationQRModal(user, tempPassword) {
       <button class="btn-secondary" onclick="window.downloadQR('${wrapperId}','${user.id}')">
         ${icon('download','icon-sm')} Download QR
       </button>
-      <button class="btn-primary" onclick="window.closeModal()${tempPassword ? '' : ";window.showLogin()"}">
-        ${tempPassword ? 'Done' : 'Sign In to Continue'}
+      <button class="btn-primary" onclick="window.closeModal()${(!tempPassword && !alreadyLoggedIn) ? ";window.showLogin()" : ""}">
+        ${(tempPassword || alreadyLoggedIn) ? 'Done' : 'Sign In to Continue'}
       </button>
     </div>`)
 }
@@ -989,6 +1005,43 @@ async function markAllNotifsRead() {
 }
 window.markAllNotifsRead = markAllNotifsRead
 
+// Delete a single notification
+function deleteNotif(id) {
+  const idx = (window._notifications || []).findIndex(n => n.id === id)
+  if (idx !== -1) {
+    const wasUnread = !window._notifications[idx].isRead
+    window._notifications.splice(idx, 1)
+    if (wasUnread && window._unreadCount > 0) window._unreadCount--
+  }
+  const el = document.getElementById(`notif-${id}`)
+  if (el) el.remove()
+  if (window._updateNotifUI) window._updateNotifUI()
+  // Re-render to show empty state and hide stale "Clear All" button
+  if ((window._notifications || []).length === 0) window.renderPage()
+  toast('Notification deleted.', 'error')
+  fetch('api/notifications/delete.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  }).catch(() => {})
+}
+window.deleteNotif = deleteNotif
+
+// Delete all notifications
+async function deleteAllNotifs() {
+  window._notifications = []
+  window._unreadCount   = 0
+  if (window._updateNotifUI) window._updateNotifUI()
+  window.renderPage()
+  try {
+    await fetch('api/notifications/delete.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ all: true })
+    })
+    toast('All notifications cleared.', 'error')
+  } catch (_) {}
+}
+window.deleteAllNotifs = deleteAllNotifs
+
 // Print a single prescription card
 function printPrescriptionCard(cardId) {
   const el = document.getElementById(cardId)
@@ -1510,11 +1563,12 @@ function wizGo(dir) {
     _wiz.type  = document.getElementById('appt-type')?.value || 'Eye Examination'
     _wiz.notes = document.getElementById('appt-notes')?.value || ''
   }
-  // Going back from doctor step — clear selected doctor so the list resets
+  // Going back from doctor step — clear selected doctor and prefill filter so calendar resets
   if (_wiz.step === 1 && dir === -1) {
-    _wiz.doctorId   = null
-    _wiz.doctorName = ''
-    _wiz.doctorSpec = ''
+    _wiz.doctorId     = null
+    _wiz.doctorName   = ''
+    _wiz.doctorSpec   = ''
+    _wiz._prefillDays = []
     const inp = document.getElementById('appt-doctor')
     if (inp) inp.value = ''
     const sd = document.getElementById('sum-doctor')
@@ -1525,6 +1579,7 @@ function wizGo(dir) {
   if (nextStep === 4) wizPopulateReview()
   _wiz.step = nextStep
   wizShowStep(nextStep, dir)
+  if (nextStep === 0) { amcRenderPrefillBanner(); amcRender() }
   if (nextStep === 1) wizBuildDoctorCards()
   if (nextStep === 2) wizBuildTimeSlots()   // async — fire-and-forget is fine here
   window.scrollTo(0, 0)
@@ -2139,73 +2194,85 @@ function openAddUserModal() {
       <div class="modal-title">Add New User</div>
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
       <div class="form-row-2">
         <div class="form-group"><label class="form-label">First Name <span class="req">*</span></label>
-          <input id="nu-first" class="form-input" placeholder="First name"></div>
+          <input id="nu-first" class="form-input" placeholder="Juan"></div>
         <div class="form-group"><label class="form-label">Last Name <span class="req">*</span></label>
-          <input id="nu-last" class="form-input" placeholder="Last name"></div>
+          <input id="nu-last" class="form-input" placeholder="Dela Cruz"></div>
       </div>
-      <div class="form-group"><label class="form-label">Email <span class="req">*</span></label>
-        <input id="nu-email" type="email" class="form-input" placeholder="email@canaoptical.com"></div>
-      <div class="form-group"><label class="form-label">Contact Number</label>
-        <input id="nu-contact" class="form-input" placeholder="09XXXXXXXXX"></div>
+      <div class="form-row-2">
+        <div class="form-group"><label class="form-label">Email <span class="req">*</span></label>
+          <input id="nu-email" type="email" class="form-input" placeholder="juan@email.com"></div>
+        <div class="form-group"><label class="form-label">Contact Number</label>
+          <input id="nu-contact" class="form-input" placeholder="09XXXXXXXXX"></div>
+      </div>
       <div class="form-group"><label class="form-label">Role <span class="req">*</span></label>
         <select id="nu-role" class="form-select" onchange="window.onAddUserRoleChange(this.value)">
           <option>Admin</option><option>Staff</option><option>Doctor</option><option>Patient</option>
         </select></div>
 
       <!-- Doctor-specific fields -->
-      <div id="nu-doctor-fields" style="display:none">
+      <div id="nu-doctor-fields" style="display:none;flex-direction:column;gap:14px">
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Specialization</label>
             <input id="nu-specialization" class="form-input" placeholder="e.g. Optometrist" value="Optometrist"></div>
           <div class="form-group"><label class="form-label">PRC License No.</label>
             <input id="nu-prc" class="form-input" placeholder="PRC-XXXXX"></div>
         </div>
-        <div class="form-group"><label class="form-label">PTR No.</label>
-          <input id="nu-ptr" class="form-input" placeholder="PTR-XXXXX"></div>
       </div>
 
-      <!-- Patient-specific fields -->
-      <div id="nu-patient-fields" style="display:none">
+      <!-- Patient-specific fields (matches Add Patient form) -->
+      <div id="nu-patient-fields" style="display:none;flex-direction:column;gap:14px">
         <div class="form-row-2">
-          <div class="form-group"><label class="form-label">Date of Birth</label>
+          <div class="form-group"><label class="form-label">Date of Birth <span class="req">*</span></label>
             <input type="date" id="nu-dob" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Gender</label>
+          <div class="form-group"><label class="form-label">Gender <span class="req">*</span></label>
             <select id="nu-gender" class="form-select">
               <option value="">Select gender</option>
-              <option>Male</option><option>Female</option><option>Other</option>
+              <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
             </select></div>
         </div>
-        <div class="form-group"><label class="form-label">Address</label>
-          <input id="nu-address" class="form-input" placeholder="Street, Barangay, City, Province"></div>
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Blood Type</label>
             <select id="nu-blood" class="form-select">
               <option value="">Unknown</option>
-              <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
-              <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+              <option value="A+">A+</option><option value="A-">A-</option>
+              <option value="B+">B+</option><option value="B-">B-</option>
+              <option value="AB+">AB+</option><option value="AB-">AB-</option>
+              <option value="O+">O+</option><option value="O-">O-</option>
             </select></div>
           <div class="form-group"><label class="form-label">Occupation</label>
-            <input id="nu-occupation" class="form-input" placeholder="e.g. Teacher, Engineer"></div>
+            <input id="nu-occupation" class="form-input" placeholder="e.g. Teacher, Engineer, Student"></div>
         </div>
+        <div class="form-group"><label class="form-label">Address</label>
+          <input id="nu-address" class="form-input" placeholder="Street, City, Province"></div>
+        <div class="form-group"><label class="form-label">Medical History</label>
+          <textarea id="nu-medical" class="form-textarea" rows="2"
+            placeholder="Known conditions, allergies, medications…"></textarea></div>
+        <div class="form-group"><label class="form-label">Optical History</label>
+          <textarea id="nu-optical" class="form-textarea" rows="2"
+            placeholder="Prior eye conditions, prescriptions, surgeries…"></textarea></div>
       </div>
 
-      <div class="form-group"><label class="form-label">Temporary Password <span class="req">*</span></label>
-        <input id="nu-pass" type="password" class="form-input" placeholder="Minimum 8 characters"></div>
+      <div id="nu-pass-group">
+        <div class="form-group"><label class="form-label">Temporary Password <span class="req">*</span></label>
+          <input id="nu-pass" type="password" class="form-input" placeholder="Minimum 8 characters"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="window.doAddUser()">Create Account</button>
+      <button id="nu-save-btn" class="btn-primary" onclick="window.doAddUser()">Create Account</button>
     </div>`, 'modal-lg')
 }
 
 function onAddUserRoleChange(role) {
   const docFields = document.getElementById('nu-doctor-fields')
   const patFields = document.getElementById('nu-patient-fields')
-  if (docFields) docFields.style.display = role === 'Doctor'  ? '' : 'none'
-  if (patFields) patFields.style.display = role === 'Patient' ? '' : 'none'
+  const passGroup = document.getElementById('nu-pass-group')
+  if (docFields) docFields.style.display = role === 'Doctor'  ? 'flex' : 'none'
+  if (patFields) patFields.style.display = role === 'Patient' ? 'flex' : 'none'
+  if (passGroup) passGroup.style.display = role === 'Patient' ? 'none' : ''
 }
 window.onAddUserRoleChange = onAddUserRoleChange
 
@@ -2221,7 +2288,7 @@ async function doAddUser() {
   if (!first || !last || !email) { toast('Please fill in all required fields.', 'error'); return }
   if (role !== 'Patient' && !pass) { toast('Password is required.', 'error'); return }
 
-  const btn = document.querySelector('.modal-footer .btn-primary')
+  const btn = document.getElementById('nu-save-btn')
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…' }
 
   try {
@@ -2234,6 +2301,8 @@ async function doAddUser() {
         dob: gv('nu-dob'), gender: gv('nu-gender'),
         address: gv('nu-address'), bloodType: gv('nu-blood') || 'Unknown',
         occupation: gv('nu-occupation'),
+        medicalHistory: gv('nu-medical'),
+        opticalHistory: gv('nu-optical'),
       }
     } else {
       endpoint = '/opticana/api/users/create.php'
@@ -2264,10 +2333,15 @@ async function doAddUser() {
       timestamp: nowTimestamp(), type:'user' })
 
     closeModal()
-    let msg = `Account created. ${name} can now log in.`
-    if (data.tempPassword) msg += ` Temp password: ${data.tempPassword}`
-    toast(msg)
     renderPage()
+
+    if (role === 'Patient') {
+      setTimeout(() => window._showRegistrationQRModal(data.patient, data.tempPassword || null), 150)
+    } else {
+      let msg = `Account created. ${name} can now log in.`
+      if (data.tempPassword) msg += ` Temp password: ${data.tempPassword}`
+      toast(msg)
+    }
 
   } catch(e) {
     toast('Network error. Please try again.', 'error')
@@ -2277,6 +2351,8 @@ async function doAddUser() {
 }
 
 function editUserModal(id, role) {
+  // Patients have their own comprehensive edit modal
+  if (role === 'Patient') { window.openEditPatientModal(id); return }
   const pool = { Admin: admins, Staff: staff, Doctor: doctors, Patient: patients }
   const u = (pool[role] || []).find(u => u.id === id)
   if (!u) return
@@ -2428,23 +2504,15 @@ function archiveUserConfirm(id, name) {
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button id="do-archive-user-btn"
-              style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;background:#d97706;color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;opacity:.5;pointer-events:none"
-              disabled
+      <button id="do-archive-user-btn" class="btn-primary" disabled
               onclick="window.doArchiveUser('${id}','${name}')">
         ${icon('archive','icon-sm')}<span>Archive</span>
       </button>
     </div>`)
-  // enable button once reason typed (re-wire after modal renders)
   setTimeout(() => {
     const ta = document.getElementById('archive-reason-user')
     const btn = document.getElementById('do-archive-user-btn')
-    if (ta && btn) ta.addEventListener('input', () => {
-      const ok = ta.value.trim().length > 0
-      btn.disabled = !ok
-      btn.style.opacity = ok ? '1' : '.5'
-      btn.style.pointerEvents = ok ? 'auto' : 'none'
-    })
+    if (ta && btn) ta.addEventListener('input', () => { btn.disabled = !ta.value.trim() })
   }, 50)
 }
 
@@ -2595,6 +2663,8 @@ async function doAddPatient() {
 function openEditPatientModal(patientId) {
   const p = patients.find(p => p.id === patientId)
   if (!p) return
+  const currentRole = window.state?.user?.role || ''
+  const isAdmin = currentRole === 'admin' || currentRole === 'staff'
   showModal(`
     <div class="modal-header">
       <div class="modal-title">Edit Patient — ${p.name}</div>
@@ -2623,10 +2693,60 @@ function openEditPatientModal(patientId) {
                ${!p.email ? 'disabled title="This patient has no login account — email can\'t be set here."' : ''}></div>
       <div class="form-group"><label class="form-label">Address</label>
         <input id="ep-address" class="form-input" value="${p.address}"></div>
-      <div class="form-group" style="margin-bottom:0"><label class="form-label">Blood Type</label>
+      <div class="form-group"><label class="form-label">Blood Type</label>
         <select id="ep-blood" class="form-select">
           ${['Unknown','A+','A-','B+','B-','AB+','AB-','O+','O-'].map(b=>`<option${b===p.bloodType?' selected':''}>${b}</option>`).join('')}
         </select></div>
+      <div class="form-group"><label class="form-label">Medical History</label>
+        <textarea id="ep-medical" class="form-textarea" rows="2"
+          placeholder="Known conditions, allergies, medications…">${p.medicalHistory || ''}</textarea></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">Optical History</label>
+        <textarea id="ep-optical" class="form-textarea" rows="2"
+          placeholder="Prior eye conditions, prescriptions, surgeries…">${p.opticalHistory || ''}</textarea></div>
+      ${isAdmin && p.email ? `
+      <div style="margin-top:4px">
+        <div style="background:#F9FAFB;border:1px solid #F0F0F2;border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:26px;height:26px;background:white;border:1px solid #E9EAEC;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#9CA3AF;flex-shrink:0">
+              ${icon('shield','icon-xs')}
+            </div>
+            <span style="font-size:.7rem;font-weight:700;letter-spacing:.08em;color:#B0B7C3;text-transform:uppercase">Security</span>
+          </div>
+          <div>
+            <div id="ep-temp-row" style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+              <p style="margin:0;font-size:.82rem;font-weight:600;color:#374151;flex:1">Temporary Password</p>
+              <div id="ep-temp-wrap" style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                <button type="button" id="ep-temp-btn"
+                        onclick="window.checkTempPassword('${patientId}')"
+                        style="background:white;border:1px solid #E5E7EB;border-radius:7px;padding:0 11px;font-size:.75rem;font-weight:600;color:#6B7280;cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.04);transition:background .15s,border-color .15s,color .15s,box-shadow .15s;height:26px;box-sizing:border-box"
+                        onmouseenter="if(!this.disabled){this.style.background='#FFF7ED';this.style.borderColor='#FDE68A';this.style.color='#D97706';this.style.boxShadow='0 2px 8px rgba(217,119,6,.18)'}"
+                        onmouseleave="if(!this.disabled){this.style.background='white';this.style.borderColor='#E5E7EB';this.style.color='#6B7280';this.style.boxShadow='0 1px 2px rgba(0,0,0,.04)'}">
+                  ${icon('eye','icon-xs')} Check
+                </button>
+              </div>
+            </div>
+            <p style="margin:0;font-size:.74rem;color:#9CA3AF">Auto-generated at registration. Check if the patient has changed it.</p>
+          </div>
+          <div style="border-top:1px solid #ECEDF0;padding-top:12px">
+            <button type="button" onclick="window._toggleEpPwReset()"
+                    style="display:flex;align-items:center;gap:6px;background:none;border:none;color:#6B7280;font-size:.82rem;font-weight:600;cursor:pointer;padding:0;font-family:inherit;width:100%">
+              ${icon('lock','icon-xs')} Reset Password
+              <span id="ep-pw-chevron" style="font-size:.7rem;margin-left:auto;transition:transform .18s ease">▸</span>
+            </button>
+            <div id="ep-pw-section" style="display:none;margin-top:12px">
+              <div class="form-row-2">
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">New Password</label>
+                  <input type="password" id="ep-newpass" class="form-input" placeholder="Min. 8 characters"
+                         autocomplete="new-password" oninput="window.syncEpPassHint()"></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">Confirm Password</label>
+                  <input type="password" id="ep-newpass2" class="form-input" placeholder="Re-enter password"
+                         autocomplete="new-password" oninput="window.syncEpPassHint()"></div>
+              </div>
+              <p id="ep-pass-hint" style="margin:7px 0 0;font-size:.74rem;color:#9CA3AF">Leave blank to keep the existing password.</p>
+            </div>
+          </div>
+        </div>
+      </div>` : ''}
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
@@ -2643,11 +2763,21 @@ async function doEditPatient(patientId) {
   const lastName  = gv('ep-last')
   if (!firstName || !lastName) { toast('First and last name are required.', 'error'); return }
 
+  // Optional password change
+  const np  = (document.getElementById('ep-newpass')  || {}).value || ''
+  const np2 = (document.getElementById('ep-newpass2') || {}).value || ''
+  if (np || np2) {
+    if (np.length < 8)  { toast('New password must be at least 8 characters.', 'error'); return }
+    if (np !== np2)     { toast('Passwords do not match.', 'error'); return }
+  }
+
   const payload = {
     id: patientId, firstName, lastName,
     gender: gv('ep-gender'), dob: gv('ep-dob'),
     contact: gv('ep-contact'), email: gv('ep-email'),
-    address: gv('ep-address'), bloodType: gv('ep-blood')
+    address: gv('ep-address'), bloodType: gv('ep-blood'),
+    medicalHistory: (document.getElementById('ep-medical') || {}).value ?? p.medicalHistory ?? '',
+    opticalHistory: (document.getElementById('ep-optical') || {}).value ?? p.opticalHistory ?? ''
   }
 
   try {
@@ -2662,17 +2792,108 @@ async function doEditPatient(patientId) {
     return
   }
 
+  // Reset password if new password was provided
+  if (np) {
+    try {
+      const r = await fetch('api/users/reset_password.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: patientId, role: 'Patient', newPassword: np })
+      })
+      const d = await r.json()
+      if (!d.success) { toast(d.message || 'Profile saved but password could not be updated.', 'error'); return }
+    } catch (_) {
+      toast('Profile saved but password reset failed (network error).', 'error')
+      return
+    }
+  }
+
   p.firstName = firstName
   p.lastName  = lastName
   p.name      = `${firstName} ${lastName}`
   if (payload.gender) p.gender = payload.gender
   if (payload.dob)    p.dob    = payload.dob
-  p.contact   = payload.contact
+  p.contact       = payload.contact
   if (payload.email && p.email) p.email = payload.email
-  p.address   = payload.address
-  p.bloodType = payload.bloodType
+  p.address       = payload.address
+  p.bloodType     = payload.bloodType
+  p.medicalHistory = payload.medicalHistory
+  p.opticalHistory = payload.opticalHistory
 
-  closeModal(); toast('Patient info updated.'); renderPage()
+  closeModal()
+  toast(np ? 'Patient info and password updated.' : 'Patient info updated.')
+  renderPage()
+}
+
+window._toggleEpPwReset = function() {
+  const sec = document.getElementById('ep-pw-section')
+  const ch  = document.getElementById('ep-pw-chevron')
+  if (!sec) return
+  const open = sec.style.display === 'none'
+  sec.style.display = open ? '' : 'none'
+  if (ch) ch.textContent = open ? '▾' : '▸'
+}
+
+window.syncEpPassHint = function() {
+  const hint = document.getElementById('ep-pass-hint')
+  const np   = (document.getElementById('ep-newpass')  || {}).value || ''
+  const np2  = (document.getElementById('ep-newpass2') || {}).value || ''
+  if (!hint) return
+  if (!np && !np2) {
+    hint.textContent = 'Leave blank to keep the existing password.'
+    hint.style.color = '#9CA3AF'
+  } else if (np && np2 && np === np2 && np.length >= 8) {
+    hint.textContent = '✓ Passwords match — will update on Save.'
+    hint.style.color = '#059669'
+  } else if (np2 && np !== np2) {
+    hint.textContent = 'Passwords do not match.'
+    hint.style.color = '#DC2626'
+  } else if (np.length > 0 && np.length < 8) {
+    hint.textContent = 'Must be at least 8 characters.'
+    hint.style.color = '#D97706'
+  } else {
+    hint.textContent = 'Leave blank to keep the existing password.'
+    hint.style.color = '#9CA3AF'
+  }
+}
+
+window.checkTempPassword = async function(patientId) {
+  const btn = document.getElementById('ep-temp-btn')
+  if (!btn) return
+  btn.disabled = true
+  btn.onmouseenter = null
+  btn.onmouseleave = null
+  btn.innerHTML = `<span style="display:inline-block;width:9px;height:9px;border:2px solid #D1D5DB;border-top-color:#9CA3AF;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0"></span> Checking`
+  try {
+    const r = await fetch('api/patients/get_temp_password.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patientId })
+    })
+    const d = await r.json()
+    if (!d.success) {
+      btn.style.cssText = `display:inline-flex;align-items:center;gap:5px;background:#FEF2F2;border:1px solid #FECACA;border-radius:7px;padding:0 11px;font-size:.75rem;font-weight:600;color:#DC2626;cursor:default;white-space:nowrap;height:26px;box-sizing:border-box`
+      btn.innerHTML = `${icon('alert-circle','icon-xs')} ${d.message}`
+      return
+    }
+    if (d.isTemp) {
+      btn.style.cssText = `display:inline-flex;align-items:center;gap:6px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:7px;padding:0 10px;cursor:default;white-space:nowrap;height:26px;box-sizing:border-box`
+      btn.innerHTML = `
+        <code id="ep-temp-val" style="font-size:.83rem;font-weight:700;color:#92400E;letter-spacing:.04em;font-family:'Courier New',monospace">${d.tempPassword}</code>
+        <span onclick="window.copyTempPassword()" title="Copy" style="cursor:pointer;color:#D97706;display:inline-flex;align-items:center;opacity:.65;transition:opacity .15s" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=.65">${icon('copy','icon-xs')}</span>
+        <span style="display:inline-flex;align-items:center;gap:3px;font-size:.7rem;color:#D97706;font-weight:600;padding-left:2px;border-left:1px solid #FDE68A">${icon('alert-circle','icon-xs')} Not yet changed</span>`
+    } else {
+      btn.style.cssText = `display:inline-flex;align-items:center;gap:5px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:7px;padding:0 11px;cursor:default;white-space:nowrap;height:26px;box-sizing:border-box`
+      btn.innerHTML = `<span style="color:#16A34A;display:flex;align-items:center">${icon('check-circle','icon-xs')}</span><span style="font-size:.75rem;font-weight:600;color:#15803D">Changed by patient</span>`
+    }
+  } catch (_) {
+    btn.style.cssText = `display:inline-flex;align-items:center;gap:5px;background:#FEF2F2;border:1px solid #FECACA;border-radius:7px;padding:0 11px;font-size:.75rem;font-weight:600;color:#DC2626;cursor:default;white-space:nowrap;height:26px;box-sizing:border-box`
+    btn.innerHTML = `${icon('alert-circle','icon-xs')} Network error`
+  }
+}
+
+window.copyTempPassword = function() {
+  const val = document.getElementById('ep-temp-val')
+  if (!val) return
+  navigator.clipboard.writeText(val.textContent.trim()).then(() => toast('Temp password copied.'))
 }
 
 window.openAddPatientModal  = openAddPatientModal
@@ -2715,9 +2936,7 @@ function confirmArchivePatient(id) {
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button id="do-archive-patient-btn"
-              style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;background:#d97706;color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;opacity:.5;pointer-events:none"
-              disabled
+      <button id="do-archive-patient-btn" class="btn-primary" disabled
               onclick="window.doArchivePatient('${id}')">
         ${icon('archive','icon-sm')}<span>Archive</span>
       </button>
@@ -2725,12 +2944,7 @@ function confirmArchivePatient(id) {
   setTimeout(() => {
     const ta = document.getElementById('archive-reason-patient')
     const btn = document.getElementById('do-archive-patient-btn')
-    if (ta && btn) ta.addEventListener('input', () => {
-      const ok = ta.value.trim().length > 0
-      btn.disabled = !ok
-      btn.style.opacity = ok ? '1' : '.5'
-      btn.style.pointerEvents = ok ? 'auto' : 'none'
-    })
+    if (ta && btn) ta.addEventListener('input', () => { btn.disabled = !ta.value.trim() })
   }, 50)
 }
 
@@ -3973,18 +4187,15 @@ function examWizRender(next, dir) {
   var backBtn = document.getElementById('wiz-btn-back')
   if (backBtn) backBtn.style.display = next > 1 ? 'inline-flex' : 'none'
 
-  // Next vs Save/Print buttons
+  // Next vs Save button
   var nextBtn = document.getElementById('wiz-btn-next')
   var saveBtn = document.getElementById('wiz-btn-save')
-  var printBtn = document.getElementById('wiz-btn-print')
   if (next < _wizTotal) {
-    if (nextBtn)  nextBtn.style.display  = 'inline-flex'
-    if (saveBtn)  saveBtn.style.display  = 'none'
-    if (printBtn) printBtn.style.display = 'none'
+    if (nextBtn) nextBtn.style.display = 'inline-flex'
+    if (saveBtn) saveBtn.style.display = 'none'
   } else {
-    if (nextBtn)  nextBtn.style.display  = 'none'
-    if (saveBtn)  saveBtn.style.display  = 'inline-flex'
-    if (printBtn) printBtn.style.display = 'inline-flex'
+    if (nextBtn) nextBtn.style.display = 'none'
+    if (saveBtn) saveBtn.style.display = 'inline-flex'
     // Trigger rx preview when arriving at step 6
     if (window.updateRxPreview && window._examPatientId) {
       setTimeout(function() { window.updateRxPreview(window._examPatientId) }, 60)
@@ -4090,6 +4301,18 @@ async function saveNewExam(patientId) {
     if (!d.success) {
       toast(d.message || 'Failed to save examination.', 'error')
       return
+    }
+
+    // Persist updated history back to patient record if changed
+    const newMedical = gv('ne-medical')
+    const newOptical = gv('ne-optical')
+    if (newMedical !== (p.medicalHistory || '') || newOptical !== (p.opticalHistory || '')) {
+      p.medicalHistory = newMedical
+      p.opticalHistory = newOptical
+      fetch('api/patients/update_history.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId, medicalHistory: newMedical, opticalHistory: newOptical })
+      }).catch(() => {})
     }
 
     // Update local arrays so the UI stays consistent
@@ -5214,8 +5437,8 @@ function updateStaffDashboard() {
   if (el('staff-stat-approved')) el('staff-stat-approved').textContent = approved.length
   if (el('staff-stat-patients')) el('staff-stat-patients').textContent = patients.length
 
-  // ── Update weekly chart ───────────────────────────────────────
-  if (window._charts?.updateStaffOverviewChart) {
+  // ── Weekly chart — always (re)init with real data ─────────────
+  if (window._charts?.initStaffOverviewChart) {
     const now      = new Date()
     const weekDay  = now.getDay()
     const monday   = new Date(now)
@@ -5228,7 +5451,7 @@ function updateStaffDashboard() {
       const dateStr = day.toISOString().split('T')[0]
       return appointments.filter(a => a.date === dateStr && !['cancelled', 'disapproved'].includes(a.status)).length
     })
-    window._charts.updateStaffOverviewChart(weeklyCounts, dayLabels)
+    window._charts.initStaffOverviewChart('chart-staff-overview', weeklyCounts)
   }
 
   // ── Update pending approvals table ────────────────────────────

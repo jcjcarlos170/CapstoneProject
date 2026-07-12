@@ -169,15 +169,19 @@ button { border-radius: unset; }
 .lf-error {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: #FEF2F2;
   border: 1px solid #FECACA;
+  border-left: 4px solid #DC2626;
   border-radius: 8px;
-  padding: 10px 14px;
+  padding: 11px 14px;
   font-size: 0.83rem;
-  color: #DC2626;
+  font-weight: 500;
+  color: #B91C1C;
   margin-bottom: 12px;
+  line-height: 1.5;
 }
+.lf-error svg { flex-shrink: 0; }
 
 /* Remember + forgot */
 .lf-row {
@@ -281,9 +285,10 @@ button { border-radius: unset; }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   FORGOT PASSWORD SCREEN
+   FORGOT PASSWORD SCREEN  /  EMAIL VERIFY SCREEN
 ════════════════════════════════════════════════════════════════ */
-#forgot-screen {
+#forgot-screen,
+#verify-screen {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -495,6 +500,10 @@ select.reg-input:focus {
 }
 select.reg-input option[value=""] { color: #9CA3AF; }
 select.reg-input option { color: #1C1C1C; }
+input[type="date"].reg-input {
+  appearance: auto;
+  -webkit-appearance: auto;
+}
 .reg-input:focus {
   border-color: #E8891C;
   box-shadow: 0 0 0 3px rgba(232,137,28,.1);
@@ -968,7 +977,7 @@ select.reg-input option { color: #1C1C1C; }
 .sidebar-role-badge.role-doctor  { background: rgba(16,185,129,0.18); color: #34D399; }
 .sidebar-role-badge.role-patient { background: rgba(139,92,246,0.18); color: #A78BFA; }
 
-/* Collapsed sidebar: fade text, keep icons in place */
+/* Collapsed sidebar: fade + collapse text so icons center cleanly */
 #sidebar.collapsed .nav-item-label,
 #sidebar.collapsed .nav-arrow,
 #sidebar.collapsed .sidebar-profile-info,
@@ -976,14 +985,22 @@ select.reg-input option { color: #1C1C1C; }
 #sidebar.collapsed .sidebar-logout span {
   opacity: 0;
   pointer-events: none;
+  width: 0;
+  flex: none;
+  overflow: hidden;
 }
 /* Submenu closes instantly when sidebar collapses */
 #sidebar.collapsed .nav-submenu { max-height: 0 !important; }
-/* Keep icon at a consistent left position — no justify-content flip */
-#sidebar.collapsed .nav-item { padding-left: 9px; padding-right: 9px; }
-#sidebar.collapsed .nav-item.active { padding-left: 9px; }
-#sidebar.collapsed .sidebar-profile-wrap { padding: 12px 9px; }
-#sidebar.collapsed .nav-section-label { padding: 10px 9px 4px; }
+/* Center icon in the collapsed item, strip horizontal padding and gap */
+#sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 9px 0;
+  gap: 0;
+}
+#sidebar.collapsed .nav-item.active { padding: 9px 0; }
+#sidebar.collapsed .sidebar-profile-wrap { padding: 12px 0; justify-content: center; gap: 0; }
+#sidebar.collapsed .sidebar-logout { justify-content: center; padding: 8px 0; gap: 0; }
+#sidebar.collapsed .nav-section-label { padding: 10px 0 4px; justify-content: center; }
 
 /* ════════════════════════════════════════════════════════════════
    TOPBAR
@@ -1529,7 +1546,7 @@ select.reg-input option { color: #1C1C1C; }
 .tbl tbody tr:hover td { background: #FFFBF5; }
 
 /* Patient name cell — allow wrap for two-line name+ID layout */
-.patient-name-cell { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
+.patient-name-cell { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: visible; }
 .patient-name-info { min-width: 0; overflow: hidden; }
 .patient-name-info strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .patient-name-info span   { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1920,11 +1937,15 @@ select.reg-input option { color: #1C1C1C; }
 .filter-tab.active { color: #E8760A; border-bottom-color: #E8760A; }
 
 .patient-avatar {
-  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.15s;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s ease, box-shadow 0.2s ease;
 }
-.patient-avatar:hover, .patient-name-cell:hover .patient-avatar {
-  transform: scale(1.08);
-  box-shadow: 0 2px 8px rgba(232,118,10,.25);
+.patient-avatar:hover,
+.patient-name-cell:hover .patient-avatar,
+.tbl tbody tr:hover .patient-avatar {
+  outline-color: #E8760A;
+  box-shadow: 0 2px 10px rgba(232,118,10,.22);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1988,7 +2009,9 @@ select.reg-input option { color: #1C1C1C; }
   width: 100%;
   max-width: 540px;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: 0 20px 60px rgba(0,0,0,.2);
   animation: modalIn 0.2s ease;
 }
@@ -2000,6 +2023,7 @@ select.reg-input option { color: #1C1C1C; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 .modal-title {
   font-family: 'Poppins', sans-serif;
@@ -2023,7 +2047,20 @@ select.reg-input option { color: #1C1C1C; }
   transition: background 0.15s;
 }
 .modal-close:hover { background: #E5E7EB; color: #374151; }
-.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.modal-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.modal-body::-webkit-scrollbar { width: 4px; }
+.modal-body::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+.modal-body::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
+.modal-body::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
 .modal-footer {
   padding: 14px 24px;
   border-top: 1px solid #F3F4F6;
@@ -2031,6 +2068,7 @@ select.reg-input option { color: #1C1C1C; }
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -2091,6 +2129,9 @@ select.reg-input option { color: #1C1C1C; }
 @keyframes modalIn {
   from { opacity: 0; transform: scale(.96) translateY(8px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ── Clinic Days pill toggle (Consultation Settings) ───────────── */
@@ -2760,7 +2801,7 @@ select.reg-input option { color: #1C1C1C; }
 
   .grid-2, .grid-3, .grid-sidebar { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .stats-grid-6 { grid-template-columns: 1fr 1fr; }
+  .stats-grid-6 { grid-template-columns: 1fr; }
 
   /* Doctor availability — card picker: 2-col equal-width grid */
   .pat-doc-tabs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -2834,7 +2875,7 @@ select.reg-input option { color: #1C1C1C; }
     flex-wrap: wrap;
     gap: 8px;
   }
-  .card-header > *:last-child:not(.card-title):not(button) { width: 100%; }
+  .card-header > *:last-child:not(.card-title):not(button):not(.chart-legend-dot) { width: 100%; }
   .card-header .form-select { width: 100%; }
 
   /* ── Safety net: any ad-hoc inline grid (registration forms, exam
@@ -2856,7 +2897,7 @@ select.reg-input option { color: #1C1C1C; }
 /* ── Small mobile: single-column stats (<480px) ── */
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr; }
-  .stats-grid-6 { grid-template-columns: 1fr 1fr; }
+  .stats-grid-6 { grid-template-columns: 1fr; gap: 10px; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .page-header > *:not(.page-header-left) { width: 100%; }
   .page-header > *:not(.page-header-left) .btn-primary,
@@ -2866,12 +2907,22 @@ select.reg-input option { color: #1C1C1C; }
     width: 100%;
     justify-content: center;
   }
-  .stat-card { padding: 16px 18px; min-height: 84px; }
+  /* Single-column cards: full width, compact */
+  .stat-card { padding: 14px 18px; gap: 12px; align-items: center; min-height: unset; }
+  .stat-info { min-width: 0; flex: 1; }
+  .stat-icon { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+  .stat-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stat-value { font-size: 1.6rem; }
+  .stat-delta { font-size: 0.75rem; }
+  .chart-wrap { height: 190px; }
 
   /* QR scanner camera area: less vertical bulk on small phones */
   #qr-camera-area { min-height: 220px !important; padding: 28px 16px !important; }
   #qr-cam-idle > div:first-child { width: 48px !important; height: 48px !important; }
+
+  /* Security card temp password row: stack label above pill on narrow screens */
+  #ep-temp-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+  #ep-temp-wrap { align-items: flex-start !important; }
 }
 
 /* ══════════════════════════════════════════════

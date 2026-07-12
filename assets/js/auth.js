@@ -39,6 +39,11 @@ async function handleLogin() {
     const data = await res.json()
 
     if (!data.success) {
+      if (data.needsVerification) {
+        showEmailVerify(data.email)
+        if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; btn.style.opacity = '1' }
+        return
+      }
       _showLoginError(data.message || 'The email or password you entered is incorrect. Please try again.')
       _shakeCard()
       document.getElementById('login-password').value = ''
@@ -140,20 +145,7 @@ async function handleRegister() {
       return
     }
 
-    // Also push into in-memory patients array so dashboard pages work
-    const p = data.user
-    patients.push({
-      id: p.id, firstName: p.firstName, lastName: p.lastName,
-      name: p.name, gender: p.gender, dob: p.dob, age: p.age,
-      contact: p.contact, email: p.email, password: '',
-      address: p.address, bloodType: p.bloodType,
-      registeredDate: p.registeredDate, lastVisit: '—',
-      qrData: p.qrData, status: 'active', occupation: '',
-      medicalHistory: '', opticalHistory: '',
-      consultations: [], examinations: [], prescriptions: [],
-    })
-
-    window._showRegistrationQRModal(data.user)
+    showEmailVerify(data.email, true)
   } catch (_) {
     errMsg.textContent  = 'Network error. Please check your connection and try again.'
     errEl.style.display = 'flex'
@@ -289,7 +281,13 @@ async function restoreSession() {
     setTimeout(() => { if (loadingEl) loadingEl.style.display = 'none' }, delay)
   }
   const showLogin = (delay = 0) => {
-    setTimeout(() => { if (loginEl) loginEl.style.display = 'flex' }, delay)
+    setTimeout(() => {
+      if (loginEl) loginEl.style.display = 'flex'
+      if (window._openRegister) {
+        window._openRegister = false
+        if (typeof showRegister === 'function') showRegister()
+      }
+    }, delay)
   }
 
   try {
@@ -352,7 +350,9 @@ function showRegister() {
 function showLogin() {
   document.getElementById('register-screen').style.display  = 'none'
   document.getElementById('forgot-screen').style.display    = 'none'
+  document.getElementById('verify-screen').style.display    = 'none'
   document.getElementById('login-screen').style.display     = 'flex'
+  _evStopTimer()
 }
 window.showLogin = showLogin
 
@@ -464,7 +464,7 @@ async function fpS3Submit() {
     const data = await res.json()
     if (!data.success) {
       btn.disabled = false; btn.innerHTML = 'Verify OTP'
-      fpShowWrongOTP(!!data.locked, data.attemptsLeft ?? null)
+      fpShowWrongOTP(!!data.locked, data.attemptsLeft ?? null, !!data.banned)
       fpGoToStep(3.5)
       return
     }
@@ -516,13 +516,21 @@ async function fpS4Submit() {
   }
 }
 
-function fpShowWrongOTP(locked, attemptsLeft) {
+function fpShowWrongOTP(locked, attemptsLeft, banned = false) {
   const title   = document.getElementById('fp-3b-title')
   const msg     = document.getElementById('fp-3b-msg')
   const retry   = document.getElementById('fp-3b-retry')
   const newCode = document.getElementById('fp-3b-new-code')
+  const backBtn = document.getElementById('fp-3b-back-login')
   if (!title || !msg || !retry || !newCode) return
-  if (locked) {
+  if (backBtn) backBtn.style.display = 'none'
+  if (banned) {
+    title.textContent     = 'Reset Temporarily Blocked'
+    msg.textContent       = 'Too many failed OTP attempts. Please wait 1 hour before requesting a new password reset.'
+    retry.style.display   = 'none'
+    newCode.style.display = 'none'
+    if (backBtn) backBtn.style.display = 'block'
+  } else if (locked) {
     title.textContent        = 'Too Many Attempts'
     msg.textContent          = 'You\'ve used all 5 attempts. Please request a new code to try again.'
     retry.style.display      = 'none'
@@ -573,10 +581,17 @@ async function fpResendOTP() {
   document.querySelectorAll('#fp-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
   document.getElementById('fp-s3-error').classList.remove('show')
   try {
-    await fetch('api/auth/forgot-password.php', {
+    const res  = await fetch('api/auth/forgot-password.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: window._fpEmail }),
     })
+    const data = await res.json()
+    if (!data.success && data.banned) {
+      clearInterval(window._fpTimerInterval)
+      fpShowWrongOTP(false, null, true)
+      fpGoToStep(3.5)
+      return
+    }
   } catch (_) { /* fail silently — timer still restarts */ }
   document.querySelectorAll('#fp-otp-row .otp-input')[0].focus()
   fpStartTimer()
@@ -624,6 +639,279 @@ function fpStartResendCooldown() {
   window._fpResendCooldownInterval = setInterval(tick, 1000)
 }
 
+// ── Email Verification Screen ─────────────────────────────────────
+let _evEmail = ''
+let _evFromReg = false
+let _evTimerInterval = null
+let _evResendCooldownInterval = null
+let _evResendCooldownLeft = 0
+
+function showEmailVerify(email, fromRegistration = false) {
+  _evEmail   = email
+  _evFromReg = fromRegistration
+
+  document.getElementById('login-screen').style.display    = 'none'
+  document.getElementById('register-screen').style.display = 'none'
+  document.getElementById('forgot-screen').style.display   = 'none'
+  document.getElementById('verify-screen').style.display   = 'flex'
+
+  document.getElementById('ev-email-display').textContent = email
+
+  // Reset to step 1
+  evShowStep(1)
+
+  // Clear OTP inputs
+  document.querySelectorAll('#ev-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
+  document.getElementById('ev-error').style.display = 'none'
+
+  // Reset resend button and any running cooldown
+  clearInterval(_evResendCooldownInterval)
+  _evResendCooldownInterval = null
+  _evResendCooldownLeft = 0
+  const resendBtn = document.getElementById('ev-resend-btn')
+  if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = 'Resend Code' }
+
+  // Start countdown
+  _evStartTimer(300)
+
+  // Focus first input
+  setTimeout(() => {
+    const first = document.querySelector('#ev-otp-row .otp-input')
+    if (first) first.focus()
+  }, 50)
+}
+window.showEmailVerify = showEmailVerify
+
+function evShowStep(n) {
+  document.querySelectorAll('#verify-screen .fp-step').forEach(s => {
+    s.classList.remove('active')
+    s.style.display = 'none'
+    s.style.opacity = '0'
+  })
+  const step = document.getElementById('ev-step-' + n)
+  if (!step) return
+  step.style.display = 'block'
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    step.style.transition = 'opacity 0.3s ease'
+    step.style.opacity    = '1'
+    step.classList.add('active')
+  }))
+}
+window.evShowStep = evShowStep
+
+function _evStartTimer(seconds) {
+  _evStopTimer()
+  let remaining = seconds
+  const display  = document.getElementById('ev-timer-display')
+  const timerEl  = document.getElementById('ev-timer')
+
+  function tick() {
+    if (!display || !display.isConnected) { _evStopTimer(); return }
+    const m = Math.floor(remaining / 60)
+    const s = remaining % 60
+    display.textContent = m + ':' + String(s).padStart(2, '0')
+    if (remaining <= 0) {
+      _evStopTimer()
+      if (timerEl) timerEl.classList.add('expired')
+      display.textContent = 'Expired'
+      return
+    }
+    remaining--
+  }
+  tick()
+  _evTimerInterval = setInterval(tick, 1000)
+}
+
+function _evStopTimer() {
+  if (_evTimerInterval) { clearInterval(_evTimerInterval); _evTimerInterval = null }
+  clearInterval(_evResendCooldownInterval)
+  _evResendCooldownInterval = null
+  _evResendCooldownLeft = 0
+}
+
+function _evStartResendCooldown() {
+  const btn = document.getElementById('ev-resend-btn')
+  if (!btn) return
+  clearInterval(_evResendCooldownInterval)
+  _evResendCooldownLeft = 60
+  btn.disabled = true
+  function tick() {
+    if (!btn.isConnected) { clearInterval(_evResendCooldownInterval); _evResendCooldownLeft = 0; return }
+    if (_evResendCooldownLeft <= 0) {
+      clearInterval(_evResendCooldownInterval)
+      btn.disabled = false
+      btn.textContent = 'Resend Code'
+      return
+    }
+    btn.textContent = 'Resend in 0:' + String(_evResendCooldownLeft).padStart(2, '0')
+    _evResendCooldownLeft--
+  }
+  tick()
+  _evResendCooldownInterval = setInterval(tick, 1000)
+}
+
+async function evSubmitOTP() {
+  const inputs = document.querySelectorAll('#ev-otp-row .otp-input')
+  const otp    = [...inputs].map(i => i.value).join('')
+  const errEl  = document.getElementById('ev-error')
+
+  if (otp.length < 6) {
+    errEl.textContent = 'Please enter the complete 6-digit code.'
+    errEl.style.display = 'block'
+    inputs.forEach(i => i.classList.add('error'))
+    return
+  }
+  errEl.style.display = 'none'
+  inputs.forEach(i => i.classList.remove('error'))
+
+  const btn = document.getElementById('ev-submit-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying…' }
+
+  try {
+    const res  = await fetch('api/auth/verify-email-otp.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: _evEmail, otp }),
+    })
+    const data = await res.json()
+
+    if (!data.success) {
+      const title   = document.getElementById('ev-2-title')
+      const msg     = document.getElementById('ev-2-msg')
+      const retry   = document.getElementById('ev-2-retry')
+      const resend  = document.getElementById('ev-2-resend')
+
+      if (data.banned) {
+        if (title) title.textContent = 'Registration Blocked'
+        if (msg)   msg.textContent   = 'Too many failed attempts. Please go back and register again with a valid email address.'
+        if (retry)  retry.style.display  = 'none'
+        if (resend) resend.style.display = 'none'
+      } else if (data.locked) {
+        if (title) title.textContent = 'Too Many Attempts'
+        if (msg)   msg.textContent   = 'You\'ve entered the wrong code too many times. Request a new code to try again.'
+        if (retry)  retry.style.display  = 'none'
+        if (resend) resend.style.display = 'block'
+      } else {
+        if (title) title.textContent = 'Invalid OTP Code'
+        if (msg)   msg.textContent   = data.message || 'The code you entered is incorrect. Please try again.'
+        if (retry)  retry.style.display  = 'block'
+        if (resend) resend.style.display = 'none'
+      }
+
+      inputs.forEach(i => { i.value = ''; i.classList.remove('error') })
+      evShowStep(2)
+      return
+    }
+
+    // Success — show success step briefly then boot
+    _evStopTimer()
+    evShowStep(3)
+
+    // Push to patients array if this was a self-registration flow
+    if (_evFromReg) {
+      const p = data.user
+      patients.push({
+        id: p.id, firstName: p.firstName, lastName: p.lastName,
+        name: p.name, gender: p.gender, dob: p.dob, age: p.age,
+        contact: p.contact, email: p.email, password: '',
+        address: p.address, bloodType: p.bloodType,
+        registeredDate: p.registeredDate, lastVisit: '—',
+        qrData: p.qrData, status: 'active', occupation: '',
+        medicalHistory: '', opticalHistory: '',
+        consultations: [], examinations: [], prescriptions: [],
+      })
+    }
+
+    setTimeout(() => {
+      _bootAfterAuth(data.role, data.user)
+      if (_evFromReg) {
+        setTimeout(() => window._showRegistrationQRModal(data.user, null, true), 200)
+      }
+    }, 900)
+
+  } catch (_) {
+    errEl.textContent   = 'Network error. Please check your connection and try again.'
+    errEl.style.display = 'block'
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Verify & Activate Account' }
+  }
+}
+window.evSubmitOTP = evSubmitOTP
+
+async function evResendCode() {
+  if (_evResendCooldownLeft > 0) return
+
+  const errEl = document.getElementById('ev-error')
+  errEl.style.display = 'none'
+
+  _evStartResendCooldown()
+  const resendBtn = document.getElementById('ev-resend-btn')
+  if (resendBtn) resendBtn.textContent = 'Sending…'
+
+  try {
+    const res  = await fetch('api/auth/send-email-verification.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: _evEmail }),
+    })
+    const data = await res.json()
+
+    if (!data.success) {
+      if (data.banned) {
+        const title  = document.getElementById('ev-2-title')
+        const msg    = document.getElementById('ev-2-msg')
+        const retry  = document.getElementById('ev-2-retry')
+        const resend = document.getElementById('ev-2-resend')
+        if (title)  title.textContent  = 'Registration Blocked'
+        if (msg)    msg.textContent    = 'Too many failed attempts. Please go back and register again with a valid email address.'
+        if (retry)  retry.style.display  = 'none'
+        if (resend) resend.style.display = 'none'
+        evShowStep(2)
+        return
+      }
+      errEl.textContent   = data.message || 'Failed to resend code. Please try again.'
+      errEl.style.display = 'block'
+      return
+    }
+
+    // Success — reset inputs and restart OTP expiry timer; cooldown already running
+    document.querySelectorAll('#ev-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
+    document.querySelector('#ev-otp-row .otp-input')?.focus()
+    _evStartTimer(300)
+
+  } catch (_) {
+    errEl.textContent   = 'Network error. Please try again.'
+    errEl.style.display = 'block'
+  }
+}
+window.evResendCode = evResendCode
+
+// Init OTP inputs for email verify screen
+;(function() {
+  function setupEvOTP() {
+    const inputs = document.querySelectorAll('#ev-otp-row .otp-input')
+    inputs.forEach((input, idx) => {
+      input.addEventListener('input', e => {
+        const val = e.target.value.replace(/\D/g, '')
+        e.target.value = val ? val[0] : ''
+        if (val && idx < 5) inputs[idx + 1].focus()
+      })
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) inputs[idx - 1].focus()
+        if (e.key === 'Enter') evSubmitOTP()
+      })
+      input.addEventListener('paste', e => {
+        e.preventDefault()
+        const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '')
+        ;[...pasted].slice(0, 6).forEach((ch, i) => { if (inputs[idx + i]) inputs[idx + i].value = ch })
+        inputs[Math.min(idx + pasted.length, 5)].focus()
+      })
+    })
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupEvOTP)
+  else setupEvOTP()
+})()
+
 // Init OTP inputs for forgot-password
 ;(function() {
   function setupFpOTP() {
@@ -664,7 +952,9 @@ function _bootAfterAuth(role, user) {
 
   document.getElementById('login-screen').style.display    = 'none'
   document.getElementById('register-screen').style.display = 'none'
+  document.getElementById('verify-screen').style.display   = 'none'
   document.getElementById('app-shell').style.display       = 'flex'
+  _evStopTimer()
 
   window.bootShell(role, user)
 

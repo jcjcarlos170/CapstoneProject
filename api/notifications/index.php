@@ -20,12 +20,18 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = (int)$_SESSION['user_id'];
+$role   = $_SESSION['role'] ?? '';
 $limit  = (int)($_GET['limit'] ?? 20);
 
 try {
     $pdo = getDB();
 
-    $sql  = 'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC';
+    // Patients never receive contact_message notifications — replies are
+    // delivered by email (reply.php sends via PHPMailer). Showing them
+    // in-app would link to the admin-only contact-messages page.
+    $excludeType = ($role === 'patient') ? " AND type != 'contact_message'" : '';
+
+    $sql  = "SELECT * FROM notifications WHERE user_id = ?{$excludeType} ORDER BY created_at DESC";
     if ($limit > 0) $sql .= ' LIMIT ' . $limit;
 
     $stmt = $pdo->prepare($sql);

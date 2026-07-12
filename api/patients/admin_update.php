@@ -41,6 +41,8 @@ $contact = trim($b['contact'] ?? '');
 $email   = trim($b['email']   ?? '');
 $address = trim($b['address'] ?? '');
 $blood   = trim($b['bloodType'] ?? '');
+$medical = isset($b['medicalHistory']) ? trim($b['medicalHistory']) : null;
+$optical = isset($b['opticalHistory']) ? trim($b['opticalHistory']) : null;
 
 if ($gender && !in_array($gender, ['Male', 'Female', 'Other'], true)) {
     jsonResponse(['success' => false, 'message' => 'Invalid gender value.']);
@@ -71,6 +73,8 @@ try {
     if ($contact !== '') { $sets[] = 'contact = ?'; $values[] = $contact; }
     if ($address !== '') { $sets[] = 'address = ?'; $values[] = $address; }
     if ($blood   !== '') { $sets[] = 'blood_type = ?'; $values[] = $blood; }
+    if ($medical !== null) { $sets[] = 'medical_history = ?'; $values[] = $medical; }
+    if ($optical !== null) { $sets[] = 'optical_history = ?'; $values[] = $optical; }
 
     $values[] = $id;
     $pdo->prepare('UPDATE patients SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($values);

@@ -53,6 +53,7 @@ const SIDEBAR_CONFIG = {
       ]
     },
     { key: 'activity-log',         label: 'Activity Log',     icon: 'activity' },
+    { key: 'notifications',        label: 'Notifications',    icon: 'bell', badgeKey: '_unreadCount' },
     { key: 'admin-settings',       label: 'Settings',         icon: 'settings',
       children: [
         { key: 'admin-settings', filter: 'profile',      label: 'My Profile' },
@@ -86,6 +87,7 @@ const SIDEBAR_CONFIG = {
     { key: 'contact-messages',     label: 'Contact Messages', icon: 'mail', badgeKey: '_contactUnreadCount' },
     { key: 'schedule',             label: 'Doctor Schedule',  icon: 'clock' },
     { section: 'Account' },
+    { key: 'notifications',        label: 'Notifications',    icon: 'bell', badgeKey: '_unreadCount' },
     { key: 'staff-settings',       label: 'Settings',         icon: 'settings' }
   ],
   doctor: [
@@ -108,6 +110,7 @@ const SIDEBAR_CONFIG = {
     { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text' },
     { key: 'doctor-schedule',      label: 'My Schedule',      icon: 'clock' },
     { section: 'Account' },
+    { key: 'notifications',        label: 'Notifications',    icon: 'bell', badgeKey: '_unreadCount' },
     { key: 'doctor-settings',      label: 'Settings',         icon: 'settings' }
   ],
   patient: [
@@ -128,6 +131,7 @@ const SIDEBAR_CONFIG = {
       ]
     },
     { section: 'Account' },
+    { key: 'patient-notifications', label: 'Notifications',   icon: 'bell', badgeKey: '_unreadCount' },
     { key: 'patient-settings',     label: 'Settings',         icon: 'settings' }
   ]
 }
@@ -257,10 +261,10 @@ function renderPage() {
   renderTopbar()
   highlightSidebarActive()
 
-  // Charts, QR etc. need next tick
+  // Charts, QR etc. need two rAF ticks so container dimensions are settled
   const cb = state.afterRender
   state.afterRender = null
-  if (cb) setTimeout(cb, 60)
+  if (cb) requestAnimationFrame(() => requestAnimationFrame(cb))
 }
 
 // ── Shell bootstrap (called once after login) ───────────────────
@@ -487,7 +491,9 @@ function _notifNavTarget(type, role) {
     prescription:    role === 'patient' ? 'patient-prescriptions' : 'patient-list',
     welcome:         dashPage,
     info:            dashPage,
-    contact_message: 'contact-messages',
+    // Patients are notified of contact replies by email — the in-app
+    // contact_message type is admin/staff only; route patients to their dashboard.
+    contact_message: role === 'patient' ? dashPage : 'contact-messages',
   }
   return { page: map[type] || dashPage, params: {} }
 }

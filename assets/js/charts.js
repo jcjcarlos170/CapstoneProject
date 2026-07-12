@@ -84,6 +84,7 @@ function baseOptions(yLabel = '') {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    layout: { padding: { top: 10 } },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -101,6 +102,7 @@ function baseOptions(yLabel = '') {
         ticks: { color: '#9CA3AF', font: { size: 11 } }
       },
       y: {
+        beginAtZero: true,
         grid: { color: GRID, drawBorder: false },
         ticks: { color: '#9CA3AF', font: { size: 11 } },
         title: yLabel ? { display: true, text: yLabel, color: '#9CA3AF', font: { size: 11 } } : undefined
@@ -424,7 +426,7 @@ function updateAnalyticsCharts(ds) {
 }
 
 // ── Staff Dashboard — Today's Overview (horizontal bar) ─────────
-function initStaffOverviewChart(canvasId = 'chart-staff-overview') {
+function initStaffOverviewChart(canvasId = 'chart-staff-overview', initialData = [0,0,0,0,0,0]) {
   destroy('staffOverview')
   const el = document.getElementById(canvasId)
   if (!el) return
@@ -436,18 +438,29 @@ function initStaffOverviewChart(canvasId = 'chart-staff-overview') {
       labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       datasets: [{
         label: 'Appointments this week',
-        data: [8, 12, 7, 10, 9, 5],
+        data: initialData,
         backgroundColor: orangeGrad(ctx, true),
         borderRadius: 6,
         borderSkipped: false
       }]
     },
     options: {
-      ...baseOptions('Count'),
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: 0 },
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1C1C1C', titleColor: '#fff', bodyColor: '#D1D5DB', padding: 10, cornerRadius: 8, displayColors: false } },
       indexAxis: 'y',
       scales: {
-        x: { grid: { color: GRID }, ticks: { color: '#9CA3AF', font: { size: 11 } } },
-        y: { grid: { display: false }, ticks: { color: '#6B7280', font: { size: 12 } } }
+        x: {
+          beginAtZero: true,
+          suggestedMax: 5,
+          grid: { color: GRID },
+          ticks: { precision: 0, color: '#9CA3AF', font: { size: 11 } }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#6B7280', font: { size: 12 } }
+        }
       }
     }
   })

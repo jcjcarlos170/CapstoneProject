@@ -23,9 +23,12 @@ try {
             $maxPhotos = $cs ? max(0, (int)($cs['gallery_max_photos'] ?? 0)) : 0;
         } catch (PDOException $e) { /* column not yet migrated — silently skip */ }
 
-        $sql  = 'SELECT id, caption, sort_order FROM about_gallery ORDER BY sort_order ASC, id ASC';
-        if ($maxPhotos > 0) $sql .= ' LIMIT ' . $maxPhotos;
-        $rows = $pdo->query($sql)->fetchAll();
+        $rows = [];
+        try {
+            $sql  = 'SELECT id, caption, sort_order FROM about_gallery ORDER BY sort_order ASC, id ASC';
+            if ($maxPhotos > 0) $sql .= ' LIMIT ' . $maxPhotos;
+            $rows = $pdo->query($sql)->fetchAll();
+        } catch (PDOException $e) { /* table not yet migrated */ }
 
         jsonResponse(['success' => true,
             'maxPhotos' => $maxPhotos ?: null,

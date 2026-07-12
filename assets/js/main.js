@@ -6231,6 +6231,12 @@ async function loadGalleryAdmin() {
 async function galleryUploadPhoto(input) {
   const file = input.files[0];
   if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['png', 'jpg', 'jpeg', 'svg'].includes(ext)) {
+    toast('Only PNG, JPG or SVG files are accepted.', 'error');
+    input.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
@@ -6266,7 +6272,7 @@ async function galleryDeletePhoto(id) {
 
 async function saveGalleryMax() {
   const val = document.getElementById('gallery-max-input')?.value.trim();
-  const max  = val ? Math.max(0, parseInt(val, 10)) : null;
+  const max  = Math.max(1, parseInt(val, 10) || 1);
   try {
     const d = await fetch('api/clinic/settings.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -6274,7 +6280,7 @@ async function saveGalleryMax() {
     }).then(r => r.json());
     if (d.success) {
       if (clinicInfo) clinicInfo.galleryMaxPhotos = max;
-      toast(max ? `Carousel will show up to ${max} photos.` : 'Carousel will show all photos.', 'success');
+      toast(`Carousel will show up to ${max} photo${max === 1 ? '' : 's'}.`, 'success');
     } else toast(d.message || 'Save failed.', 'error');
   } catch (_) { toast('Network error.', 'error'); }
 }

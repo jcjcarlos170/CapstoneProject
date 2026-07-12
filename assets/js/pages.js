@@ -1798,29 +1798,33 @@ function pageAdminSettings() {
 
       <!-- About Gallery -->
       <div class="card" style="padding:24px 28px;margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-          <div style="font-size:.85rem;font-weight:600;color:#374151">${ic('image','icon-sm')} About Gallery</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <label style="font-size:.78rem;color:#6B7280">Max photos</label>
-            <input type="number" id="gallery-max-input" min="0" max="20" placeholder="All"
-                   value="${clinicInfo.galleryMaxPhotos || ''}"
-                   style="width:60px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 8px;font-size:.78rem;text-align:center"
-                   title="Limit how many photos appear in the carousel. Leave blank to show all.">
-            <button class="btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="window.saveGalleryMax()">Set</button>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px">
+          <div>
+            <div style="font-size:.88rem;font-weight:600;color:#111827;display:flex;align-items:center;gap:6px">${ic('image','icon-sm')} About Gallery</div>
+            <div style="font-size:.72rem;color:#9CA3AF;margin-top:3px">Photos shown in the carousel on the public homepage.</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <label style="font-size:.75rem;color:#6B7280;font-weight:500;white-space:nowrap">Max photos</label>
+            <input type="number" id="gallery-max-input" min="1" max="20"
+                   value="${clinicInfo.galleryMaxPhotos ?? 1}"
+                   style="width:52px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 6px;font-size:.78rem;text-align:center"
+                   title="How many photos to show in the carousel.">
+            <button class="btn-secondary" style="padding:4px 10px;font-size:.78rem;white-space:nowrap" onclick="window.saveGalleryMax()">Set</button>
           </div>
         </div>
-        <div style="font-size:.72rem;color:#9CA3AF;margin-bottom:14px">Photos shown in the carousel on the public homepage. Stored in the database — works on Railway.</div>
-        <div id="gallery-admin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-bottom:14px">
+        <div id="gallery-admin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;min-height:60px">
           <div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Loading…</div>
         </div>
-        <label for="gallery-upload-input" style="cursor:pointer">
-          <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
-            ${ic('upload','icon-sm')} Add Photo
-          </div>
-        </label>
-        <span style="font-size:.72rem;color:#9CA3AF;margin-left:10px">Any image format accepted</span>
-        <input type="file" id="gallery-upload-input" style="display:none"
-               onchange="window.galleryUploadPhoto(this)">
+        <div style="display:flex;align-items:center;gap:10px;padding-top:14px;margin-top:14px;border-top:1px solid #F3F4F6">
+          <label for="gallery-upload-input" style="cursor:pointer;flex-shrink:0">
+            <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
+              ${ic('upload','icon-sm')} Add Photo
+            </div>
+          </label>
+          <span style="font-size:.72rem;color:#9CA3AF">PNG, JPG or SVG</span>
+          <input type="file" id="gallery-upload-input" accept=".png,.jpg,.jpeg,.svg" style="display:none"
+                 onchange="window.galleryUploadPhoto(this)">
+        </div>
       </div>
     </div>`
   }

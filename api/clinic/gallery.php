@@ -58,8 +58,13 @@ try {
             jsonResponse(['success' => false, 'message' => 'Invalid file data.']);
         }
         $mimeType = $m[1];
-        $binary   = base64_decode($m[2]);
 
+        $allowed = ['image/png', 'image/jpeg', 'image/svg+xml'];
+        if (!in_array($mimeType, $allowed, true)) {
+            jsonResponse(['success' => false, 'message' => 'Only PNG, JPG or SVG files are accepted.']);
+        }
+
+        $binary = base64_decode($m[2]);
         if ($binary === false) {
             jsonResponse(['success' => false, 'message' => 'Could not decode file.']);
         }

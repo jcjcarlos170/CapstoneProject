@@ -6203,37 +6203,121 @@ window.handleLogoUpload = handleLogoUpload
 // ════════════════════════════════════════════════════════════════
 //  ABOUT GALLERY — admin management
 // ════════════════════════════════════════════════════════════════
+
+// Seed the clinic's built-in photo into the DB (only on first empty load)
+async function _gallerySeedDefault() {
+  try {
+    const blob = await fetch('assets/images/about/cana.jpg').then(r => r.blob());
+    const dataUrl = await new Promise(res => {
+      const fr = new FileReader();
+      fr.onload = e => res(e.target.result);
+      fr.readAsDataURL(blob);
+    });
+    await fetch('api/clinic/gallery.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData: dataUrl, caption: '' })
+    });
+  } catch (_) {}
+}
+
+// Persist current DOM order to the backend
+async function _gallerySaveOrder(grid) {
+  const order = [...grid.querySelectorAll('.gal-tile')].map(t => parseInt(t.dataset.id, 10));
+  try {
+    await fetch('api/clinic/gallery.php', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order })
+    });
+  } catch (_) {}
+}
+
+// Wire drag-and-drop reordering on the grid (event delegation)
+function _gallerySetupDrag(grid) {
+  let dragging = null;
+  grid.addEventListener('dragstart', e => {
+    const tile = e.target.closest('.gal-tile');
+    if (!tile) return;
+    dragging = tile;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => { if (dragging) dragging.style.opacity = '0.35'; }, 0);
+  });
+  grid.addEventListener('dragend', () => {
+    if (dragging) { dragging.style.opacity = ''; dragging = null; }
+    grid.querySelectorAll('.gal-tile').forEach(t => t.style.outline = '');
+  });
+  grid.addEventListener('dragover', e => {
+    e.preventDefault();
+    const tile = e.target.closest('.gal-tile');
+    grid.querySelectorAll('.gal-tile').forEach(t => t.style.outline = '');
+    if (tile && tile !== dragging) tile.style.outline = '2px solid #F59E0B';
+  });
+  grid.addEventListener('drop', e => {
+    e.preventDefault();
+    const target = e.target.closest('.gal-tile');
+    if (!target || target === dragging || !dragging) return;
+    const mid = target.getBoundingClientRect().left + target.getBoundingClientRect().width / 2;
+    grid.insertBefore(dragging, e.clientX < mid ? target : target.nextSibling);
+    target.style.outline = '';
+    _gallerySaveOrder(grid);
+  });
+}
+
 async function loadGalleryAdmin() {
   const grid = document.getElementById('gallery-admin-grid');
   if (!grid) return;
 
-  // Slide 0 is always the built-in static image — always visible, not deletable
-  const defaultTile = `
-    <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f3f4f6">
-      <img src="assets/images/about/cana.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center top" loading="lazy">
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:3px 6px;background:rgba(0,0,0,0.52);font-size:.6rem;color:#fff;text-align:center;letter-spacing:.02em">Default</div>
-    </div>`;
-
   try {
     const d = await fetch('api/clinic/gallery.php').then(r => r.json());
     if (!d.success) {
-      grid.innerHTML = defaultTile + '<div style="color:#9CA3AF;font-size:.78rem;display:flex;align-items:center;padding:0 6px;font-style:italic">Could not load additional photos.</div>';
+      grid.innerHTML = '<div style="color:#EF4444;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Failed to load gallery.</div>';
       return;
     }
-    const extraTiles = d.images.map(img => `
-      <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f3f4f6" id="gal-item-${img.id}">
-        <img src="api/clinic/gallery-image.php?id=${img.id}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+
+    // Auto-seed cana.jpg the very first time the gallery is empty (once per session)
+    if (!d.images.length && !sessionStorage.getItem('gal_seeded')) {
+      sessionStorage.setItem('gal_seeded', '1');
+      await _gallerySeedDefault();
+      loadGalleryAdmin();
+      return;
+    }
+
+    // Enforce upload limit in the UI
+    const maxPhotos = d.maxPhotos || null;
+    const atLimit   = maxPhotos !== null && d.images.length >= maxPhotos;
+    const uploadLabel = document.getElementById('gallery-upload-label');
+    const typeHint    = document.getElementById('gallery-type-hint');
+    const limitMsg    = document.getElementById('gallery-limit-msg');
+    if (uploadLabel) uploadLabel.style.display = atLimit ? 'none' : '';
+    if (typeHint)    typeHint.style.display    = atLimit ? 'none' : '';
+    if (limitMsg)    limitMsg.style.display    = atLimit ? ''     : 'none';
+
+    if (!d.images.length) {
+      grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">No photos yet. Click Add Photo to get started.</div>';
+      return;
+    }
+
+    grid.innerHTML = d.images.map(img => `
+      <div class="gal-tile" data-id="${img.id}" id="gal-item-${img.id}" draggable="true"
+           style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#e5e7eb;cursor:grab;transition:opacity 0.15s">
+        <img src="api/clinic/gallery-image.php?id=${img.id}" alt=""
+             style="width:100%;height:100%;object-fit:cover;object-position:center top;pointer-events:none" loading="lazy">
+        <div style="position:absolute;top:5px;left:5px;pointer-events:none;opacity:.75">
+          <svg width="11" height="11" viewBox="0 0 10 10" fill="#fff">
+            <circle cx="3" cy="2" r="1"/><circle cx="7" cy="2" r="1"/>
+            <circle cx="3" cy="5" r="1"/><circle cx="7" cy="5" r="1"/>
+            <circle cx="3" cy="8" r="1"/><circle cx="7" cy="8" r="1"/>
+          </svg>
+        </div>
         <button onclick="window.galleryDeletePhoto(${img.id})"
                 style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"
                 title="Remove">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
-        ${img.caption ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:3px 6px;background:rgba(0,0,0,0.45);font-size:.6rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${img.caption}</div>` : ''}
       </div>`).join('');
-    const hint = d.images.length ? '' : '<div style="color:#9CA3AF;font-size:.72rem;display:flex;align-items:center;padding:0 6px;font-style:italic">Add photos to show after the default.</div>';
-    grid.innerHTML = defaultTile + extraTiles + hint;
+
+    _gallerySetupDrag(grid);
   } catch (_) {
-    grid.innerHTML = defaultTile + '<div style="color:#EF4444;font-size:.78rem;display:flex;align-items:center;padding:0 6px">Network error.</div>';
+    grid.innerHTML = '<div style="color:#EF4444;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Network error.</div>';
   }
 }
 
@@ -6270,12 +6354,8 @@ async function galleryDeletePhoto(id) {
       body: JSON.stringify({ id })
     }).then(r => r.json());
     if (!d.success) { toast(d.message || 'Delete failed.', 'error'); return; }
-    document.getElementById(`gal-item-${id}`)?.remove();
-    const grid = document.getElementById('gallery-admin-grid');
-    if (grid && !grid.querySelector('[id^="gal-item-"]')) {
-      grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">No photos yet. Click Add Photo to get started.</div>';
-    }
     toast('Photo removed.', 'success');
+    loadGalleryAdmin();
   } catch (_) { toast('Network error — could not delete photo.', 'error'); }
 }
 
@@ -6290,6 +6370,7 @@ async function saveGalleryMax() {
     if (d.success) {
       if (clinicInfo) clinicInfo.galleryMaxPhotos = max;
       toast(`Carousel will show up to ${max} photo${max === 1 ? '' : 's'}.`, 'success');
+      loadGalleryAdmin();
     } else toast(d.message || 'Save failed.', 'error');
   } catch (_) { toast('Network error.', 'error'); }
 }

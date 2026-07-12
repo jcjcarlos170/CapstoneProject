@@ -88,6 +88,16 @@ try {
         jsonResponse(['success' => true]);
     }
 
+    if ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+        $order = getBody()['order'] ?? [];
+        if (!is_array($order)) jsonResponse(['success' => false, 'message' => 'order must be an array.']);
+        $stmt = $pdo->prepare('UPDATE about_gallery SET sort_order = ? WHERE id = ?');
+        foreach (array_values($order) as $i => $id) {
+            $stmt->execute([$i, (int)$id]);
+        }
+        jsonResponse(['success' => true]);
+    }
+
     jsonResponse(['success' => false, 'message' => 'Method not allowed.'], 405);
 
 } catch (PDOException $e) {

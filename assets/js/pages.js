@@ -1816,12 +1816,13 @@ function pageAdminSettings() {
           <div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Loading…</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;padding-top:14px;margin-top:14px;border-top:1px solid #F3F4F6">
-          <label for="gallery-upload-input" style="cursor:pointer;flex-shrink:0">
+          <label id="gallery-upload-label" for="gallery-upload-input" style="cursor:pointer;flex-shrink:0">
             <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
               ${ic('upload','icon-sm')} Add Photo
             </div>
           </label>
-          <span style="font-size:.72rem;color:#9CA3AF">PNG, JPG or SVG</span>
+          <span id="gallery-type-hint" style="font-size:.72rem;color:#9CA3AF">PNG, JPG or SVG</span>
+          <span id="gallery-limit-msg" style="font-size:.72rem;color:#EF4444;display:none">Photo limit reached — remove a photo to add another.</span>
           <input type="file" id="gallery-upload-input" accept=".png,.jpg,.jpeg,.svg" style="display:none"
                  onchange="window.galleryUploadPhoto(this)">
         </div>

@@ -8,6 +8,9 @@
 /* ── Reset & Base ─────────────────────────────────────────────── */
 /* Override Bootstrap Reboot so existing design is preserved */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Always show number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
 html { font-size: 15px; }
 body {
   font-family: 'Poppins', sans-serif !important;

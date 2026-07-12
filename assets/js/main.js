@@ -6204,22 +6204,6 @@ window.handleLogoUpload = handleLogoUpload
 //  ABOUT GALLERY — admin management
 // ════════════════════════════════════════════════════════════════
 
-// Seed the clinic's built-in photo into the DB (only on first empty load)
-async function _gallerySeedDefault() {
-  try {
-    const blob = await fetch('assets/images/about/cana.jpg').then(r => r.blob());
-    const dataUrl = await new Promise(res => {
-      const fr = new FileReader();
-      fr.onload = e => res(e.target.result);
-      fr.readAsDataURL(blob);
-    });
-    await fetch('api/clinic/gallery.php', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageData: dataUrl, caption: '' })
-    });
-  } catch (_) {}
-}
-
 // Persist current DOM order to the backend
 async function _gallerySaveOrder(grid) {
   const order = [...grid.querySelectorAll('.gal-tile')].map(t => parseInt(t.dataset.id, 10));
@@ -6270,14 +6254,6 @@ async function loadGalleryAdmin() {
     const d = await fetch('api/clinic/gallery.php').then(r => r.json());
     if (!d.success) {
       grid.innerHTML = '<div style="color:#EF4444;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Failed to load gallery.</div>';
-      return;
-    }
-
-    // Auto-seed cana.jpg the very first time the gallery is empty (once per session)
-    if (!d.images.length && !sessionStorage.getItem('gal_seeded')) {
-      sessionStorage.setItem('gal_seeded', '1');
-      await _gallerySeedDefault();
-      loadGalleryAdmin();
       return;
     }
 

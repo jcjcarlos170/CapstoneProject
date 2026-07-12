@@ -187,7 +187,6 @@
 
   // ── About Carousel ─────────────────────────────────────────────
   (function () {
-    const FALLBACK = 'assets/images/about/cana.jpg';
     const track   = document.getElementById('ac-track');
     const dotsEl  = document.getElementById('ac-dots');
     const btnPrev = document.getElementById('ac-prev');
@@ -208,11 +207,12 @@
       if (slides.length > 1) timer = setInterval(() => go(cur + 1), 5000);
     }
 
-    function buildCarousel(dbImages) {
-      // Static clinic photo is always slide 0; DB images follow
-      slides = [{ id: null, caption: null }, ...dbImages];
+    function buildCarousel(images) {
+      slides = images;
+      if (!slides.length) return; // nothing to show — admin hasn't uploaded photos yet
+
       track.innerHTML = slides.map(s =>
-        `<div class="ac-slide"><img src="${s.id ? 'api/clinic/gallery-image.php?id=' + s.id : FALLBACK}" alt="${s.caption || 'Cana Optical Clinic'}" loading="lazy"></div>`
+        `<div class="ac-slide"><img src="api/clinic/gallery-image.php?id=${s.id}" alt="${s.caption || 'Cana Optical Clinic'}" loading="lazy"></div>`
       ).join('');
 
       if (slides.length > 1) {
@@ -242,8 +242,8 @@
 
     fetch('api/clinic/gallery.php')
       .then(r => r.json())
-      .then(d => buildCarousel(d.success ? d.images : []))
-      .catch(() => buildCarousel([]));
+      .then(d => { if (d.success) buildCarousel(d.images); })
+      .catch(() => {});
   })();
   fetch('api/stats/public.php').then(r => r.json()).then(d => {
     if (!d.success) return;

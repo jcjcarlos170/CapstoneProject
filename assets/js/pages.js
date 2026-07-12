@@ -1807,7 +1807,7 @@ function pageAdminSettings() {
             <label style="font-size:.75rem;color:#6B7280;font-weight:500;white-space:nowrap">Max photos</label>
             <input type="number" id="gallery-max-input" min="1" max="20"
                    value="${clinicInfo.galleryMaxPhotos ?? 1}"
-                   style="width:52px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 6px;font-size:.78rem;text-align:center"
+                   style="width:64px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 6px;font-size:.78rem;text-align:center"
                    title="How many photos to show in the carousel.">
             <button class="btn-secondary" style="padding:4px 10px;font-size:.78rem;white-space:nowrap" onclick="window.saveGalleryMax()">Set</button>
           </div>

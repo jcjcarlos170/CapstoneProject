@@ -1736,6 +1736,7 @@ function pageAdminSettings() {
 
   // ── Section: Clinic Information ─────────────────────────────
   function sectionClinic() {
+    setTimeout(() => window.loadGalleryAdmin && window.loadGalleryAdmin(), 40);
     return `
     <div class="page-header">
       <div class="page-header-left">
@@ -1793,6 +1794,33 @@ function pageAdminSettings() {
             ${ic('check','icon-sm')} Save Changes
           </button>
         </div>
+      </div>
+
+      <!-- About Gallery -->
+      <div class="card" style="padding:24px 28px;margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div style="font-size:.85rem;font-weight:600;color:#374151">${ic('image','icon-sm')} About Gallery</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:.78rem;color:#6B7280">Max photos</label>
+            <input type="number" id="gallery-max-input" min="0" max="20" placeholder="All"
+                   value="${clinicInfo.galleryMaxPhotos || ''}"
+                   style="width:60px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 8px;font-size:.78rem;text-align:center"
+                   title="Limit how many photos appear in the carousel. Leave blank to show all.">
+            <button class="btn-secondary" style="padding:4px 10px;font-size:.78rem" onclick="window.saveGalleryMax()">Set</button>
+          </div>
+        </div>
+        <div style="font-size:.72rem;color:#9CA3AF;margin-bottom:14px">Photos shown in the carousel on the public homepage. Stored in the database — works on Railway.</div>
+        <div id="gallery-admin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-bottom:14px">
+          <div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Loading…</div>
+        </div>
+        <label for="gallery-upload-input" style="cursor:pointer">
+          <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
+            ${ic('upload','icon-sm')} Add Photo
+          </div>
+        </label>
+        <span style="font-size:.72rem;color:#9CA3AF;margin-left:10px">PNG, JPG — max 5 MB</span>
+        <input type="file" id="gallery-upload-input" accept="image/*" style="display:none"
+               onchange="window.galleryUploadPhoto(this)">
       </div>
     </div>`
   }

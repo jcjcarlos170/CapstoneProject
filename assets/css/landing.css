@@ -75,8 +75,21 @@ body { overflow-x: hidden; }
 #about { background: #ffffff; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 80px 48px; border-top: 1px solid var(--border); box-sizing: border-box; }
 .about-inner { --bs-gutter-x: 40px; max-width: 1000px; margin: 0 auto; width: 100%; }
 .about-img-wrap { position: relative; }
-.about-img-main { border-radius: 12px; overflow: hidden; width: 100%; height: 340px; }
-.about-img-main img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+
+/* Carousel */
+.about-carousel { position: relative; border-radius: 12px; overflow: hidden; width: 100%; height: 340px; background: #f3f4f6; }
+.ac-track { display: flex; height: 100%; transition: transform 0.5s cubic-bezier(0.25,0.46,0.45,0.94); will-change: transform; }
+.ac-slide { flex: 0 0 100%; height: 100%; }
+.ac-slide img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+.ac-btn { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.92); border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.14); transition: background 0.2s, opacity 0.2s; padding: 0; }
+.ac-btn:hover { background: #fff; }
+.ac-btn-prev { left: 10px; }
+.ac-btn-next { right: 10px; }
+.ac-btn svg { width: 16px; height: 16px; stroke: #374151; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ac-btn.ac-hidden { opacity: 0; pointer-events: none; }
+.ac-dots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 2; }
+.ac-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.5); border: none; padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+.ac-dot.ac-dot-active { background: #fff; transform: scale(1.25); }
 .about-text { display: flex; flex-direction: column; }
 .about-eyebrow { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); margin-bottom: 8px; display: block; }
 .about-heading { font-size: 1.4rem; font-weight: 700; color: #111827; line-height: 1.25; letter-spacing: -0.02em; margin-bottom: 16px; }
@@ -108,18 +121,15 @@ body { overflow-x: hidden; }
 @media (max-width: 991.98px) {
   .nav-inner { padding: 0 24px; }
   #about { padding: 64px 32px; min-height: auto; }
-  .about-img-main { height: 280px; }
+  .about-carousel { height: 280px; }
 }
 
 @media (max-width: 768px) {
   .hero-btns { flex-direction: column; align-items: center; }
   .nav-inner { padding: 0 20px; }
   #about { padding: 48px 20px; }
-  /* Zero out the Bootstrap column gutters so image and text share the same
-     left/right edge as the section's own padding. Add vertical gap instead. */
   .about-inner { --bs-gutter-x: 0px; row-gap: 24px; }
-  .about-img-main { height: 240px; }
-  .about-img-main img { object-position: center 40%; }
+  .about-carousel { height: 240px; }
   .about-heading { font-size: 1.25rem; }
   .about-stat-num { font-size: 1.1rem; }
 }
@@ -131,8 +141,7 @@ body { overflow-x: hidden; }
   .btn-solid, .btn-outline { width: 100%; justify-content: center; }
   #about { padding: 40px 20px; }
   .about-inner { --bs-gutter-x: 0px; row-gap: 24px; }
-  .about-img-main { height: 230px; }
-  .about-img-main img { object-position: center 40%; }
+  .about-carousel { height: 220px; }
   /* Keep stats in a horizontal row to match the desktop layout */
   .about-stats { flex-direction: row; gap: 0; }
   .about-stat { flex: 1; }

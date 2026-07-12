@@ -6200,6 +6200,91 @@ async function handleLogoUpload(input, previewId) {
 }
 window.handleLogoUpload = handleLogoUpload
 
+// ════════════════════════════════════════════════════════════════
+//  ABOUT GALLERY — admin management
+// ════════════════════════════════════════════════════════════════
+async function loadGalleryAdmin() {
+  const grid = document.getElementById('gallery-admin-grid');
+  if (!grid) return;
+  try {
+    const d = await fetch('api/clinic/gallery.php').then(r => r.json());
+    if (!d.success) { grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Failed to load gallery.</div>'; return; }
+    if (!d.images.length) {
+      grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">No photos yet. Click Add Photo to get started.</div>';
+      return;
+    }
+    grid.innerHTML = d.images.map(img => `
+      <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:1;background:#f3f4f6" id="gal-item-${img.id}">
+        <img src="api/clinic/gallery-image.php?id=${img.id}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+        <button onclick="window.galleryDeletePhoto(${img.id})"
+                style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.55);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0"
+                title="Remove">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        ${img.caption ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:3px 6px;background:rgba(0,0,0,0.45);font-size:.6rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${img.caption}</div>` : ''}
+      </div>`).join('');
+  } catch (_) {
+    grid.innerHTML = '<div style="color:#EF4444;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Network error.</div>';
+  }
+}
+
+async function galleryUploadPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { toast('Image must be under 5 MB.', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const d = await fetch('api/clinic/gallery.php', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageData: e.target.result, caption: '' })
+      }).then(r => r.json());
+      if (!d.success) { toast(d.message || 'Upload failed.', 'error'); return; }
+      toast('Photo added to gallery.', 'success');
+      loadGalleryAdmin();
+    } catch (_) { toast('Network error — could not upload photo.', 'error'); }
+    input.value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function galleryDeletePhoto(id) {
+  if (!confirm('Remove this photo from the gallery?')) return;
+  try {
+    const d = await fetch('api/clinic/gallery.php', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    }).then(r => r.json());
+    if (!d.success) { toast(d.message || 'Delete failed.', 'error'); return; }
+    document.getElementById(`gal-item-${id}`)?.remove();
+    const grid = document.getElementById('gallery-admin-grid');
+    if (grid && !grid.querySelector('[id^="gal-item-"]')) {
+      grid.innerHTML = '<div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">No photos yet. Click Add Photo to get started.</div>';
+    }
+    toast('Photo removed.', 'success');
+  } catch (_) { toast('Network error — could not delete photo.', 'error'); }
+}
+
+async function saveGalleryMax() {
+  const val = document.getElementById('gallery-max-input')?.value.trim();
+  const max  = val ? Math.max(0, parseInt(val, 10)) : null;
+  try {
+    const d = await fetch('api/clinic/settings.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ galleryMaxPhotos: max })
+    }).then(r => r.json());
+    if (d.success) {
+      if (clinicInfo) clinicInfo.galleryMaxPhotos = max;
+      toast(max ? `Carousel will show up to ${max} photos.` : 'Carousel will show all photos.', 'success');
+    } else toast(d.message || 'Save failed.', 'error');
+  } catch (_) { toast('Network error.', 'error'); }
+}
+
+window.loadGalleryAdmin   = loadGalleryAdmin;
+window.galleryUploadPhoto = galleryUploadPhoto;
+window.galleryDeletePhoto = galleryDeletePhoto;
+window.saveGalleryMax     = saveGalleryMax;
+
 // Updates every logo <img> and the favicon in the current document.
 // Called on upload and at boot when clinic settings are loaded.
 function syncLogoImages(url) {

@@ -70,8 +70,15 @@
 <section id="about">
   <div class="about-inner row align-items-center">
     <div class="about-img-wrap col-12 col-md-5">
-      <div class="about-img-main">
-        <img src="assets/images/about/cana.jpg" alt="Cana Optical Clinic">
+      <div class="about-carousel" id="about-carousel">
+        <div class="ac-track" id="ac-track"></div>
+        <button class="ac-btn ac-btn-prev ac-hidden" id="ac-prev" aria-label="Previous">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="ac-btn ac-btn-next ac-hidden" id="ac-next" aria-label="Next">
+          <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="ac-dots" id="ac-dots"></div>
       </div>
     </div>
     <div class="about-text col-12 col-md-7">
@@ -176,6 +183,67 @@
 
   // Live stats
   document.getElementById('stat-years').textContent = (new Date().getFullYear() - 2008) + '+';
+
+  // ── About Carousel ─────────────────────────────────────────────
+  (function () {
+    const FALLBACK = 'assets/images/about/cana.jpg';
+    const track = document.getElementById('ac-track');
+    const dotsEl = document.getElementById('ac-dots');
+    const btnPrev = document.getElementById('ac-prev');
+    const btnNext = document.getElementById('ac-next');
+    let slides = [], cur = 0, timer, touchX;
+
+    function go(i) {
+      cur = ((i % slides.length) + slides.length) % slides.length;
+      track.style.transform = 'translateX(-' + (cur * 100) + '%)';
+      dotsEl.querySelectorAll('.ac-dot').forEach((d, j) =>
+        d.classList.toggle('ac-dot-active', j === cur));
+    }
+
+    function startTimer() {
+      clearInterval(timer);
+      if (slides.length > 1) timer = setInterval(() => go(cur + 1), 5000);
+    }
+
+    function buildCarousel(images) {
+      slides = images;
+      track.innerHTML = slides.map(img =>
+        `<div class="ac-slide"><img src="api/clinic/gallery-image.php?id=${img.id}" alt="${img.caption || 'Cana Optical Clinic'}" loading="lazy"></div>`
+      ).join('');
+
+      if (slides.length > 1) {
+        dotsEl.innerHTML = slides.map((_, i) =>
+          `<button class="ac-dot${i === 0 ? ' ac-dot-active' : ''}" onclick="window._acGo(${i})"></button>`
+        ).join('');
+        btnPrev.classList.remove('ac-hidden');
+        btnNext.classList.remove('ac-hidden');
+      }
+      go(0);
+      startTimer();
+    }
+
+    function showFallback() {
+      track.innerHTML = `<div class="ac-slide"><img src="${FALLBACK}" alt="Cana Optical Clinic"></div>`;
+    }
+
+    btnPrev.onclick = () => { go(cur - 1); startTimer(); };
+    btnNext.onclick = () => { go(cur + 1); startTimer(); };
+    window._acGo = (i) => { go(i); startTimer(); };
+
+    const el = document.getElementById('about-carousel');
+    el.addEventListener('mouseenter', () => clearInterval(timer));
+    el.addEventListener('mouseleave', startTimer);
+    track.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+    track.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) > 40) { go(dx < 0 ? cur + 1 : cur - 1); startTimer(); }
+    }, { passive: true });
+
+    fetch('api/clinic/gallery.php')
+      .then(r => r.json())
+      .then(d => { d.success && d.images.length ? buildCarousel(d.images) : showFallback(); })
+      .catch(showFallback);
+  })();
   fetch('api/stats/public.php').then(r => r.json()).then(d => {
     if (!d.success) return;
     if (d.doctors > 0)  document.getElementById('stat-doctors').textContent  = d.doctors;

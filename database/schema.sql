@@ -360,7 +360,8 @@ CREATE TABLE IF NOT EXISTS `clinic_settings` (
   `afternoon_start`               VARCHAR(20)  NOT NULL DEFAULT '1:00 PM',
   `afternoon_end`                 VARCHAR(20)  NOT NULL DEFAULT '5:00 PM',
   `lunch_break`                   TINYINT(1)   NOT NULL DEFAULT 1,
-  `clinic_days`                   VARCHAR(255) NOT NULL DEFAULT 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
+  `clinic_days`                   VARCHAR(255)      NOT NULL DEFAULT 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
+  `gallery_max_photos`            TINYINT UNSIGNED  NULL     DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -441,5 +442,19 @@ CREATE TABLE IF NOT EXISTS `rate_limits` (
   PRIMARY KEY (`id`),
   INDEX `idx_rl_lookup` (`ip`, `endpoint`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── About Gallery (carousel photos on public homepage) ───────────
+CREATE TABLE IF NOT EXISTS `about_gallery` (
+  `id`         INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `caption`    VARCHAR(255)     NULL     DEFAULT NULL,
+  `image_data` MEDIUMBLOB       NOT NULL,
+  `mime_type`  VARCHAR(50)      NOT NULL DEFAULT 'image/jpeg',
+  `sort_order` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Migrations (run once on existing databases) ───────────────────
+--    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `gallery_max_photos` TINYINT UNSIGNED NULL DEFAULT NULL AFTER `clinic_days`;
 
 SET FOREIGN_KEY_CHECKS = 1;

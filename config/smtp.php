@@ -39,7 +39,7 @@ function sendEmail(string $to, string $toName, string $subject, string $html, st
 function _brevoSend(string $to, string $toName, string $subject, string $html, string $text): void {
     $payload = json_encode([
         'sender'      => ['name' => SMTP_FROM_NAME, 'email' => SMTP_FROM],
-        'to'          => [['email' => $to, 'name' => $toName]],
+        'to'          => [['email' => $to, 'name' => $toName ?: $to]],
         'subject'     => $subject,
         'htmlContent' => $html,
         'textContent' => $text,

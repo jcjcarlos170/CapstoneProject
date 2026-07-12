@@ -13,13 +13,13 @@ html, body { color: var(--text); background: var(--white); }
    card's own padding can't override or interfere with it. */
 .services-grid { --bs-gutter-x: 0; --bs-gutter-y: 0; margin: -7px -7px 13px; }
 .services-grid > .col { padding: 7px; display: flex; }
-.service-card { background: var(--white); border-radius: 10px; padding: 16px 20px; border: 1px solid var(--border); transition: transform 0.22s, box-shadow 0.22s, border-color 0.22s; position: relative; overflow: hidden; height: 100%; display: flex; flex-direction: column; }
-.service-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(245,158,11,0.13) 0%, rgba(232,137,28,0.07) 45%, transparent 100%); opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+.service-card { background: var(--white); border-radius: 10px; padding: 16px 20px; border: 1px solid var(--border); transition: transform 0.35s cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 0.35s cubic-bezier(0.25,0.46,0.45,0.94), border-color 0.35s ease; position: relative; overflow: hidden; height: 100%; display: flex; flex-direction: column; }
+.service-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(245,158,11,0.13) 0%, rgba(232,137,28,0.07) 45%, transparent 100%); opacity: 0; transition: opacity 0.35s ease; pointer-events: none; }
 .service-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(232,137,28,0.14), 0 2px 6px rgba(0,0,0,0.06); border-bottom-color: var(--orange); border-color: rgba(232,137,28,0.22); }
 .service-card:hover::before { opacity: 1; }
-.service-icon-wrap { width: 32px; height: 32px; background: var(--orange-lt); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; transition: background 0.22s; flex-shrink: 0; }
+.service-icon-wrap { width: 32px; height: 32px; background: var(--orange-lt); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; transition: background 0.35s cubic-bezier(0.25,0.46,0.45,0.94); flex-shrink: 0; }
 .service-card:hover .service-icon-wrap { background: linear-gradient(135deg, #F59E0B 0%, #E8891C 55%, #C4620A 100%); }
-.service-icon-wrap svg { width: 16px; height: 16px; stroke: var(--orange); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.22s; }
+.service-icon-wrap svg { width: 16px; height: 16px; stroke: var(--orange); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke 0.35s ease; }
 .service-card:hover .service-icon-wrap svg { stroke: white; }
 .service-title { font-size: 0.85rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .service-desc  { font-size: 0.68rem; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

@@ -3061,7 +3061,8 @@ input[type="date"].reg-input {
     top: 58px;
     height: calc(100svh - 58px);
     transform: translateX(-100%);
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   #sidebar.mobile-open { transform: translateX(0); }
   #main-area { margin-left: 0 !important; }

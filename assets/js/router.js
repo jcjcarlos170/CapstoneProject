@@ -654,9 +654,6 @@ function toggleSidebar() {
     if (mainArea) mainArea.classList.remove('collapsed')
     const isOpen = sidebar.classList.toggle('mobile-open')
     if (overlay) overlay.classList.toggle('show', isOpen)
-    // Lock/unlock background scroll so content can't drift under the overlay
-    var mc = document.getElementById('main-content')
-    if (mc) mc.style.overflow = isOpen ? 'hidden' : ''
   } else {
     state.sidebarCollapsed = !state.sidebarCollapsed
     document.getElementById('sidebar').classList.toggle('collapsed', state.sidebarCollapsed)
@@ -667,28 +664,19 @@ function toggleSidebar() {
 function closeMobileSidebar() {
   document.getElementById('sidebar')?.classList.remove('mobile-open')
   document.getElementById('sidebar-overlay')?.classList.remove('show')
-  var mc = document.getElementById('main-content')
-  if (mc) mc.style.overflow = ''
 }
 window.closeMobileSidebar = closeMobileSidebar
 
-// On mobile: lock background scroll when sidebar opens so content can't drift under overlay
-// Close sidebar on scroll or any touch outside it
+// Close sidebar when user scrolls the page on mobile.
+// The overlay covers the whole screen when the drawer is open, so touchmove
+// on it reliably means "user is trying to scroll the page" → dismiss drawer.
 document.addEventListener('DOMContentLoaded', function() {
-  var mc = document.getElementById('main-content')
-
-  // Scroll on #main-content (where overflow-y:auto lives)
-  if (mc) mc.addEventListener('scroll', function() {
-    if (window.innerWidth <= 767) closeMobileSidebar()
-  }, { passive: true })
-
-  // touchstart outside sidebar — most reliable close trigger on real devices
-  document.addEventListener('touchstart', function(e) {
-    if (window.innerWidth > 767) return
-    var sidebar = document.getElementById('sidebar')
-    if (!sidebar || !sidebar.classList.contains('mobile-open')) return
-    if (!sidebar.contains(e.target)) closeMobileSidebar()
-  }, { passive: true })
+  var overlay = document.getElementById('sidebar-overlay')
+  if (overlay) {
+    overlay.addEventListener('touchmove', function() {
+      closeMobileSidebar()
+    }, { passive: true })
+  }
 })
 
 // ── Responsive default: pick a sidebar mode when the viewport crosses

@@ -2,7 +2,7 @@
 // ================================================================
 //  OPTICANA — api/clinic/upload_logo.php
 //  POST multipart/form-data { logo: File } — admin only.
-//  Saves to brand_assests/clinic-logo.<ext>, updates clinic_settings.logo_url.
+//  Saves to assets/images/logo/clinic-logo.<ext>, updates clinic_settings.logo_url.
 // ================================================================
 
 require_once '../../config/db.php';
@@ -37,7 +37,7 @@ $ext = match ($mimeType) {
     default         => 'jpg',
 };
 
-$uploadDir = __DIR__ . '/../../brand_assests/';
+$uploadDir = __DIR__ . '/../../assets/images/logo/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
@@ -55,7 +55,7 @@ if (!move_uploaded_file($file['tmp_name'], $destPath)) {
     jsonResponse(['success' => false, 'message' => 'Failed to save file. Check server permissions.'], 500);
 }
 
-$logoUrl = 'brand_assests/' . $filename;
+$logoUrl = 'assets/images/logo/' . $filename;
 
 try {
     $pdo = getDB();

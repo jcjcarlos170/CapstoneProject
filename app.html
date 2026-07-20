@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OPTICANA — Cana Optical Clinic Management System</title>
-  <link rel="icon" type="image/png" href="brand_assests/cana logo.png">
+  <link rel="icon" type="image/png" href="assets/images/logo/clinic-logo.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,7 +67,7 @@
     <!-- Soft ring -->
     <div style="position:absolute;width:108px;height:108px;border-radius:50%;
                 border:1.5px solid rgba(232,118,10,.18)"></div>
-    <img src="brand_assests/cana logo.png" alt="Cana Optical"
+    <img src="assets/images/logo/clinic-logo.png" alt="Cana Optical" class="loading-screen-logo"
          style="width:84px;height:84px;object-fit:contain;position:relative;z-index:1;
                 filter:drop-shadow(0 4px 16px rgba(232,118,10,.25))">
   </div>
@@ -83,9 +83,11 @@
   ;(function(){try{
     var bn=localStorage.getItem('_opticana_logoName');
     var cn=localStorage.getItem('_opticana_clinicName');
+    var lu=localStorage.getItem('_opticana_logo_url');
     if(bn){var el=document.getElementById('ls-brand-name');if(el)el.textContent=bn;}
     if(bn){document.querySelectorAll('.brand-logo-name').forEach(function(e){e.textContent=bn;});}
     if(cn){document.querySelectorAll('.brand-clinic-name').forEach(function(e){e.textContent=cn;});}
+    if(lu){document.querySelectorAll('.loading-screen-logo,.auth-bp-logo').forEach(function(e){e.src=lu;});}
   }catch(_){}}());
   </script>
 
@@ -145,7 +147,7 @@
     <div class="auth-brand-panel">
       <div class="auth-bp-inner">
         <div class="auth-bp-logo-wrap">
-          <a href="index.html"><img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo"></a>
+          <a href="index.html"><img src="assets/images/logo/clinic-logo.png" alt="Cana Optical Logo" class="auth-bp-logo"></a>
         </div>
         <div class="auth-bp-text-block">
           <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
@@ -217,7 +219,7 @@
     <div class="auth-brand-panel">
       <div class="auth-bp-inner">
         <div class="auth-bp-logo-wrap">
-          <img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo">
+          <img src="assets/images/logo/clinic-logo.png" alt="Cana Optical Logo" class="auth-bp-logo">
         </div>
         <div class="auth-bp-text-block">
           <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
@@ -392,7 +394,7 @@
     <div class="auth-brand-panel">
       <div class="auth-bp-inner">
         <div class="auth-bp-logo-wrap">
-          <img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo">
+          <img src="assets/images/logo/clinic-logo.png" alt="Cana Optical Logo" class="auth-bp-logo">
         </div>
         <div class="auth-bp-text-block">
           <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
@@ -493,7 +495,7 @@
     <div class="auth-brand-panel">
       <div class="auth-bp-inner">
         <div class="auth-bp-logo-wrap">
-          <a href="index.html"><img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo"></a>
+          <a href="index.html"><img src="assets/images/logo/clinic-logo.png" alt="Cana Optical Logo" class="auth-bp-logo"></a>
         </div>
         <div class="auth-bp-text-block">
           <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>

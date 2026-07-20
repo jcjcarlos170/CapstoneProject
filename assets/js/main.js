@@ -1,4 +1,4 @@
-// ================================================================
+﻿// ================================================================
 //  OPTICANA — main.js
 //  App entry point. Imports all modules, attaches globals,
 //  handles modals, QR, toasts, and action handlers.
@@ -4758,7 +4758,7 @@ function updateRxPreview(patientId) {
   el.innerHTML = `
     <!-- Clinic Header -->
     <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid #e5e7eb">
-      <img src="${window._clinicLogoUrl || 'brand_assests/cana logo.png'}" style="width:40px;height:40px;border-radius:50%;object-fit:contain;border:1px solid #e5e7eb;padding:2px;flex-shrink:0" onerror="this.style.display='none'">
+      <img src="${window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png'}" style="width:40px;height:40px;border-radius:50%;object-fit:contain;border:1px solid #e5e7eb;padding:2px;flex-shrink:0" onerror="this.style.display='none'">
       <div>
         <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;line-height:1.2">OPTICANA — Cana Optical Clinic</div>
         <div style="font-size:.68rem;color:#6B7280;margin-top:2px">Unit 3 Paseo de Carmona, Brgy. Maduya, Carmona, Cavite</div>
@@ -5181,7 +5181,7 @@ function generateClearance(patientId, examId) {
         <!-- LETTERHEAD -->
         <div style="border:1.5px solid #222;padding:18px 24px;margin-bottom:36px;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:10px;">
-            <img src="${window._clinicLogoUrl || 'brand_assests/cana logo.png'}" alt="Cana Optical" style="height:64px;flex-shrink:0;">
+            <img src="${window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png'}" alt="Cana Optical" style="height:64px;flex-shrink:0;">
             <div style="text-align:left;line-height:1;">
               <div style="font-family:Arial,sans-serif;font-size:2rem;font-weight:900;letter-spacing:.05em;color:#111;">CANA OPTICAL</div>
             </div>
@@ -6529,6 +6529,8 @@ async function handleLogoUpload(input, previewId) {
     syncLogoImages(bust)
     renderSidebar()
     renderTopbar()
+    // Notify other open tabs (index.html, public pages) via storage event
+    localStorage.setItem('_opticana_logo_url', bust)
     toast('Logo updated.', 'success')
   } catch (_) {
     toast('Network error — could not upload logo.', 'error')
@@ -7342,8 +7344,8 @@ window.galleryExitSelMode   = galleryExitSelMode;
 // Called on upload and at boot when clinic settings are loaded.
 function syncLogoImages(url) {
   if (!url) return
-  // Static auth screens (login, forgot-password, register) — hardcoded in app.html
-  document.querySelectorAll('.login-logo, .fp-logo, .reg-logo').forEach(img => { img.src = url })
+  // Loading screen logo + auth screen brand-panel logos
+  document.querySelectorAll('.loading-screen-logo, .auth-bp-logo').forEach(img => { img.src = url })
   // Topbar clinic logo — re-rendered by renderTopbar() but also update directly
   // in case renderTopbar hasn't run yet
   document.querySelectorAll('.topbar-clinic-img').forEach(img => { img.src = url })

@@ -1,4 +1,4 @@
-// ================================================================
+﻿// ================================================================
 //  OPTICANA — router.js
 //  Navigation, sidebar, topbar rendering, layout toggles
 // ================================================================
@@ -458,7 +458,7 @@ function renderTopbar() {
 
       <!-- Clinic identity -->
       <div class="topbar-clinic">
-        <img src="${window._clinicLogoUrl || 'brand_assests/cana logo.png'}" alt="Clinic Logo" class="topbar-clinic-img">
+        <img src="${window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png'}" alt="Clinic Logo" class="topbar-clinic-img">
         <div class="topbar-clinic-text">
           <span class="topbar-clinic-name">${window._clinicName || clinicInfo.name || 'Cana Optical Clinic'}</span>
           <span class="topbar-clinic-sub">${(function(){ const a = window._clinicAddress || clinicInfo.address || ''; const parts = a.split(',').map(s=>s.trim()).filter(Boolean); return parts.length >= 2 ? parts.slice(-2).join(', ') : (a || 'Carmona, Cavite') }())}</span>

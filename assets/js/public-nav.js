@@ -261,4 +261,14 @@
     scrollBtn.style.transform    = show ? 'translateY(0)' : 'translateY(12px)'
     scrollBtn.style.pointerEvents = show ? '' : 'none'
   }, { passive: true })
+
+  // Real-time logo sync: when the admin uploads a new logo in another tab,
+  // update all logo images on this page without a reload.
+  window.addEventListener('storage', function (e) {
+    if (e.key === '_opticana_logo_url' && e.newValue) {
+      var url = e.newValue
+      document.querySelectorAll('#site-logo-img, .footer-logo-img').forEach(function (img) { img.src = url })
+      document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = url })
+    }
+  })
 })()

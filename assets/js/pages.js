@@ -1842,7 +1842,7 @@ function pageAdminSettings() {
         <div style="font-size:.85rem;font-weight:600;color:#374151;margin-bottom:12px">Clinic Logo</div>
         <div style="display:flex;align-items:center;gap:16px">
           <div style="width:60px;height:60px;border-radius:50%;background:#FFF0DC;border:1.5px solid #FFD9A8;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
-            <img id="ci-logo-preview" src="${clinicInfo.logoUrl || 'brand_assests/cana logo.png'}" style="width:50px;height:50px;object-fit:contain">
+            <img id="ci-logo-preview" src="${clinicInfo.logoUrl || 'assets/images/logo/clinic-logo.png'}" style="width:50px;height:50px;object-fit:contain">
           </div>
           <div>
             <label for="ci-logo-input" style="cursor:pointer">
@@ -4899,11 +4899,6 @@ function pagePatientNotifications() {
 
   const emptyHtml = `
     <div style="text-align:center;padding:56px 24px">
-      <div style="width:60px;height:60px;background:#F3F4F6;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;color:#9CA3AF">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28" style="display:block">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-        </svg>
-      </div>
       <p style="margin:0 0 4px;font-size:.9rem;font-weight:600;color:#6B7280">No notifications</p>
       <p style="font-size:.8rem;margin:0;color:#9CA3AF">You're all caught up!</p>
     </div>`

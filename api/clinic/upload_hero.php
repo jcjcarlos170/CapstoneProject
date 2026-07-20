@@ -2,7 +2,7 @@
 // ================================================================
 //  OPTICANA — api/clinic/upload_hero.php
 //  POST multipart/form-data { hero: File } — admin only.
-//  Saves to assets/images/clinic-hero.<ext>, updates clinic_settings.hero_url.
+//  Saves to assets/images/hero/clinic-hero.<ext>, updates clinic_settings.hero_url.
 // ================================================================
 
 require_once '../../config/db.php';
@@ -36,7 +36,7 @@ $ext = match ($mimeType) {
     default      => 'jpg',
 };
 
-$uploadDir = __DIR__ . '/../../assets/images/';
+$uploadDir = __DIR__ . '/../../assets/images/hero/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
@@ -53,7 +53,7 @@ if (!move_uploaded_file($file['tmp_name'], $destPath)) {
     jsonResponse(['success' => false, 'message' => 'Failed to save file. Check server permissions.'], 500);
 }
 
-$heroUrl = 'assets/images/' . $filename;
+$heroUrl = 'assets/images/hero/' . $filename;
 
 try {
     $pdo = getDB();

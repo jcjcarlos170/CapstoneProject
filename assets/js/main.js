@@ -4676,11 +4676,11 @@ async function saveNewExam(patientId) {
     }
 
     toast('Examination record saved successfully.', 'success')
-    navigate('new-examination')
+    navigate('patient-view', { patientId, patientName: p.name })
   } catch (_) {
     toast('Network error — please try again.', 'error')
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = window.icon('check','icon-sm') + ' Save Examination' }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = window.icon('check','icon-sm') + ' ' + (state.params?.examId ? 'Save Changes' : 'Save Examination') }
   }
 }
 window.saveNewExam = saveNewExam

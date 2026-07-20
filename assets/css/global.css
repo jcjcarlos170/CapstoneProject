@@ -89,9 +89,6 @@ button { border-radius: unset; }
   align-items: center;
   justify-content: center;
   background: #EDE9E0;
-  background-image:
-    radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 60% at 95% 90%, rgba(196,98,10,.05) 0%, transparent 65%);
   padding: 24px 16px;
   gap: 16px;
   box-sizing: border-box;
@@ -417,9 +414,6 @@ button { border-radius: unset; }
   justify-content: center;
   gap: 16px;
   background: #EDE9E0;
-  background-image:
-    radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 60% at 95% 90%, rgba(196,98,10,.05) 0%, transparent 65%);
   padding: 24px 16px;
   box-sizing: border-box;
 }
@@ -518,9 +512,6 @@ button { border-radius: unset; }
   justify-content: center;
   gap: 16px;
   background: #EDE9E0;
-  background-image:
-    radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 60% at 95% 90%, rgba(196,98,10,.05) 0%, transparent 65%);
   padding: 32px 16px;
 }
 
@@ -1106,6 +1097,13 @@ input[type="date"].reg-input {
 .nav-sub-item:hover { background: #f3f4f6; color: #111827; }
 .nav-sub-item.active { background: #FFF8F0; color: #E8891C; font-weight: 600; }
 .nav-sub-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* Exam wizard — OD/OS inner field grid */
+.wiz-eye-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
 /* Sidebar footer */
 .sidebar-foot {
@@ -3179,6 +3177,15 @@ input[type="date"].reg-input {
   .clearance-document [style*="grid-template-columns"] {
     grid-template-columns: 17% 17% 44% 22% !important;
   }
+
+  /* ── Exam wizard: stepper scrolls on mobile so labels are readable ── */
+  #wiz-stepper { padding: 14px 16px; margin-bottom: 0; }
+  .wiz-step-wrap { min-width: 100px; flex-shrink: 0; }
+  .wiz-pill-text { min-width: 60px !important; }
+  #wiz-step-label { display: block !important; }
+
+  /* ── Exam wizard: keep OD/OS inner field pairs at 2-column ── */
+  .wiz-eye-fields { gap: 10px !important; }
 }
 
 /* ── Small mobile: single-column stats (<480px) ── */

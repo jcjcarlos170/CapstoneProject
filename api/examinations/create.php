@@ -20,7 +20,7 @@ if (!isset($_SESSION['user_id'])) {
 $role      = $_SESSION['role']       ?? '';
 $profileId = $_SESSION['profile_id'] ?? '';
 
-if (!in_array($role, ['admin', 'staff', 'doctor'], true)) {
+if (!in_array($role, ['doctor'], true)) {
     jsonResponse(['success' => false, 'message' => 'Unauthorized.'], 403);
 }
 

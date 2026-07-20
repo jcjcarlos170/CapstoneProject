@@ -739,7 +739,7 @@ function pagePatientView() {
           <span style="font-size:.82rem;font-weight:700;color:#1C1C1C">${fmtDate(e.date)}</span>
           <span style="font-size:.75rem;color:#9CA3AF;margin-left:8px">by ${e.doctor}</span>
         </div>
-        ${role !== 'patient' ? `<button class="btn-ghost" onclick="window.navigate('examination',{patientId:'${p.id}',examId:'${e.id}'})"
+        ${role !== 'patient' ? `<button class="btn-ghost" onclick="window.navigate('${role === 'doctor' ? 'new-examination' : 'examination'}',{patientId:'${p.id}',examId:'${e.id}'})"
           style="font-size:.75rem;padding:4px 10px">${ic('eye','icon-sm')} View Full</button>` : ''}
       </div>
       <div class="eye-grid" style="margin-bottom:8px">
@@ -2937,13 +2937,68 @@ function pageDoctorSettings() {
 //  DOCTOR — OPTICAL EXAMINATION
 // ════════════════════════════════════════════════════════════════
 function pageExamination() {
-  const { params } = st()
+  const { params, role } = st()
   const p = getPatientById(params.patientId)
   const lastExam = p && p.examinations.length ? p.examinations[p.examinations.length - 1] : null
   const _p = (obj, key) => (obj && obj[key]) || ''
   const pre = lastExam ? lastExam : {
     od: {sph:'',cyl:'',axis:'',va:'',add:''}, os: {sph:'',cyl:'',axis:'',va:'',add:''},
     iop: {od:'',os:''}, pd:'', lensType:'', diagnosis:'', recommendation:'', testResults:'', remarks:''
+  }
+
+  if (role !== 'doctor') {
+    const exam = params.examId ? (p?.examinations || []).find(e => e.id === params.examId) || pre : pre
+    const val = (obj, key) => (obj && obj[key]) || '—'
+    const ro = (v) => `<div style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;font-size:.87rem;color:#1f2937;min-height:38px">${v || '—'}</div>`
+    return `
+  <div class="page-header">
+    <div class="page-header-left" style="display:flex;align-items:center;gap:12px">
+      <button class="btn-icon" onclick="history.back()">${ic('chevron-left','icon')}</button>
+      <div>
+        <h1 class="page-title">Optical Examination</h1>
+        <p class="page-subtitle">${p ? p.name + ' · ' + p.id : 'Patient'} ${exam.id ? '· ' + exam.id : ''}</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:.75rem;background:#FFF7ED;color:#C2410C;padding:4px 12px;border-radius:20px;font-weight:600">View Only — Doctor access required to edit</span>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header"><div class="card-title">Visual Acuity &amp; Refraction</div><div class="card-subtitle">${fmtDate(exam.date)} ${exam.doctor ? '· ' + exam.doctor : ''}</div></div>
+      <div class="card-body">
+        <div class="eye-grid" style="margin-bottom:12px">
+          <div></div>
+          <div class="eye-header">SPH</div><div class="eye-header">CYL</div><div class="eye-header">AXIS</div><div class="eye-header">VA</div>
+          <div class="eye-label">OD (Right)</div>
+          ${ro(val(exam.od,'sph'))} ${ro(val(exam.od,'cyl'))} ${ro(val(exam.od,'axis'))} ${ro(val(exam.od,'va'))}
+          <div class="eye-label">OS (Left)</div>
+          ${ro(val(exam.os,'sph'))} ${ro(val(exam.os,'cyl'))} ${ro(val(exam.os,'axis'))} ${ro(val(exam.os,'va'))}
+        </div>
+        <div class="form-row-3" style="margin-top:12px">
+          <div class="form-group"><label class="form-label">ADD — OD</label>${ro(val(exam.od,'add'))}</div>
+          <div class="form-group"><label class="form-label">ADD — OS</label>${ro(val(exam.os,'add'))}</div>
+          <div class="form-group"><label class="form-label">PD (mm)</label>${ro(exam.pd||'—')}</div>
+        </div>
+        <div class="form-row-2" style="margin-top:12px">
+          <div class="form-group"><label class="form-label">IOP — OD (mmHg)</label>${ro(val(exam.iop,'od'))}</div>
+          <div class="form-group"><label class="form-label">IOP — OS (mmHg)</label>${ro(val(exam.iop,'os'))}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Clinical Assessment &amp; Prescription</div></div>
+      <div class="card-body">
+        <div class="form-row-2" style="margin-bottom:14px">
+          <div class="form-group"><label class="form-label">Diagnosis</label>${ro(exam.diagnosis)}</div>
+          <div class="form-group"><label class="form-label">Lens Type</label>${ro(exam.lensType)}</div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px"><label class="form-label">Prescription / Lens Recommendation</label>${ro(exam.recommendation)}</div>
+        <div class="form-group" style="margin-bottom:14px"><label class="form-label">Test Results</label>${ro(exam.testResults)}</div>
+        <div class="form-group"><label class="form-label">Remarks / Additional Notes</label>${ro(exam.remarks)}</div>
+      </div>
+    </div>
+  </div>`
   }
 
   return `
@@ -2957,7 +3012,7 @@ function pageExamination() {
     </div>
     ${p ? `<div style="display:flex;gap:8px">
       <button class="btn-secondary" onclick="window.printExaminationForm('${p.id}')">${ic('printer','icon-sm')} Print</button>
-      <button class="btn-primary exam-save-btn" onclick="window.saveExamination('${p.id}')">${ic('check','icon-sm')} Save Examination</button>
+      <button class="btn-primary exam-save-btn" onclick="window.saveExamination('${p.id}')">${ic('check','icon-sm')} Save Changes</button>
     </div>` : ''}
   </div>
   <div class="page-body">
@@ -3062,7 +3117,7 @@ function pageExamination() {
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end">
           <button class="btn-secondary" onclick="window.printExaminationForm('${p.id}')">${ic('printer','icon-sm')} Print Form</button>
-          <button class="btn-primary exam-save-btn" onclick="window.saveExamination('${p.id}')">${ic('check','icon-sm')} Save Examination</button>
+          <button class="btn-primary exam-save-btn" onclick="window.saveExamination('${p.id}')">${ic('check','icon-sm')} Save Changes</button>
         </div>
       </div>
     </div>`}
@@ -3385,9 +3440,12 @@ function pageNewExamination() {
   </div>`
   }
 
-  const today    = localDateStr()
-  const lastExam = p.examinations.length ? p.examinations[0] : null
-  const pre      = lastExam || { od:{sph:'',cyl:'',axis:'',va:'',add:''}, os:{sph:'',cyl:'',axis:'',va:'',add:''}, iop:{od:'',os:''}, pd:'' }
+  const today      = localDateStr()
+  const specificExam = params?.examId ? (p.examinations || []).find(e => e.id === params.examId) : null
+  const lastExam   = specificExam || (p.examinations.length ? p.examinations[0] : null)
+  const pre        = lastExam || { od:{sph:'',cyl:'',axis:'',va:'',add:''}, os:{sph:'',cyl:'',axis:'',va:'',add:''}, iop:{od:'',os:''}, pd:'' }
+  const isEdit     = !!params?.examId
+  const saveLabel  = isEdit ? 'Save Changes' : 'Save Examination'
 
   // Schedule wizard init after DOM is ready
   state.afterRender = () => { window._examPatientId = p.id; examWizInit() }
@@ -3406,7 +3464,7 @@ function pageNewExamination() {
   ]
 
   const stepperHTML = `
-  <div id="wiz-stepper" style="display:flex;align-items:center;background:white;border-radius:12px;border:1px solid #e5e7eb;padding:20px 24px;margin-bottom:20px;overflow-x:auto;gap:0">
+  <div id="wiz-stepper" style="display:flex;align-items:center;background:white;border-radius:12px;border:1px solid #e5e7eb;padding:20px 24px;margin-bottom:8px;overflow-x:auto;gap:0">
     ${STEPS.map((s, i) => `
       <div class="wiz-step-wrap" style="display:flex;align-items:center;${i < STEPS.length - 1 ? 'flex:1;' : ''}min-width:0">
         <div id="wiz-pill-${s.n}" class="wiz-pill" onclick="examWizJump(${s.n})"
@@ -3421,7 +3479,8 @@ function pageNewExamination() {
         </div>
         ${i < STEPS.length - 1 ? `<div id="wiz-line-${s.n}" class="wiz-step-line" style="flex:1;height:2px;background:#e5e7eb;margin:0 4px;border-radius:2px;transition:background 0.3s;min-width:6px"></div>` : ''}
       </div>`).join('')}
-  </div>`
+  </div>
+  <div id="wiz-step-label" style="display:none;font-size:.8rem;font-weight:600;color:#6b7280;text-align:center;padding:6px 0 12px">Step 1 of 6: Patient Info</div>`
 
   // ── Step 1: Patient Information ──────────────────────────────
   const step1 = `
@@ -3440,7 +3499,7 @@ function pageNewExamination() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
       <div class="form-group" style="margin:0">
         ${fl('Examination Date')}
-        <input id="ne-date" type="date" class="form-input" style="${inp}" value="${today}">
+        <input id="ne-date" type="date" class="form-input" style="${inp}" value="${pre.date || today}">
       </div>
       <div class="form-group" style="margin:0">
         ${fl('Patient ID')}
@@ -3501,7 +3560,7 @@ function pageNewExamination() {
           <div style="width:24px;height:24px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:#10B981"></div></div>
           <div><div style="font-size:.88rem;font-weight:700;color:#1f2937">Right Eye</div><div style="font-size:.7rem;color:#6b7280">OD — Oculus Dexter</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="wiz-eye-fields">
           <div class="form-group" style="margin:0">${fl('Sphere')}<input id="ne-od-sph" class="form-input" style="${inp}" value="${pre.od.sph}" placeholder="+/- 0.00"></div>
           <div class="form-group" style="margin:0">${fl('Cylinder')}<input id="ne-od-cyl" class="form-input" style="${inp}" value="${pre.od.cyl}" placeholder="+/- 0.00"></div>
           <div class="form-group" style="margin:0">${fl('Axis')}<input id="ne-od-axis" class="form-input" style="${inp}" value="${pre.od.axis}" placeholder="0-180"></div>
@@ -3514,7 +3573,7 @@ function pageNewExamination() {
           <div style="width:24px;height:24px;border-radius:50%;background:#fff8f0;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:#E8760A"></div></div>
           <div><div style="font-size:.88rem;font-weight:700;color:#1f2937">Left Eye</div><div style="font-size:.7rem;color:#6b7280">OS — Oculus Sinister</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="wiz-eye-fields">
           <div class="form-group" style="margin:0">${fl('Sphere')}<input id="ne-os-sph" class="form-input" style="${inp}" value="${pre.os.sph}" placeholder="+/- 0.00"></div>
           <div class="form-group" style="margin:0">${fl('Cylinder')}<input id="ne-os-cyl" class="form-input" style="${inp}" value="${pre.os.cyl}" placeholder="+/- 0.00"></div>
           <div class="form-group" style="margin:0">${fl('Axis')}<input id="ne-os-axis" class="form-input" style="${inp}" value="${pre.os.axis}" placeholder="0-180"></div>
@@ -3713,7 +3772,7 @@ function pageNewExamination() {
       <button id="wiz-btn-save" onclick="window.saveNewExam(window._examPatientId)"
               style="display:none;align-items:center;gap:8px;padding:10px 24px;background:#10B981;color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity 0.2s"
               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-        ${ic('check','icon-sm')} Save Examination
+        ${ic('check','icon-sm')} ${saveLabel}
       </button>
     </div>
   </div>`
@@ -3844,8 +3903,8 @@ function pageNewExamination() {
         max-width: 100%;
         position: static;
       }
-      /* Stepper: match appointment booking stepper — absolute lines from circle center */
-      #wiz-stepper { padding: 14px 0; gap: 0; overflow-x: visible; }
+      /* Stepper: full-width, edge-to-edge spread with breathing room */
+      #wiz-stepper { padding: 16px 12px; gap: 0; overflow-x: visible; width: 100%; box-sizing: border-box; }
       .wiz-step-wrap {
         position: relative !important;
         flex-direction: column !important;
@@ -3853,23 +3912,26 @@ function pageNewExamination() {
         flex: 1 !important;
         min-width: 0;
       }
-      /* Pill: no z-index so it doesn't block lines from adjacent wraps */
+      /* Pill: fills column width so pill-text can wrap correctly */
       .wiz-pill {
         flex-direction: column !important;
         align-items: center !important;
-        gap: 5px !important;
+        gap: 8px !important;
         padding: 0 !important;
         overflow: visible !important;
         position: relative;
+        width: 100% !important;
       }
       /* Circle: z-index 2 so it renders above the connector lines */
       .wiz-pill > div:first-child {
         position: relative;
         z-index: 2;
+        width: 30px !important;
+        height: 30px !important;
       }
-      .wiz-pill-text { text-align: center; overflow: visible !important; min-width: 0; }
+      .wiz-pill-text { text-align: center; overflow: visible !important; min-width: 0; width: 100%; }
       .wiz-pill-label {
-        font-size: .58rem !important;
+        font-size: .70rem !important;
         white-space: normal !important;
         overflow: visible !important;
         text-overflow: clip !important;
@@ -3880,7 +3942,7 @@ function pageNewExamination() {
       /* Line: z-index 1 (above transparent pill, below circle z-2), full center-to-center span */
       .wiz-step-line {
         position: absolute !important;
-        top: 13px !important;
+        top: 15px !important;
         left: 50% !important;
         width: 100% !important;
         height: 2px !important;

@@ -3066,17 +3066,6 @@ input[type="date"].reg-input {
   #sidebar.mobile-open { transform: translateX(0); }
   #main-area { margin-left: 0 !important; }
 
-  /* ── Compact sidebar content so everything fits without scrolling ── */
-  .sidebar-profile-wrap { padding: 10px 12px 8px; gap: 9px; }
-  .sidebar-profile-avatar { width: 34px !important; height: 34px !important; font-size: 0.78rem !important; }
-  .sidebar-profile-name { font-size: 0.8rem; }
-  .sidebar-profile-role { font-size: 0.65rem; }
-  .sidebar-nav { flex: none; padding: 4px 0; }
-  .nav-section-label { padding: 8px 14px 2px; }
-  .nav-item { padding: 6px 12px; margin: 1px 5px; font-size: 0.8rem; }
-  .nav-sub-item { padding: 5px 12px 5px 38px; margin: 1px 7px; font-size: 0.76rem; }
-  .sidebar-foot { padding: 8px 6px; }
-  .sidebar-logout, .sidebar-view-link { padding: 7px 10px; font-size: 0.8rem; }
 
   .grid-2, .grid-3, .grid-sidebar { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }

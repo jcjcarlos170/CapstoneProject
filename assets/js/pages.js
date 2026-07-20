@@ -3903,16 +3903,16 @@ function pageNewExamination() {
         max-width: 100%;
         position: static;
       }
-      /* Stepper: full-width, edge-to-edge spread with breathing room */
-      #wiz-stepper { padding: 16px 12px; gap: 0; overflow-x: visible; width: 100%; box-sizing: border-box; }
+      /* Stepper: each step owns fixed 76px so labels never need clipping */
+      #wiz-stepper { padding: 16px 12px; gap: 0; overflow-x: auto; width: 100%; box-sizing: border-box; }
       .wiz-step-wrap {
         position: relative !important;
         flex-direction: column !important;
         align-items: center !important;
-        flex: 1 !important;
-        min-width: 0;
+        flex: 0 0 100px !important;
+        min-width: 100px !important;
       }
-      /* Pill: fills column width so pill-text can wrap correctly */
+      /* Pill: fills column width, text visible without clipping */
       .wiz-pill {
         flex-direction: column !important;
         align-items: center !important;
@@ -3931,20 +3931,20 @@ function pageNewExamination() {
       }
       .wiz-pill-text { text-align: center; overflow: visible !important; min-width: 0; width: 100%; }
       .wiz-pill-label {
-        font-size: .70rem !important;
-        white-space: normal !important;
+        font-size: .62rem !important;
+        white-space: nowrap !important;
         overflow: visible !important;
         text-overflow: clip !important;
         text-align: center;
         line-height: 1.3;
       }
-      .wiz-pill-sub { display: none !important; }
-      /* Line: z-index 1 (above transparent pill, below circle z-2), full center-to-center span */
+      .wiz-pill-sub { display: block !important; font-size: .56rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+      /* Line: spans only between circle edges with a 4px white gap on each side */
       .wiz-step-line {
         position: absolute !important;
         top: 15px !important;
-        left: 50% !important;
-        width: 100% !important;
+        left: calc(50% + 19px) !important;
+        width: calc(100% - 38px) !important;
         height: 2px !important;
         margin: 0 !important;
         flex: none !important;
@@ -3955,6 +3955,16 @@ function pageNewExamination() {
       #wiz-nav { padding: 12px 14px; }
       #wiz-btn-back { padding: 9px 16px !important; font-size: .84rem !important; }
       #wiz-btn-next, #wiz-btn-save { padding: 9px 20px !important; font-size: .84rem !important; }
+    }
+    @media (min-width: 769px) {
+      /* Desktop: give text block enough room so sub-labels show in full; stepper scrolls if needed */
+      .wiz-pill-text { min-width: 110px !important; overflow: visible !important; }
+      .wiz-pill { overflow: visible !important; }
+      .wiz-pill-label, .wiz-pill-sub {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+      }
     }
     @media print {
       #sidebar, .topbar, .page-header, #rx-preview-wrapper .btn-secondary,

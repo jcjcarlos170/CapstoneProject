@@ -668,9 +668,13 @@ function closeMobileSidebar() {
 window.closeMobileSidebar = closeMobileSidebar
 
 // Close the mobile drawer the moment the user scrolls — standard mobile UX
-window.addEventListener('scroll', function() {
-  if (window.innerWidth <= 767) closeMobileSidebar()
-}, { passive: true })
+// Scroll happens on #main-content (overflow-y:auto), not window
+document.addEventListener('DOMContentLoaded', function() {
+  var mc = document.getElementById('main-content')
+  if (mc) mc.addEventListener('scroll', function() {
+    if (window.innerWidth <= 767) closeMobileSidebar()
+  }, { passive: true })
+})
 
 // ── Responsive default: pick a sidebar mode when the viewport crosses
 //    into a new size bucket, without fighting a manual toggle made by

@@ -3071,7 +3071,7 @@ input[type="date"].reg-input {
   .sidebar-profile-avatar { width: 34px !important; height: 34px !important; font-size: 0.78rem !important; }
   .sidebar-profile-name { font-size: 0.8rem; }
   .sidebar-profile-role { font-size: 0.65rem; }
-  .sidebar-nav { padding: 4px 0; }
+  .sidebar-nav { flex: none; padding: 4px 0; }
   .nav-section-label { padding: 8px 14px 2px; }
   .nav-item { padding: 6px 12px; margin: 1px 5px; font-size: 0.8rem; }
   .nav-sub-item { padding: 5px 12px 5px 38px; margin: 1px 7px; font-size: 0.76rem; }

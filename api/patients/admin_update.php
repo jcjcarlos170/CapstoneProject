@@ -43,9 +43,13 @@ $address = trim($b['address'] ?? '');
 $blood   = trim($b['bloodType'] ?? '');
 $medical = isset($b['medicalHistory']) ? trim($b['medicalHistory']) : null;
 $optical = isset($b['opticalHistory']) ? trim($b['opticalHistory']) : null;
+$status  = isset($b['status']) ? trim($b['status']) : null;
 
 if ($gender && !in_array($gender, ['Male', 'Female', 'Other'], true)) {
     jsonResponse(['success' => false, 'message' => 'Invalid gender value.']);
+}
+if ($status && !in_array($status, ['active', 'inactive'], true)) {
+    jsonResponse(['success' => false, 'message' => 'Invalid status value.']);
 }
 
 try {
@@ -75,9 +79,18 @@ try {
     if ($blood   !== '') { $sets[] = 'blood_type = ?'; $values[] = $blood; }
     if ($medical !== null) { $sets[] = 'medical_history = ?'; $values[] = $medical; }
     if ($optical !== null) { $sets[] = 'optical_history = ?'; $values[] = $optical; }
+    if ($status)           { $sets[] = 'status = ?'; $values[] = $status; }
 
     $values[] = $id;
     $pdo->prepare('UPDATE patients SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($values);
+
+    // Sync is_active on users table when status changes
+    if ($status && $patient['user_id']) {
+        $isActive = ($status === 'active') ? 1 : 0;
+        $pdo->prepare(
+            'UPDATE users SET is_active = ?' . ($isActive ? ', last_login_at = NOW()' : '') . ' WHERE id = ?'
+        )->execute([$isActive, $patient['user_id']]);
+    }
 
     // Email lives on `users`, only updatable if this patient already has a login account
     if ($email && $patient['user_id']) {
@@ -87,7 +100,7 @@ try {
         $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');
         $chk->execute([$email, $patient['user_id']]);
         if ($chk->fetch()) {
-            jsonResponse(['success' => false, 'message' => 'That email is already registered to another account.']);
+            jsonResponse(['success' => false, 'message' => 'An account with this email already exists.']);
         }
         $pdo->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $patient['user_id']]);
     }

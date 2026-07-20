@@ -10,29 +10,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=block" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/global.css">
-
-  <!-- Tailwind must load before its config block -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50:  '#FFF8F0', 100: '#FFF0DC', 200: '#FFD9A8',
-              300: '#FFBC6E', 400: '#FF9D3A', 500: '#E8760A',
-              600: '#C4620A', 700: '#A04F08', 900: '#1C1C1C'
-            }
-          },
-          fontFamily: {
-            sans:    ['Poppins', 'sans-serif'],
-            display: ['Poppins', 'sans-serif'],
-            body:    ['Poppins', 'sans-serif']
-          }
-        }
-      }
+  <style>
+    .badge-no-show {
+      display: inline-flex !important;
+      align-items: center !important;
+      padding: 4px 12px !important;
+      border-radius: 9999px !important;
+      font-size: 0.72rem !important;
+      font-weight: 500 !important;
+      white-space: nowrap !important;
+      background: #EDE9FE !important;
+      color: #6D28D9 !important;
     }
-  </script>
+  </style>
+
   <!-- Vendor libs (local copies — no CDN dependency) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="assets/js/vendor/qrcode.min.js"></script>
@@ -52,15 +43,7 @@
   #loading-screen {
     position: fixed; inset: 0; z-index: 99999;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: radial-gradient(ellipse 80% 60% at 50% 40%, #fff8f2 0%, #f5f6fa 55%, #eef0f5 100%);
-  }
-  #loading-screen::before {
-    content: '';
-    position: absolute; inset: 0;
-    background:
-      radial-gradient(circle 320px at 30% 20%, rgba(232,118,10,.06) 0%, transparent 70%),
-      radial-gradient(circle 240px at 75% 75%, rgba(250,168,79,.07) 0%, transparent 70%);
-    pointer-events: none;
+    background: #f5f6fa;
   }
   @keyframes _ls-spin   { to { transform: rotate(360deg) } }
   @keyframes _ls-pop    { from { opacity:0; transform: scale(.6) } to { opacity:1; transform: scale(1) } }
@@ -75,11 +58,11 @@
 <div id="loading-screen">
 
   <!-- Logo block -->
-  <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:22px;
+  <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:56px;
               animation:_ls-pop .55s cubic-bezier(.34,1.56,.64,1) both">
     <!-- Ambient glow halo -->
     <div style="position:absolute;width:130px;height:130px;border-radius:50%;
-                background:radial-gradient(circle,rgba(232,118,10,.22) 0%,transparent 70%);
+                background:rgba(232,118,10,.12);
                 animation:_ls-glow 2.4s ease-in-out infinite"></div>
     <!-- Soft ring -->
     <div style="position:absolute;width:108px;height:108px;border-radius:50%;
@@ -90,14 +73,21 @@
   </div>
 
   <!-- Brand name -->
-  <div style="font-family:'Poppins',sans-serif;font-size:26px;font-weight:800;
-              background:linear-gradient(135deg,#1C1C1C 0%,#3a2a18 100%);
-              -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  <div id="ls-brand-name" style="font-family:'Poppins',sans-serif;font-size:26px;font-weight:800;color:#1C1C1C;
               letter-spacing:-.03em;line-height:1;
               animation:_ls-rise .4s .12s both">OPTICANA</div>
-  <div style="font-family:'Poppins',sans-serif;font-size:13px;color:#9CA3AF;
+  <div class="brand-clinic-name" style="font-family:'Poppins',sans-serif;font-size:13px;color:#9CA3AF;
               margin-top:5px;margin-bottom:36px;letter-spacing:.02em;
               animation:_ls-rise .4s .18s both">Cana Optical Clinic</div>
+  <script>
+  ;(function(){try{
+    var bn=localStorage.getItem('_opticana_logoName');
+    var cn=localStorage.getItem('_opticana_clinicName');
+    if(bn){var el=document.getElementById('ls-brand-name');if(el)el.textContent=bn;}
+    if(bn){document.querySelectorAll('.brand-logo-name').forEach(function(e){e.textContent=bn;});}
+    if(cn){document.querySelectorAll('.brand-clinic-name').forEach(function(e){e.textContent=cn;});}
+  }catch(_){}}());
+  </script>
 
   <!-- Ring spinner (SVG) -->
   <div style="position:relative;width:64px;height:64px;animation:_ls-rise .4s .24s both">
@@ -108,21 +98,14 @@
     <!-- Spinning arc -->
     <svg width="64" height="64" viewBox="0 0 64 64"
          style="position:absolute;inset:0;animation:_ls-spin .85s cubic-bezier(.4,0,.2,1) infinite">
-      <defs>
-        <linearGradient id="_ls-g" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stop-color="#FAA84F"/>
-          <stop offset="60%"  stop-color="#E8760A"/>
-          <stop offset="100%" stop-color="#C4620A"/>
-        </linearGradient>
-      </defs>
-      <circle cx="32" cy="32" r="26" fill="none" stroke="url(#_ls-g)" stroke-width="5"
+      <circle cx="32" cy="32" r="26" fill="none" stroke="#E8760A" stroke-width="5"
               stroke-linecap="round" stroke-dasharray="55 109" stroke-dashoffset="0"
               transform="rotate(-90 32 32)"/>
     </svg>
     <!-- Centre dot -->
     <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
       <div style="width:8px;height:8px;border-radius:50%;
-                  background:linear-gradient(135deg,#FAA84F,#E8760A);
+                  background:#E8760A;
                   box-shadow:0 0 8px rgba(232,118,10,.5)"></div>
     </div>
   </div>
@@ -144,7 +127,7 @@
               border-radius:99px;overflow:hidden;position:relative;
               animation:_ls-rise .4s .35s both;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)">
     <div style="position:absolute;top:0;height:100%;border-radius:99px;
-                background:linear-gradient(90deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
+                background:#E8760A;
                 box-shadow:0 0 10px rgba(232,118,10,.5);
                 animation:_ls-bar 1.6s ease-in-out infinite"></div>
   </div>
@@ -156,69 +139,71 @@
 
 <div id="login-screen" style="display:none">
 
-  <!-- Back to the public website — explicit label, not just a clickable icon -->
-  <a href="index.html" class="login-back-link">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>
-    Back to Website
-  </a>
+  <div class="auth-split-card">
 
-  <!-- Card -->
-  <div class="login-card">
-
-    <!-- Logo + Clinic Name -->
-    <div class="login-card-brand">
-      <a href="index.html"><img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="login-logo"></a>
-      <div class="login-brand-name">OPTICANA</div>
-      <div class="login-brand-sub">Cana Optical Clinic</div>
-    </div>
-
-    <!-- Welcome -->
-    <h2 class="login-title">Welcome Back</h2>
-    <p class="login-desc">Sign in to access your account.</p>
-
-    <!-- Email -->
-    <div class="lf-group" style="margin-top:28px">
-      <label class="lf-label">Email</label>
-      <input type="email" id="login-email" class="lf-input" placeholder="Enter your email address">
-    </div>
-
-    <!-- Password -->
-    <div class="lf-group">
-      <label class="lf-label">Password</label>
-      <div class="lf-pw-wrap">
-        <input type="password" id="login-password" class="lf-input" placeholder="Enter your password"
-               onkeydown="if(event.key==='Enter') handleLogin()">
-        <button type="button" class="lf-pw-eye" onclick="toggleLoginPw()" title="Show/hide password">
-          <svg id="login-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
+    <!-- LEFT: Brand panel -->
+    <div class="auth-brand-panel">
+      <div class="auth-bp-inner">
+        <div class="auth-bp-logo-wrap">
+          <a href="index.html"><img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo"></a>
+        </div>
+        <div class="auth-bp-text-block">
+          <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
+          <div class="auth-bp-clinic-name brand-clinic-name">Cana Optical Clinic</div>
+        </div>
       </div>
     </div>
 
-    <!-- Error -->
-    <div id="login-error" class="lf-error" style="display:none">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg>
-      <span id="login-error-msg">The email or password you entered is incorrect. Please try again.</span>
+    <!-- RIGHT: Form panel -->
+    <div class="auth-form-panel">
+
+      <a href="index.html" class="auth-back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Website
+      </a>
+
+      <h2 class="login-title">Welcome Back</h2>
+      <p class="login-desc">Sign in to access your account.</p>
+
+      <form onsubmit="handleLogin(); return false" autocomplete="on">
+      <div class="lf-group">
+        <label class="lf-label">Email</label>
+        <input type="email" id="login-email" class="lf-input" placeholder="Enter your email address" autocomplete="email">
+      </div>
+
+      <div class="lf-group">
+        <label class="lf-label">Password</label>
+        <div class="lf-pw-wrap">
+          <input type="password" id="login-password" class="lf-input" placeholder="Enter your password" autocomplete="current-password">
+          <button type="button" class="lf-pw-eye" onclick="toggleLoginPw()" title="Show/hide password">
+            <svg id="login-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="login-error" class="lf-error" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg>
+        <span id="login-error-msg">The email or password you entered is incorrect. Please try again.</span>
+      </div>
+
+      <div class="lf-row">
+        <label class="lf-remember">
+          <input type="checkbox" id="login-remember" class="chk">
+          <span>Remember me</span>
+        </label>
+        <a href="#" onclick="showForgotPassword(); return false" class="lf-forgot">Forgot Password?</a>
+      </div>
+
+      <button type="submit" class="lf-btn" id="login-btn">Sign In</button>
+      </form>
+
+      <p class="lf-register" style="display:block;margin-top:18px">
+        Don't have an account?&nbsp;<a href="#" onclick="showRegister(); return false">Register Now</a>
+      </p>
+
     </div>
-
-    <!-- Remember me + Forgot password -->
-    <div class="lf-row">
-      <label class="lf-remember">
-        <input type="checkbox" id="login-remember" class="chk">
-        <span>Remember me</span>
-      </label>
-      <a href="#" onclick="showForgotPassword(); return false" class="lf-forgot">Forgot Password?</a>
-    </div>
-
-    <!-- Sign In -->
-    <button class="lf-btn" id="login-btn" onclick="handleLogin()">Sign In</button>
-
-    <!-- Register link -->
-    <p class="lf-register" style="display:block;margin-top:20px">
-      Don't have an account?&nbsp;<a href="#" onclick="showRegister(); return false">Register Now</a>
-    </p>
 
   </div>
-
 
 </div>
 
@@ -227,13 +212,22 @@
 ══════════════════════════════════════════════ -->
 <div id="forgot-screen" style="display:none">
 
-  <div class="fp-card">
+  <div class="auth-split-card">
 
-    <div class="fp-brand">
-      <img src="brand_assests/cana logo.png" alt="Cana Optical" class="fp-logo">
-      <div class="fp-brand-name">OPTICANA</div>
-      <div class="fp-brand-sub">Cana Optical Clinic</div>
+    <div class="auth-brand-panel">
+      <div class="auth-bp-inner">
+        <div class="auth-bp-logo-wrap">
+          <img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo">
+        </div>
+        <div class="auth-bp-text-block">
+          <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
+          <div class="auth-bp-clinic-name brand-clinic-name">Cana Optical Clinic</div>
+        </div>
+      </div>
     </div>
+
+    <div class="auth-form-panel">
+    <div class="fp-card">
 
     <div class="fp-progress" id="fp-progress-dots">
       <div class="fp-dot active" id="fp-dot-1"></div>
@@ -337,10 +331,12 @@
       </div>
       <h2 class="fp-title">Reset Password</h2>
       <p class="fp-desc" style="margin-bottom:24px">Please enter your new password.</p>
+      <form onsubmit="fpS4Submit(); return false" autocomplete="on">
+      <input type="text" id="fp-s4-hidden-email" autocomplete="username email" aria-hidden="true" tabindex="-1" style="display:none">
       <div class="fp-group">
         <label class="fp-label">New Password</label>
         <div class="fp-pw-wrap">
-          <input type="password" id="fp-s4-pw1" class="fp-input" placeholder="Minimum 8 characters">
+          <input type="password" id="fp-s4-pw1" class="fp-input" placeholder="Minimum 8 characters" autocomplete="new-password">
           <button type="button" class="fp-pw-eye" onclick="fpTogglePw('fp-s4-pw1','fp-eye1')">
             <svg id="fp-eye1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -350,7 +346,7 @@
       <div class="fp-group">
         <label class="fp-label">Confirm Password</label>
         <div class="fp-pw-wrap">
-          <input type="password" id="fp-s4-pw2" class="fp-input" placeholder="Repeat your new password">
+          <input type="password" id="fp-s4-pw2" class="fp-input" placeholder="Repeat your new password" autocomplete="new-password">
           <button type="button" class="fp-pw-eye" onclick="fpTogglePw('fp-s4-pw2','fp-eye2')">
             <svg id="fp-eye2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -359,12 +355,13 @@
       </div>
       <div class="fp-hint">Must be at least 8 characters with one letter and one number.</div>
       <div class="fp-btn-row">
-        <button class="fp-back-link" onclick="showLogin()">
+        <button type="button" class="fp-back-link" onclick="showLogin()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-          Go Back to Login
+          Back to Login
         </button>
-        <button class="fp-btn-primary" id="fp-s4-btn" onclick="fpS4Submit()">Reset Password</button>
+        <button type="submit" class="fp-btn-primary" id="fp-s4-btn">Reset Password</button>
       </div>
+      </form>
     </div>
 
     <!-- Step 5: Success -->
@@ -379,7 +376,9 @@
       <button class="fp-btn-primary full" onclick="showLogin()">Go Back to Login</button>
     </div>
 
-  </div>
+    </div><!-- end fp-card -->
+    </div><!-- end auth-form-panel -->
+  </div><!-- end auth-split-card -->
 
 </div>
 
@@ -388,13 +387,22 @@
 ══════════════════════════════════════════════ -->
 <div id="verify-screen" style="display:none">
 
-  <div class="fp-card">
+  <div class="auth-split-card">
 
-    <div class="fp-brand">
-      <img src="brand_assests/cana logo.png" alt="Cana Optical" class="fp-logo">
-      <div class="fp-brand-name">OPTICANA</div>
-      <div class="fp-brand-sub">Cana Optical Clinic</div>
+    <div class="auth-brand-panel">
+      <div class="auth-bp-inner">
+        <div class="auth-bp-logo-wrap">
+          <img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo">
+        </div>
+        <div class="auth-bp-text-block">
+          <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
+          <div class="auth-bp-clinic-name brand-clinic-name">Cana Optical Clinic</div>
+        </div>
+      </div>
     </div>
+
+    <div class="auth-form-panel">
+    <div class="fp-card">
 
     <!-- Step 1: Enter OTP -->
     <div class="fp-step active" id="ev-step-1">
@@ -468,7 +476,9 @@
       <p class="fp-desc">Your account is now active. Welcome to Opticana!</p>
     </div>
 
-  </div>
+    </div><!-- end fp-card -->
+    </div><!-- end auth-form-panel -->
+  </div><!-- end auth-split-card -->
 
 </div>
 
@@ -476,34 +486,59 @@
      REGISTRATION SCREEN
 ══════════════════════════════════════════════ -->
 <div id="register-screen" style="display:none">
-  <div class="register-bg">
 
-    <div class="register-card">
+  <div class="auth-split-card">
 
-      <!-- Brand header -->
-      <div class="reg-brand">
-        <img src="brand_assests/cana logo.png" alt="Cana Optical" class="reg-logo">
-        <div class="reg-brand-name">OPTICANA</div>
-        <div class="reg-brand-sub">Cana Optical Clinic</div>
+    <!-- LEFT: Brand panel -->
+    <div class="auth-brand-panel">
+      <div class="auth-bp-inner">
+        <div class="auth-bp-logo-wrap">
+          <a href="index.html"><img src="brand_assests/cana logo.png" alt="Cana Optical Logo" class="auth-bp-logo"></a>
+        </div>
+        <div class="auth-bp-text-block">
+          <div class="auth-bp-brand-name brand-logo-name">OPTICANA</div>
+          <div class="auth-bp-clinic-name brand-clinic-name">Cana Optical Clinic</div>
+        </div>
       </div>
+    </div>
+
+    <!-- RIGHT: Registration form panel -->
+    <div class="auth-form-panel auth-form-panel--register">
 
       <h2 class="reg-title">Create Patient Account</h2>
-      <p class="reg-desc">Fill in your details to register.</p>
 
-      <div class="reg-form-grid">
-
-        <!-- Row 1: First + Last name -->
-        <div class="reg-group">
-          <label class="reg-label">First Name <span class="reg-req">*</span></label>
-          <input type="text" id="reg-first" class="reg-input" placeholder="Juan">
+      <!-- Step indicator -->
+      <div class="reg-stepper">
+        <div class="reg-step-item reg-step-active" id="rstep-dot-1">
+          <div class="reg-step-dot"><span id="rstep-num-1">1</span></div>
+          <div class="reg-step-lbl">Personal</div>
         </div>
-        <div class="reg-group">
-          <label class="reg-label">Last Name <span class="reg-req">*</span></label>
-          <input type="text" id="reg-last" class="reg-input" placeholder="Dela Cruz">
+        <div class="reg-step-line" id="rstep-line-1"></div>
+        <div class="reg-step-item" id="rstep-dot-2">
+          <div class="reg-step-dot"><span id="rstep-num-2">2</span></div>
+          <div class="reg-step-lbl">Contact</div>
         </div>
+        <div class="reg-step-line" id="rstep-line-2"></div>
+        <div class="reg-step-item" id="rstep-dot-3">
+          <div class="reg-step-dot"><span id="rstep-num-3">3</span></div>
+          <div class="reg-step-lbl">Account</div>
+        </div>
+      </div>
 
-        <!-- Row 2: DOB + Gender + Blood Type (3 cols) -->
-        <div class="reg-full reg-row-3">
+      <!-- ── Step 1: Identity ── -->
+      <div class="reg-step-panel" id="reg-panel-1">
+        <p class="reg-desc">Tell us a bit about yourself.</p>
+        <div class="reg-form-grid">
+
+          <div class="reg-group">
+            <label class="reg-label">First Name <span class="reg-req">*</span></label>
+            <input type="text" id="reg-first" class="reg-input" placeholder="Juan">
+          </div>
+          <div class="reg-group">
+            <label class="reg-label">Last Name <span class="reg-req">*</span></label>
+            <input type="text" id="reg-last" class="reg-input" placeholder="Dela Cruz">
+          </div>
+
           <div class="reg-group">
             <label class="reg-label">Date of Birth <span class="reg-req">*</span></label>
             <input type="date" id="reg-dob" class="reg-input">
@@ -515,7 +550,8 @@
               <option>Male</option><option>Female</option><option>Other</option>
             </select>
           </div>
-          <div class="reg-group">
+
+          <div class="reg-group reg-full">
             <label class="reg-label">Blood Type</label>
             <select id="reg-blood" class="reg-input">
               <option value="">Unknown</option>
@@ -523,93 +559,150 @@
               <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
             </select>
           </div>
-        </div>
 
-        <!-- Row 3: Contact + Email -->
-        <div class="reg-group">
-          <label class="reg-label">Contact Number <span class="reg-req">*</span></label>
-          <input type="text" id="reg-contact" class="reg-input" placeholder="09XXXXXXXXX">
         </div>
-        <div class="reg-group">
-          <label class="reg-label">Email Address <span class="reg-req">*</span></label>
-          <input type="email" id="reg-email" class="reg-input" placeholder="juan@email.com">
-        </div>
-
-        <!-- Row 4: Address (full width) -->
-        <div class="reg-group reg-full">
-          <label class="reg-label">Complete Address <span class="reg-req">*</span></label>
-          <input type="text" id="reg-address" class="reg-input" placeholder="Street, Barangay, City, Province">
-        </div>
-
-        <!-- Section divider -->
-        <div class="reg-divider reg-full">
-          <span>Account Credentials</span>
-        </div>
-
-        <!-- Row 5: Password + Confirm -->
-        <div class="reg-group">
-          <label class="reg-label">Password <span class="reg-req">*</span></label>
-          <div class="reg-pw-wrap">
-            <input type="password" id="reg-password" class="reg-input" placeholder="Enter password">
-            <button type="button" class="lf-pw-eye" onclick="toggleRegPw('reg-password','reg-pw-eye1')" title="Show/hide">
-              <svg id="reg-pw-eye1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <div class="reg-hint">Minimum 8 characters</div>
-        </div>
-        <div class="reg-group">
-          <label class="reg-label">Confirm Password <span class="reg-req">*</span></label>
-          <div class="reg-pw-wrap">
-            <input type="password" id="reg-confirm" class="reg-input" placeholder="Repeat password">
-            <button type="button" class="lf-pw-eye" onclick="toggleRegPw('reg-confirm','reg-pw-eye2')" title="Show/hide">
-              <svg id="reg-pw-eye2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-          <div class="reg-hint" id="reg-confirm-hint"></div>
-        </div>
-
       </div>
 
-      <!-- QR notice -->
-      <div class="qr-notice">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:#E8760A;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h3v3h-3v-3h-3z"/></svg>
-        <p>A unique QR code will be generated for quick clinic check-in.</p>
+      <!-- ── Step 2: Contact ── -->
+      <div class="reg-step-panel" id="reg-panel-2" style="display:none">
+        <p class="reg-desc">How can we reach you?</p>
+        <div class="reg-form-grid">
+
+          <div class="reg-group">
+            <label class="reg-label">Contact Number <span class="reg-req">*</span></label>
+            <input type="text" id="reg-contact" class="reg-input" placeholder="09XXXXXXXXX" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')">
+          </div>
+          <div class="reg-group">
+            <label class="reg-label">Email Address <span class="reg-req">*</span></label>
+            <input type="email" id="reg-email" class="reg-input" placeholder="juan@email.com">
+          </div>
+
+          <div class="reg-group reg-full">
+            <label class="reg-label">Complete Address <span class="reg-req">*</span></label>
+            <input type="text" id="reg-address" class="reg-input" placeholder="Street, Barangay, City, Province">
+          </div>
+
+        </div>
       </div>
 
-      <!-- Terms & Conditions / Data Privacy Act agreement -->
-      <div class="reg-terms">
-        <input type="checkbox" id="reg-terms-agree" class="chk" disabled
-               title="Read the Terms & Conditions and Data Privacy Act first to unlock this checkbox">
-        <span>
-          I have read and agree to the
-          <a href="#" onclick="window.openTermsModal(); return false">Terms &amp; Conditions and Data Privacy Act</a>,
-          and I am entrusting my personal information and account credentials to Cana Optical Clinic
-          for the purpose of registration, appointment booking, and patient care.
-          <span class="reg-terms-hint" id="reg-terms-hint">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            You must open and read the Terms &amp; Conditions before this checkbox can be checked.
+      <!-- ── Step 3: Account & Terms ── -->
+      <form id="reg-account-form" onsubmit="handleRegister(); return false">
+      <input type="text" id="reg-hidden-email" autocomplete="username email" aria-hidden="true" tabindex="-1" style="display:none">
+      <div class="reg-step-panel" id="reg-panel-3" style="display:none">
+        <p class="reg-desc">Read and scroll through the Terms &amp; Conditions to unlock the checkbox.</p>
+        <div class="reg-form-grid">
+
+          <div class="reg-group">
+            <label class="reg-label">Password <span class="reg-req">*</span></label>
+            <div class="reg-pw-wrap">
+              <input type="password" id="reg-password" class="reg-input" placeholder="Enter password" autocomplete="new-password">
+              <button type="button" class="lf-pw-eye" onclick="toggleRegPw('reg-password','reg-pw-eye1')" title="Show/hide">
+                <svg id="reg-pw-eye1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="reg-hint">Minimum 8 characters</div>
+          </div>
+          <div class="reg-group">
+            <label class="reg-label">Confirm Password <span class="reg-req">*</span></label>
+            <div class="reg-pw-wrap">
+              <input type="password" id="reg-confirm" class="reg-input" placeholder="Repeat password" autocomplete="new-password">
+              <button type="button" class="lf-pw-eye" onclick="toggleRegPw('reg-confirm','reg-pw-eye2')" title="Show/hide">
+                <svg id="reg-pw-eye2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="reg-terms-box" id="reg-terms-box" onscroll="window._checkRegTermsScroll()">
+          <h4>1. Acceptance of Terms</h4>
+          <p>By creating a patient account with Cana Optical Clinic ("the Clinic") through Opticana, you agree to be bound by these Terms &amp; Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.</p>
+          <h4>2. Account Registration</h4>
+          <p>You must provide accurate, current, and complete information during registration. You are responsible for keeping your password confidential and for all activity under your account. Notify the Clinic immediately if you suspect unauthorized use.</p>
+          <h4>3. Your Patient QR Code</h4>
+          <p>Upon registration, a unique QR code is generated and linked to your patient record. Present this QR code at the clinic for fast, accurate check-in. Do not share it with anyone else — it provides access to your health information.</p>
+          <h4>4. Appointments</h4>
+          <p>Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The Clinic reserves the right to reschedule or decline requests when necessary.</p>
+          <h4>5. Use of the Platform</h4>
+          <p>You agree to use this system only for legitimate healthcare purposes related to your own care. Misuse — including attempting to access another patient's records or interfering with the system's normal operation — may result in account suspension.</p>
+          <h4>6. Data Privacy Act Notice (Republic Act No. 10173)</h4>
+          <p>In compliance with the Data Privacy Act of 2012 (RA 10173) and its Implementing Rules and Regulations, the Clinic collects the personal and sensitive personal information you provide during registration (e.g. name, date of birth, address, contact details) and through your subsequent care (e.g. examination results, diagnoses, prescriptions). This information is collected and processed solely for:</p>
+          <ul>
+            <li>Creating and maintaining your patient record</li>
+            <li>Scheduling and managing appointments</li>
+            <li>Providing optical examination, diagnosis, and treatment</li>
+            <li>Generating your patient identification QR code</li>
+            <li>Communicating with you regarding your account, appointments, or care</li>
+            <li>Complying with legal and regulatory requirements</li>
+          </ul>
+          <h4>7. Storage and Security</h4>
+          <p>Your data is stored on secured servers with access restricted to authorized clinic personnel (admin, staff, and your attending doctor) who need it to perform their duties. We apply reasonable organizational, physical, and technical safeguards to protect your information against unauthorized access, alteration, disclosure, or destruction.</p>
+          <h4>8. Data Sharing</h4>
+          <p>The Clinic does not sell or rent your personal information. Your data may only be shared with third parties when required by law, when necessary to provide your care (e.g. referrals), or with your explicit consent.</p>
+          <h4>9. Data Retention</h4>
+          <p>Your personal and health records are retained for as long as your account is active, and for the period required by applicable healthcare record-keeping regulations afterward, after which they are securely disposed of.</p>
+          <h4>10. Your Rights as a Data Subject</h4>
+          <p>Under the Data Privacy Act, you have the right to:</p>
+          <ul>
+            <li>Be informed of how your data is collected and processed</li>
+            <li>Access the personal data the Clinic holds about you</li>
+            <li>Request correction of inaccurate or outdated data</li>
+            <li>Object to or withdraw consent for processing, subject to legal or contractual restrictions</li>
+            <li>Request deletion of your data, where applicable</li>
+            <li>File a complaint with the National Privacy Commission (NPC)</li>
+          </ul>
+          <p>To exercise any of these rights, please contact the clinic directly using the contact details on our website.</p>
+          <h4>11. Consent</h4>
+          <p>By checking "I agree" and completing registration, you acknowledge that you have read and understood this notice, and you consent to the collection, use, storage, and processing of your personal and sensitive personal information as described above, for the purpose of receiving care from Cana Optical Clinic — and you are entrusting your credentials and personal information to the Clinic on that basis.</p>
+          <h4>12. Changes to this Notice</h4>
+          <p>The Clinic may update these Terms &amp; Conditions and this Data Privacy Notice from time to time. Continued use of your account after changes are posted constitutes acceptance of the revised terms.</p>
+        </div>
+
+        <div class="reg-terms">
+          <input type="checkbox" id="reg-terms-agree" class="chk" disabled
+                 title="Scroll through the Terms &amp; Conditions above to unlock this checkbox">
+          <span>
+            I have read and agree to the Terms &amp; Conditions and Data Privacy Act,
+            and I am entrusting my personal information and account credentials to Cana Optical Clinic
+            for the purpose of registration, appointment booking, and patient care.
+            <span class="reg-terms-hint" id="reg-terms-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Scroll to the bottom of the terms above to unlock this checkbox.
+            </span>
           </span>
-        </span>
+        </div>
+
+        <!-- QR notice -->
+        <div class="qr-notice" style="margin-top:14px;margin-bottom:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:#E8760A;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h3v3h-3v-3h-3z"/></svg>
+          <p>A unique QR code will be generated for quick clinic check-in.</p>
+        </div>
+
       </div>
 
       <!-- Error -->
-      <div id="reg-error" class="lf-error" style="display:none;margin-bottom:16px">
+      <div id="reg-error" class="lf-error" style="display:none;margin-top:14px;margin-bottom:4px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg>
         <span id="reg-error-msg">Please fill in all required fields.</span>
       </div>
 
       <!-- Actions -->
       <div class="reg-actions">
-        <button class="reg-back-btn" onclick="showLogin()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>
+        <button type="button" class="fp-back-link" id="reg-nav-back" onclick="window.regPrevStep()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
           Back to Login
         </button>
-        <button class="lf-btn" id="reg-submit-btn" style="width:auto;padding:10px 24px;margin-bottom:0;white-space:nowrap;font-size:0.85rem" onclick="handleRegister()">
+        <button type="button" class="reg-next-btn" id="reg-nav-next" onclick="window.regNextStep()">
+          Next
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button type="submit" form="reg-account-form" class="reg-next-btn" id="reg-submit-btn" style="display:none">
           Create Account
         </button>
       </div>
 
     </div>
+    </form>
 
   </div>
 </div>
@@ -665,6 +758,19 @@
 <!-- Modal root -->
 <div id="modal-root"></div>
 
+<script>
+  fetch('api/clinic/public.php?_t=' + Date.now()).then(function(r){return r.json()}).then(function(d){
+    if (!d || !d.success || !d.clinic) return
+    if (d.clinic.name) {
+      document.querySelectorAll('.brand-clinic-name').forEach(function(el){ el.textContent = d.clinic.name })
+      try { localStorage.setItem('_opticana_clinicName', d.clinic.name) } catch(_) {}
+    }
+    if (d.clinic.logoName) {
+      document.querySelectorAll('.brand-logo-name').forEach(function(el){ el.textContent = d.clinic.logoName })
+      try { localStorage.setItem('_opticana_logoName', d.clinic.logoName) } catch(_) {}
+    }
+  }).catch(function(){})
+</script>
 <script src="assets/js/clinic-data.js"></script>
 <script src="assets/js/analytics-data.js"></script>
 <script src="assets/js/db.js"></script>
@@ -674,6 +780,7 @@
 <script src="assets/js/sortable.js"></script>
 <script src="assets/js/router.js"></script>
 <script src="assets/js/pages.js"></script>
+<script src="api/badge-fix.php"></script>
 <script src="assets/js/main.js"></script>
 <script>
   // If navigated here with #register, set a flag so restoreSession()

@@ -19,7 +19,7 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $pdo  = getDB();
-    $rows = $pdo->query('SELECT * FROM clinic_services ORDER BY id')->fetchAll();
+    $rows = $pdo->query('SELECT * FROM clinic_services ORDER BY sort_order ASC, id ASC')->fetchAll();
 
     $services = array_map(function (array $r): array {
         return [
@@ -29,6 +29,7 @@ try {
             'duration'    => (int)$r['duration'],
             'status'      => $r['status'],
             'icon'        => $r['icon'],
+            'sortOrder'   => (int)$r['sort_order'],
         ];
     }, $rows);
 

@@ -1,9 +1,10 @@
 <?php
 // ================================================================
 //  OPTICANA — api/clinic/gallery.php
-//  GET (public)   — list {id, caption, sortOrder}
+//  GET (public)   — list {id, caption, filename, sortOrder}
 //  POST (admin)   — upload {imageData: base64DataUrl, caption}
 //  DELETE (admin) — remove {id}
+//  PATCH (admin)  — reorder {order: [id,...]}
 // ================================================================
 
 require_once '../../config/db.php';
@@ -11,24 +12,26 @@ require_once '../helpers.php';
 
 startSession();
 
+define('GALLERY_DIR', __DIR__ . '/../../assets/images/about/');
+
 try {
     $pdo = getDB();
 
     // ── GET — public ───────────────────────────────────────────
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        // Read optional max_photos limit from clinic_settings (column may not exist yet)
         $maxPhotos = 0;
         try {
             $cs = $pdo->query('SELECT gallery_max_photos FROM clinic_settings WHERE id = 1 LIMIT 1')->fetch();
             $maxPhotos = $cs ? max(0, (int)($cs['gallery_max_photos'] ?? 0)) : 0;
-        } catch (PDOException $e) { /* column not yet migrated — silently skip */ }
+        } catch (PDOException $e) {}
 
         $rows = [];
         try {
-            $sql  = 'SELECT id, caption, sort_order FROM about_gallery ORDER BY sort_order ASC, id ASC';
-            if ($maxPhotos > 0) $sql .= ' LIMIT ' . $maxPhotos;
+            $isAdmin = isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'admin';
+            $sql = 'SELECT id, caption, filename, sort_order FROM about_gallery ORDER BY sort_order ASC, id ASC';
+            if ($maxPhotos > 0 && !$isAdmin) $sql .= ' LIMIT ' . $maxPhotos;
             $rows = $pdo->query($sql)->fetchAll();
-        } catch (PDOException $e) { /* table not yet migrated */ }
+        } catch (PDOException $e) {}
 
         jsonResponse(['success' => true,
             'maxPhotos' => $maxPhotos ?: null,
@@ -36,11 +39,12 @@ try {
                 'id'        => (int)$r['id'],
                 'caption'   => $r['caption'],
                 'sortOrder' => (int)$r['sort_order'],
+                'filename'  => $r['filename'],
             ], $rows),
         ]);
     }
 
-    // ── POST / DELETE — admin only ─────────────────────────────
+    // ── POST / DELETE / PATCH — admin only ────────────────────
     if (!isset($_SESSION['user_id'])) {
         jsonResponse(['success' => false, 'message' => 'Not authenticated.'], 401);
     }
@@ -59,9 +63,10 @@ try {
         }
         $mimeType = $m[1];
 
-        $allowed = ['image/png', 'image/jpeg', 'image/svg+xml'];
+        $extMap  = ['image/png' => 'png', 'image/jpeg' => 'jpg'];
+        $allowed = array_keys($extMap);
         if (!in_array($mimeType, $allowed, true)) {
-            jsonResponse(['success' => false, 'message' => 'Only PNG, JPG or SVG files are accepted.']);
+            jsonResponse(['success' => false, 'message' => 'Only PNG or JPG files are accepted.']);
         }
 
         $binary = base64_decode($m[2]);
@@ -69,22 +74,36 @@ try {
             jsonResponse(['success' => false, 'message' => 'Could not decode file.']);
         }
 
-        $stmt = $pdo->prepare(
-            'INSERT INTO about_gallery (caption, image_data, mime_type, sort_order) VALUES (?, ?, ?, ?)'
-        );
-        $stmt->bindValue(1, $caption);
-        $stmt->bindValue(2, $binary, PDO::PARAM_LOB);
-        $stmt->bindValue(3, $mimeType);
-        $stmt->bindValue(4, $sortOrder, PDO::PARAM_INT);
-        $stmt->execute();
+        if (!is_dir(GALLERY_DIR)) mkdir(GALLERY_DIR, 0755, true);
 
-        jsonResponse(['success' => true, 'id' => (int)$pdo->lastInsertId()]);
+        $filename = 'photo_' . uniqid('', true) . '.' . $extMap[$mimeType];
+        if (file_put_contents(GALLERY_DIR . $filename, $binary) === false) {
+            jsonResponse(['success' => false, 'message' => 'Could not save file.']);
+        }
+
+        $stmt = $pdo->prepare(
+            'INSERT INTO about_gallery (caption, filename, sort_order) VALUES (?, ?, ?)'
+        );
+        $stmt->execute([$caption, $filename, $sortOrder]);
+
+        jsonResponse(['success' => true, 'id' => (int)$pdo->lastInsertId(), 'filename' => $filename]);
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         $id = (int)(getBody()['id'] ?? 0);
         if (!$id) jsonResponse(['success' => false, 'message' => 'ID required.']);
+
+        $row = $pdo->prepare('SELECT filename FROM about_gallery WHERE id = ?');
+        $row->execute([$id]);
+        $photo = $row->fetch();
+
         $pdo->prepare('DELETE FROM about_gallery WHERE id = ?')->execute([$id]);
+
+        if ($photo && $photo['filename']) {
+            $path = GALLERY_DIR . basename($photo['filename']);
+            if (file_exists($path)) unlink($path);
+        }
+
         jsonResponse(['success' => true]);
     }
 

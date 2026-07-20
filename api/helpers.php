@@ -183,7 +183,7 @@ function checkApptConflict(PDO $pdo, string $doctorId, string $date, string $tim
     $newMins = apptTimeToMinutes($time);
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $existing) {
         $existMins = apptTimeToMinutes($existing);
-        if ($existMins >= 0 && $newMins >= 0 && abs($newMins - $existMins) < $durationMin + 15) {
+        if ($existMins >= 0 && $newMins >= 0 && abs($newMins - $existMins) < $durationMin) {
             return $existing;
         }
     }

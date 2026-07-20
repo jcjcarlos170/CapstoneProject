@@ -19,6 +19,7 @@ if (!isset($_SESSION['user_id'])) {
 // Maps camelCase request/response keys to snake_case DB columns
 const FIELD_MAP = [
     'name'                     => 'name',
+    'logoName'                 => 'logo_name',
     'tagline'                  => 'tagline',
     'address'                  => 'address',
     'phone'                    => 'phone',
@@ -27,6 +28,11 @@ const FIELD_MAP = [
     'tinNo'                    => 'tin_no',
     'phicNo'                   => 'phic_no',
     'logoUrl'                  => 'logo_url',
+    'foundedYear'              => 'founded_year',
+    'heroUrl'                  => 'hero_url',
+    'mapLat'                   => 'map_lat',
+    'mapLng'                   => 'map_lng',
+    'mapEmbedUrl'              => 'map_embed_url',
     'galleryMaxPhotos'         => 'gallery_max_photos',
     'defaultDuration'          => 'default_duration',
     'maxAdvanceBooking'        => 'max_advance_booking',
@@ -42,6 +48,7 @@ const FIELD_MAP = [
 function rowToResponse(array $r): array {
     return [
         'name'                     => $r['name'],
+        'logoName'                 => $r['logo_name'],
         'tagline'                  => $r['tagline'],
         'address'                  => $r['address'],
         'phone'                    => $r['phone'],
@@ -50,7 +57,12 @@ function rowToResponse(array $r): array {
         'hours'                    => $r['hours'],
         'tinNo'                    => $r['tin_no'],
         'phicNo'                   => $r['phic_no'],
+        'foundedYear'              => $r['founded_year'] ?? null,
         'logoUrl'                  => $r['logo_url'],
+        'heroUrl'                  => $r['hero_url'] ?? null,
+        'mapLat'                   => isset($r['map_lat']) ? (float)$r['map_lat'] : null,
+        'mapLng'                   => isset($r['map_lng']) ? (float)$r['map_lng'] : null,
+        'mapEmbedUrl'              => $r['map_embed_url'] ?? null,
         'galleryMaxPhotos'         => isset($r['gallery_max_photos']) ? (int)$r['gallery_max_photos'] : null,
         'defaultDuration'          => $r['default_duration'],
         'maxAdvanceBooking'        => $r['max_advance_booking'],

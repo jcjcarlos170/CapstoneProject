@@ -43,7 +43,12 @@
 --    ALTER TABLE `contact_messages` ADD COLUMN `replied_at` DATETIME NULL DEFAULT NULL;
 --    ALTER TABLE `contact_messages` ADD INDEX `idx_email` (`email`);
 --    ALTER TABLE `contact_messages` ADD COLUMN `archived_at` DATETIME NULL DEFAULT NULL;
+--    ALTER TABLE `clinic_settings` ADD COLUMN `logo_name` VARCHAR(100) NULL DEFAULT NULL AFTER `name`;
+--    UPDATE `clinic_settings` SET `logo_name` = 'OPTICANA' WHERE id = 1 AND (logo_name IS NULL OR logo_name = '');
 --    ALTER TABLE `clinic_settings` ADD COLUMN `logo_url` VARCHAR(255) NULL DEFAULT NULL AFTER `phic_no`;
+--    ALTER TABLE `clinic_settings` ADD COLUMN `hero_url` VARCHAR(255) NULL DEFAULT NULL AFTER `logo_url`;
+--    ALTER TABLE `clinic_settings` ADD COLUMN `map_lat` DECIMAL(10,7) NULL DEFAULT NULL AFTER `hero_url`;
+--    ALTER TABLE `clinic_settings` ADD COLUMN `map_lng` DECIMAL(10,7) NULL DEFAULT NULL AFTER `map_lat`;
 --    CREATE TABLE IF NOT EXISTS `sessions` (
 --      `id`          VARCHAR(128) NOT NULL,
 --      `data`        MEDIUMTEXT   NOT NULL,
@@ -131,10 +136,12 @@ CREATE TABLE IF NOT EXISTS `doctors` (
   `first_name`     VARCHAR(100) NOT NULL,
   `last_name`      VARCHAR(100) NOT NULL,
   `specialization` VARCHAR(100) NOT NULL DEFAULT 'Optometrist',
+  `degree`         VARCHAR(30)  NOT NULL DEFAULT 'OD',
   `prc_license`    VARCHAR(50)  NULL DEFAULT NULL,
   `contact`        VARCHAR(20)  DEFAULT NULL,
   `available`      TINYINT(1)   NOT NULL DEFAULT 1,
   `work_hours`     VARCHAR(100) DEFAULT NULL,
+  `sort_order`     SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   `status`         ENUM('active','inactive') NOT NULL DEFAULT 'active',
   `archived_at`    DATETIME     NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -199,9 +206,10 @@ CREATE TABLE IF NOT EXISTS `appointments` (
   `date`                 DATE         NOT NULL,
   `time`                 VARCHAR(20)  NOT NULL,
   `type`                 VARCHAR(100) DEFAULT NULL,
-  `status`               ENUM('pending','approved','cancelled','disapproved','completed') NOT NULL DEFAULT 'pending',
+  `status`               ENUM('pending','approved','cancelled','disapproved','completed','no-show') NOT NULL DEFAULT 'pending',
   `notes`                TEXT         DEFAULT NULL,
   `cancellation_reason`  TEXT         DEFAULT NULL,
+  `disapproval_reason`   TEXT         DEFAULT NULL,
   `reschedule_note`      TEXT         DEFAULT NULL,
   `reschedule_request`   TEXT         DEFAULT NULL,   -- JSON: {reason,preferredDate,requestedAt}
   PRIMARY KEY (`id`),
@@ -336,6 +344,7 @@ CREATE TABLE IF NOT EXISTS `clinic_services` (
   `duration`    SMALLINT UNSIGNED NOT NULL DEFAULT 30,
   `status`      ENUM('active','inactive') NOT NULL DEFAULT 'active',
   `icon`        VARCHAR(50)  DEFAULT NULL,
+  `sort_order`  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -362,6 +371,7 @@ CREATE TABLE IF NOT EXISTS `clinic_settings` (
   `lunch_break`                   TINYINT(1)   NOT NULL DEFAULT 1,
   `clinic_days`                   VARCHAR(255)      NOT NULL DEFAULT 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
   `gallery_max_photos`            TINYINT UNSIGNED  NULL     DEFAULT NULL,
+  `founded_year`                  SMALLINT          NULL     DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -447,8 +457,7 @@ CREATE TABLE IF NOT EXISTS `rate_limits` (
 CREATE TABLE IF NOT EXISTS `about_gallery` (
   `id`         INT UNSIGNED     NOT NULL AUTO_INCREMENT,
   `caption`    VARCHAR(255)     NULL     DEFAULT NULL,
-  `image_data` MEDIUMBLOB       NOT NULL,
-  `mime_type`  VARCHAR(50)      NOT NULL DEFAULT 'image/jpeg',
+  `filename`   VARCHAR(255)     NOT NULL DEFAULT '',
   `sort_order` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -456,5 +465,12 @@ CREATE TABLE IF NOT EXISTS `about_gallery` (
 
 -- ── Migrations (run once on existing databases) ───────────────────
 --    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `gallery_max_photos` TINYINT UNSIGNED NULL DEFAULT NULL AFTER `clinic_days`;
+--    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `founded_year` SMALLINT NULL DEFAULT NULL AFTER `gallery_max_photos`;
+--    ALTER TABLE `clinic_services` ADD COLUMN IF NOT EXISTS `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `icon`;
+--    UPDATE `clinic_services` SET sort_order = id WHERE sort_order = 0;
+--    ALTER TABLE `about_gallery` ADD COLUMN `filename` VARCHAR(255) NOT NULL DEFAULT '' AFTER `caption`, DROP COLUMN `image_data`, DROP COLUMN `mime_type`;
+--    ALTER TABLE `doctors` ADD COLUMN IF NOT EXISTS `degree` VARCHAR(30) NOT NULL DEFAULT 'OD' AFTER `specialization`;
+--    ALTER TABLE `doctors` ADD COLUMN IF NOT EXISTS `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `work_hours`;
+--    ALTER TABLE `appointments` MODIFY COLUMN `status` ENUM('pending','approved','cancelled','disapproved','completed','no-show') NOT NULL DEFAULT 'pending';
 
 SET FOREIGN_KEY_CHECKS = 1;

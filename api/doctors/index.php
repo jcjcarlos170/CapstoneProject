@@ -39,7 +39,7 @@ try {
          WHERE d.archived_at IS NULL
          GROUP BY d.id, d.first_name, d.last_name, d.specialization,
                   d.work_hours, d.available, d.status, d.contact, u.id, u.email
-         ORDER BY d.first_name'
+         ORDER BY d.sort_order ASC, d.first_name ASC'
     )->fetchAll();
 
     // Fetch photos separately so a missing column never breaks this endpoint
@@ -53,12 +53,18 @@ try {
         }
     } catch (PDOException) { /* photo_url column not yet migrated — skip */ }
 
-    // Fetch PRC license separately so a missing column never breaks this endpoint
+    // Fetch PRC license and degree separately so missing columns never break this endpoint
     $licenseMap = [];
+    $degreeMap  = [];
+    $orderMap   = [];
     try {
-        $lRows = $pdo->query('SELECT id, prc_license FROM doctors')->fetchAll();
-        foreach ($lRows as $lr) { $licenseMap[$lr['id']] = $lr['prc_license']; }
-    } catch (PDOException) { /* prc_license column not yet migrated — skip */ }
+        $lRows = $pdo->query('SELECT id, prc_license, degree, sort_order FROM doctors')->fetchAll();
+        foreach ($lRows as $lr) {
+            $licenseMap[$lr['id']] = $lr['prc_license'];
+            $degreeMap[$lr['id']]  = $lr['degree'] ?? 'OD';
+            $orderMap[$lr['id']]   = (int)($lr['sort_order'] ?? 0);
+        }
+    } catch (PDOException) { /* columns not yet migrated — skip */ }
 
     // Blocked dates — one-off unavailability, separate from the weekly pattern.
     // Only future/today dates are useful to the frontend calendars.
@@ -79,7 +85,9 @@ try {
         'lastName'       => $r['last_name'],
         'email'          => $r['email'] ?? '',
         'specialization' => $r['specialization'] ?: 'Optometrist',
+        'degree'         => $degreeMap[$r['id']]  ?? 'OD',
         'prcLicense'     => $licenseMap[$r['id']] ?? '',
+        'sortOrder'      => $orderMap[$r['id']]   ?? 0,
         'workHours'      => $r['work_hours'] ?: '',
         'hours'          => $r['work_hours'] ?: '',
         'days'           => $r['days'] ? explode(',', $r['days']) : [],

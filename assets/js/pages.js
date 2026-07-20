@@ -7,8 +7,16 @@
 // ── Shared helpers ──────────────────────────────────────────────
 function ic(name, cls = 'icon')  { return window.icon(name, cls) }
 function st()                    { return window.state }
+function emptyState(iconName, title, desc) {
+  return `<div class="empty-state">
+    <div class="empty-state-desc">${desc}</div>
+  </div>`
+}
 
 function badge(status) {
+  if (status === 'no-show') {
+    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:9999px;font-family:'Poppins',sans-serif;font-size:0.72rem;font-weight:500;white-space:nowrap;background:#EDE9FE;color:#6D28D9">No-show</span>`
+  }
   const map = {
     pending:     'badge-pending',     approved:    'badge-approved',
     cancelled:   'badge-cancelled',   disapproved: 'badge-disapproved',
@@ -29,6 +37,17 @@ function avatar(name, cls = 'patient-avatar', photoUrl = null) {
   if (photoUrl) return `<div class="${cls}" style="padding:0;overflow:hidden;background:transparent"><img src="${photoUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
   return `<div class="${cls}">${initials(name)}</div>`
 }
+
+function dayPills(days, size = 'md') {
+  if (!days || !days.length) return ''
+  const gap  = size === 'sm' ? '3px' : '5px'
+  const top  = size === 'sm' ? '4px' : '6px'
+  const pill = size === 'sm'
+    ? 'display:inline-flex;align-items:center;background:#FFF7ED;color:#B45309;font-size:.58rem;font-weight:700;padding:2px 7px;border-radius:99px;border:1px solid rgba(232,137,28,.28);line-height:1.5;letter-spacing:.01em;white-space:nowrap'
+    : 'display:inline-flex;align-items:center;background:#FFF7ED;color:#B45309;font-size:.67rem;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid rgba(232,137,28,.3);line-height:1.5;letter-spacing:.01em;white-space:nowrap'
+  return `<div style="display:flex;flex-wrap:wrap;gap:${gap};margin-top:${top}">${days.map(d=>`<span style="${pill}">${d}</span>`).join('')}</div>`
+}
+window.dayPills = dayPills
 
 function fmtDate(d) {
   if (!d || d === '—') return '—'
@@ -97,8 +116,7 @@ function apptActions(a, role) {
       <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
       ${a.status === 'pending' ? `
         <button class="btn-icon" title="Approve" style="color:#059669" onclick="window.approveAppt('${a.id}')">${ic('check','icon-sm')}</button>
-        <button class="btn-icon" title="Disapprove" style="color:#D97706" onclick="window.disapproveAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>
-        <button class="btn-icon" title="Reschedule" onclick="window.rescheduleAppt('${a.id}')">${ic('refresh-cw','icon-sm')}</button>
+        <button class="btn-icon" title="Disapprove" style="color:#991b1b" onclick="window.confirmDisapproveAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>
         <button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x','icon-sm')}</button>` : ''}
       ${a.status === 'approved' ? `
         <button class="btn-icon" title="Mark Completed" style="color:#059669" onclick="window.markApptCompleted('${a.id}')">${ic('check-circle','icon-sm')}</button>
@@ -107,36 +125,47 @@ function apptActions(a, role) {
     </div>`
 }
 
-function appointmentsTable(list, role, tbodyId = 'appt-tbody') {
-  const cols = role !== 'patient' ? 7 : 6
+function appointmentsTable(list, role, tbodyId = 'appt-tbody', hidePatient = false, activeFilter = null) {
+  if (!list.length) {
+    const emptyMsg = activeFilter === 'today'  ? 'No appointments scheduled for today.'
+      : activeFilter === 'all'                 ? 'No appointments have been recorded yet.'
+      : activeFilter                           ? `No ${activeFilter} appointments found.`
+      : 'No appointments scheduled.'
+    return emptyState('calendar', 'No appointments found', emptyMsg)
+  }
+  const hasActions = role !== 'patient'
   return `
     <table class="tbl">
       <colgroup>
-        <col style="width:6%"><col style="width:18%"><col style="width:18%">
-        <col style="width:12%"><col style="width:10%"><col style="width:16%">
-        ${role !== 'patient' ? '<col style="width:20%">' : ''}
+        <col style="width:7%">
+        ${hidePatient ? '' : '<col style="width:18%">'}
+        <col style="width:${hidePatient?'20%':'15%'}">
+        <col style="width:12%"><col style="width:10%"><col style="width:${hidePatient?'18%':'11%'}">
+        <col style="width:${hidePatient?(hasActions?'14%':'16%'):(hasActions?'13%':'15%')}">
+        ${hasActions ? '<col style="width:14%">' : ''}
       </colgroup>
       <thead><tr>
         <th>ID</th>
-        <th data-sort-key="patient" data-sort-type="text">Patient</th>
+        ${hidePatient ? '' : '<th data-sort-key="patient" data-sort-type="text">Patient</th>'}
         <th>Doctor</th>
         <th data-sort-key="date" data-sort-type="date">Date</th>
-        <th>Time</th><th>Type</th>
-        ${role !== 'patient' ? '<th>Actions</th>' : ''}
+        <th>Time</th><th>Type</th><th>Status</th>
+        ${hasActions ? '<th>Actions</th>' : ''}
       </tr></thead>
       <tbody id="${tbodyId}">
-        ${list.length ? list.map(a => `<tr data-search="${(a.patientName||'').toLowerCase()} ${String(a.patientId||'').toLowerCase()} ${(a.doctorName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-appt-status="${a.status}" data-sort-patient="${(a.patientName||'').toLowerCase()}" data-sort-date="${a.date}">
+        ${list.map(a => `<tr data-search="${(a.patientName||'').toLowerCase()} ${String(a.patientId||'').toLowerCase()} ${(a.doctorName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-appt-status="${a.status}" data-sort-patient="${(a.patientName||'').toLowerCase()}" data-sort-date="${a.date}">
           <td><code style="font-size:.75rem;color:#9CA3AF">${a.id}</code></td>
-          <td><div class="patient-name-cell">
+          ${hidePatient ? '' : `<td><div class="patient-name-cell">
             ${avatar(a.patientName, 'patient-avatar', patients.find(p=>p.id===a.patientId)?.photoUrl || null)}
             <div class="patient-name-info"><strong>${a.patientName}</strong><span>${a.patientId}</span></div>
-          </div></td>
+          </div></td>`}
           <td style="font-size:.82rem">${a.doctorName}</td>
           <td style="font-size:.82rem">${fmtDate(a.date)}</td>
           <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
           <td style="font-size:.82rem">${a.type}</td>
-          ${role !== 'patient' ? `<td>${apptActions(a, role)}</td>` : ''}
-        </tr>`).join('') : emptyRow(cols, 'calendar', 'No appointments found', 'Appointments will appear here once scheduled.')}
+          <td>${badge(a.status)}</td>
+          ${hasActions ? `<td>${apptActions(a, role)}</td>` : ''}
+        </tr>`).join('')}
       </tbody>
     </table>`
 }
@@ -152,7 +181,7 @@ function pageAdminDashboard() {
   }
 
   // ── Real stat values ──────────────────────────────────────────
-  const _todayStr   = new Date().toISOString().split('T')[0]
+  const _todayStr   = localDateStr()
   const _todayCnt   = appointments.filter(a => a.date === _todayStr && !['cancelled','disapproved'].includes(a.status)).length
   const _completedCnt = appointments.filter(a => a.status === 'completed').length
   const _cancelledCnt = appointments.filter(a => a.status === 'cancelled').length
@@ -390,18 +419,29 @@ function pageAdminDashboard() {
 // ════════════════════════════════════════════════════════════════
 function pageAdminUsers() {
   const allUsers = getAllUsers()
-  const filter   = st().params.userFilter || 'all'
+  const filter   = st().filter || 'all'
 
   const filtered = filter === 'all' ? allUsers : allUsers.filter(u => u.role.toLowerCase() === filter)
 
   window.state.afterRender = () => { window.initPagination('users-tbody'); window.initSortable('users-tbody') }
-  const tabs = ['all','admin','staff','doctor','patient']
+
+  const titleMap = {
+    all: 'User Management', admin: 'Admin Users', staff: 'Staff Users',
+    doctor: 'Doctor Users', patient: 'Patient Users'
+  }
+  const subtitleMap = {
+    all: 'Manage system accounts and access roles',
+    admin: 'Manage administrator accounts',
+    staff: 'Manage staff accounts',
+    doctor: 'Manage doctor accounts',
+    patient: 'Manage patient accounts'
+  }
 
   return `
   <div class="page-header">
     <div class="page-header-left">
-      <h1 class="page-title">User Management</h1>
-      <p class="page-subtitle">Manage system accounts and access roles</p>
+      <h1 class="page-title">${titleMap[filter] || 'User Management'}</h1>
+      <p class="page-subtitle">${subtitleMap[filter] || 'Manage system accounts and access roles'}</p>
     </div>
     <button class="btn-primary" onclick="window.openAddUserModal()">
       ${ic('plus','icon-sm')} Add User
@@ -409,16 +449,6 @@ function pageAdminUsers() {
   </div>
   <div class="page-body">
     <div class="table-wrap">
-      <div class="filter-tabs">
-        ${tabs.map(t => `
-          <button class="filter-tab${filter===t?' active':''}"
-                  onclick="window.navigate('admin-users',{userFilter:'${t}'})">
-            ${t.charAt(0).toUpperCase()+t.slice(1)}
-            <span style="margin-left:4px;font-size:.7rem;color:${filter===t?'#E8760A':'#9CA3AF'}">
-              (${t==='all'?allUsers.length:allUsers.filter(u=>u.role.toLowerCase()===t).length})
-            </span>
-          </button>`).join('')}
-      </div>
       <div class="table-toolbar">
         <span class="table-title">${filtered.length} user${filtered.length!==1?'s':''}</span>
         <div class="table-actions">
@@ -429,7 +459,7 @@ function pageAdminUsers() {
           </div>
         </div>
       </div>
-      <table class="tbl">
+      ${filtered.length ? `<table class="tbl">
         <colgroup>
           <col style="width:22%"><col style="width:26%"><col style="width:14%">
           <col style="width:12%"><col style="width:10%"><col style="width:16%">
@@ -439,7 +469,7 @@ function pageAdminUsers() {
           <th>Email</th><th>Contact</th><th>Role</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="users-tbody">
-          ${filtered.length ? filtered.map(u => `<tr data-search="${(u.name||'').toLowerCase()} ${(u.email||'').toLowerCase()}" data-sort-name="${(u.name||'').toLowerCase()}">
+          ${filtered.map(u => `<tr data-search="${(u.name||'').toLowerCase()} ${(u.email||'').toLowerCase()}" data-sort-name="${(u.name||'').toLowerCase()}">
             <td><div class="patient-name-cell">
               ${avatar(u.name, 'patient-avatar', u.photoUrl || null)}
               <div class="patient-name-info"><strong>${u.name}</strong><span>${u.id}</span></div>
@@ -452,9 +482,9 @@ function pageAdminUsers() {
               <button class="btn-icon" title="Edit" onclick="window.editUserModal('${u.id}','${u.role}')">${ic('edit','icon-sm')}</button>
               <button class="btn-icon" title="Archive" style="color:#d97706;border-color:#fef3c7" onclick="window.archiveUserConfirm('${u.id}','${(u.name||'').replace(/'/g,"\\'")}')"> ${ic('archive','icon-sm')}</button>
             </div></td>
-          </tr>`).join('') : emptyRow(6, 'users', 'No users found', 'Add a user or adjust your filter.')}
+          </tr>`).join('')}
         </tbody>
-      </table>
+      </table>` : `<div class="table-empty">No users found.</div>`}
     </div>
   </div>`
 }
@@ -465,42 +495,49 @@ function pageAdminUsers() {
 function pageAppointments() {
   const { role, filter, user } = st()
 
-  // Default to 'pending' when no filter is set (or 'all')
-  const activeFilter = (filter && filter !== 'all') ? filter : 'pending'
-  // Sync state so sidebar highlights the correct sub-item
-  if (activeFilter !== filter) window.state.filter = activeFilter
+  const activeFilter = filter || 'all'
 
   let list = [...appointments]
   if (role === 'doctor') list = list.filter(a => a.doctorId === user.id)
 
   if (activeFilter === 'today') {
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = localDateStr()
     list = list.filter(a => a.date === todayStr && !['cancelled', 'disapproved'].includes(a.status))
-  } else {
+  } else if (activeFilter !== 'all') {
     list = list.filter(a => a.status === activeFilter)
   }
 
+  if (activeFilter === 'today') {
+    list.sort((a, b) => a.time.localeCompare(b.time))
+  } else {
+    list.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
+  }
+
   const titleMap = {
+    all:         'All Appointments',
     today:       "Today's Appointments",
     pending:     'Pending Appointments',
     approved:    'Approved Appointments',
     cancelled:   'Cancelled Appointments',
     disapproved: 'Disapproved Appointments',
-    completed:   'Completed Appointments'
+    completed:   'Completed Appointments',
+    'no-show':   'No-show Appointments'
   }
   const subtitleMap = {
+    all:         'All appointments across every status',
     today:       "View appointments scheduled for today",
     pending:     'Review and manage pending appointment requests',
     approved:    'View and manage approved appointments',
     cancelled:   'View cancelled appointment records',
     disapproved: 'View disapproved appointment records',
-    completed:   'View completed appointment records'
+    completed:   'View completed appointment records',
+    'no-show':   'Appointments that were not attended after approval'
   }
 
   const title    = role === 'doctor' ? 'My Patient Appointments' : (titleMap[activeFilter] || 'Appointments')
   const subtitle = role === 'doctor' ? 'Appointments assigned to you' : (subtitleMap[activeFilter] || 'Manage and track appointment requests')
 
-  window.state.afterRender = () => { window.initPagination('appt-tbody'); window.initSortable('appt-tbody') }
+  window.state.afterRender = () => { window.initPagination('appt-tbody'); window.initSortable('appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1 }) }
 
   return `
   <div class="page-header">
@@ -522,7 +559,7 @@ function pageAppointments() {
           </div>
         </div>
       </div>
-      ${appointmentsTable(list, role)}
+      ${appointmentsTable(list, role, 'appt-tbody', false, activeFilter)}
     </div>
   </div>`
 }
@@ -573,7 +610,7 @@ function pagePatientList() {
           </div>
         </div>
       </div>
-      <table class="tbl">
+      ${list.length ? `<table class="tbl">
         <colgroup>
           <col style="width:22%"><col style="width:7%"><col style="width:9%">
           <col style="width:14%"><col style="width:14%"><col style="width:10%"><col style="width:24%">
@@ -581,11 +618,11 @@ function pagePatientList() {
         <thead><tr>
           <th data-sort-key="name" data-sort-type="text">Patient</th>
           <th>Age</th><th>Gender</th><th>Contact</th>
-          <th data-sort-key="visit" data-sort-type="date">Last Visit</th>
+          <th data-sort-key="visit" data-sort-type="date">Last visit</th>
           <th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="patients-tbody">
-          ${list.length ? list.map(p => `<tr data-search="${(p.name||'').toLowerCase()} ${String(p.id||'').toLowerCase()} ${(p.contact||'').toLowerCase()}" data-sort-name="${(p.name||'').toLowerCase()}" data-sort-visit="${p.lastVisit && p.lastVisit !== '—' ? p.lastVisit : ''}">
+          ${list.map(p => `<tr data-search="${(p.name||'').toLowerCase()} ${String(p.id||'').toLowerCase()} ${(p.contact||'').toLowerCase()}" data-sort-name="${(p.name||'').toLowerCase()}" data-sort-visit="${p.lastVisit && p.lastVisit !== '—' ? p.lastVisit : ''}">
             <td><div class="patient-name-cell">
               ${avatar(p.name, 'patient-avatar', p.photoUrl || null)}
               <div class="patient-name-info"><strong>${p.name}</strong><span>${p.id}</span></div>
@@ -610,9 +647,9 @@ function pagePatientList() {
                 ${ic('archive','icon-sm')}
               </button>` : ''}
             </div></td>
-          </tr>`).join('') : emptyRow(7, 'users', 'No patients found', 'Add a patient or adjust your search.')}
+          </tr>`).join('')}
         </tbody>
-      </table>
+      </table>` : `<div class="table-empty">No patients found.</div>`}
     </div>
   </div>`
 }
@@ -663,7 +700,8 @@ function pagePatientView() {
           <td style="font-size:.75rem;color:#6B7280">${c.remarks}</td>
         </tr>`).join('')}
       </tbody>
-    </table></div>` : `<div class="table-empty">No consultation records.</div>`
+    </table></div>` : `
+  ${emptyState('message-square', 'No consultation records', 'No consultation records on file.')}`
 
   // ── Prescriptions panel ──────────────────────────────────────
   const rxList = p.prescriptions || []
@@ -690,7 +728,8 @@ function pagePatientView() {
           <td><button class="btn-icon" title="Print" onclick="window.print()">${ic('printer','icon-sm')}</button></td>
         </tr>`).join('')}
       </tbody>
-    </table></div>` : `<div class="table-empty">No prescriptions on file. Prescription records are created during optical examinations.</div>`
+    </table></div>` : `
+  ${emptyState('file-text', 'No prescriptions on file', 'No prescriptions on file.')}`
 
   // ── Examinations nested in consultations ─────────────────────
   const examsContent = p.examinations.length ? p.examinations.map(e => `
@@ -721,7 +760,7 @@ function pagePatientView() {
       <div style="font-size:.78rem;color:#374151"><strong>Diagnosis:</strong> ${e.diagnosis}</div>
       <div style="font-size:.78rem;color:#374151"><strong>Recommendation:</strong> ${e.recommendation}</div>
       <div style="font-size:.78rem;color:#9CA3AF;margin-top:4px">${e.remarks}</div>
-    </div>`).join('') : `<div class="table-empty">No examination records yet. Records are created when a doctor completes a patient consultation.</div>`
+    </div>`).join('') : emptyState('eye', 'No examination records', 'No examination records on file.')
 
   return `
   <div class="page-header">
@@ -734,11 +773,11 @@ function pagePatientView() {
         <p class="page-subtitle">${p.id} &bull; Registered ${fmtDate(p.registeredDate)}</p>
       </div>
     </div>
-    ${canEdit ? `<div style="display:flex;gap:8px">
+    ${canEdit ? `<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
       <button class="btn-secondary" onclick="window.openEditPatientModal('${p.id}')">
         ${ic('edit','icon-sm')} Edit Profile
       </button>
-      <button class="btn-primary" onclick="window.navigate('appointments',{filter:'all'})">
+      <button class="btn-primary" onclick="window.openCreateApptModal('${p.id}')">
         ${ic('calendar','icon-sm')} Schedule Appointment
       </button>
     </div>` : ''}
@@ -748,35 +787,37 @@ function pagePatientView() {
 
     <!-- ── Profile Header Card ─────────────────────────────── -->
     <div class="card" style="margin-bottom:20px;overflow:hidden">
-      <div style="display:flex;gap:24px;padding:24px;flex-wrap:wrap;align-items:flex-start">
+      <div class="patient-profile-row">
 
         <!-- Left: Avatar + QR -->
-        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;min-width:140px">
-          <div style="width:96px;height:96px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);
-                      display:flex;align-items:center;justify-content:center;
+        <div class="patient-avatar-col">
+          <div style="width:96px;height:96px;border-radius:50%;background:#E8760A;
+                      display:flex;align-items:center;justify-content:center;flex-shrink:0;
                       font-size:1.8rem;font-weight:800;color:#fff;letter-spacing:-.02em;
-                      box-shadow:0 4px 16px rgba(232,118,10,.35);overflow:hidden">
+                      overflow:hidden">
             ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}
           </div>
-          <div style="border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);border:1px solid #e5e7eb;">
-            ${window.mockQRSvg(p.qrData, 120)}
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);border:1px solid #e5e7eb;">
+              ${window.mockQRSvg(p.qrData, 96)}
+            </div>
+            <button class="btn-secondary" style="font-size:.72rem;padding:4px 10px;justify-content:center"
+                    onclick="window.showPatientQRModal('${p.id}')">
+              ${ic('printer','icon-sm')} Print QR
+            </button>
           </div>
-          <button class="btn-secondary" style="font-size:.72rem;padding:4px 10px;justify-content:center"
-                  onclick="window.showPatientQRModal('${p.id}')">
-            ${ic('printer','icon-sm')} Print QR
-          </button>
         </div>
 
         <!-- Right: Patient info -->
-        <div style="flex:1;min-width:220px">
+        <div class="patient-info-col">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
-            <div style="font-size:1.5rem;font-weight:800;color:#1C1C1C;letter-spacing:-.02em">${p.name}</div>
+            <div style="font-size:1.4rem;font-weight:800;color:#1C1C1C;letter-spacing:-.02em">${p.name}</div>
             ${badge(pStatus)}
           </div>
-          <div style="font-size:.82rem;color:#6B7280;margin-bottom:16px">
+          <div style="font-size:.82rem;color:#6B7280;margin-bottom:14px">
             Patient ID: <strong style="color:#1C1C1C;font-family:monospace">${p.id}</strong>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+          <div class="patient-info-chips">
             ${[
               [ic('user','icon-sm'), 'Age / Gender',  `${p.age} yrs, ${p.gender}`],
               [ic('phone','icon-sm'),'Contact',        p.contact],
@@ -786,16 +827,16 @@ function pagePatientView() {
               [ic('activity','icon-sm'),'Blood Type',  p.bloodType],
             ].map(([icn,lbl,val]) => `
               <div style="background:#F9FAFB;border-radius:8px;padding:10px 12px">
-                <div style="display:flex;align-items:center;gap:6px;font-size:.68rem;color:#9CA3AF;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em">
+                <div style="display:flex;align-items:center;gap:5px;font-size:.65rem;color:#9CA3AF;margin-bottom:3px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">
                   ${icn} ${lbl}
                 </div>
-                <div style="font-size:.84rem;font-weight:600;color:#1C1C1C">${val}</div>
+                <div style="font-size:.83rem;font-weight:600;color:#1C1C1C">${val}</div>
               </div>`).join('')}
           </div>
         </div>
 
         <!-- Stats strip -->
-        <div style="display:flex;flex-direction:column;gap:8px;min-width:120px">
+        <div class="patient-stats-col">
           ${[
             ['Appointments', patientAppts.length, '#E8760A'],
             ['Consultations', p.consultations.length, '#059669'],
@@ -825,10 +866,10 @@ function pagePatientView() {
                   onclick="window.switchPatientTab('${key}')">${lbl}</button>`).join('')}
       </div>
 
-      <div style="padding:20px">
+      <div class="patient-tab-body">
 
         ${panel('personal', `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="profile-two-col" style="gap:0 32px">
             ${[
               ['Date of Birth',   fmtDate(p.dob)],
               ['Age',             `${p.age} years old`],
@@ -848,28 +889,22 @@ function pagePatientView() {
           </div>`, true)}
 
         ${panel('history', `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="profile-two-col">
             <div>
-              <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#E8760A;margin-bottom:12px">
-                ${ic('activity','icon-sm')} Medical History
-              </div>
+              <div class="patient-section-label">${ic('activity','icon-sm')} Medical History</div>
               <div style="background:#FFFBF5;border:1px solid #FFE4C0;border-radius:8px;padding:14px;font-size:.85rem;line-height:1.7;color:#374151">
                 ${p.medicalHistory || 'No medical history on record.'}
               </div>
             </div>
             <div>
-              <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#E8760A;margin-bottom:12px">
-                ${ic('eye','icon-sm')} Optical History
-              </div>
+              <div class="patient-section-label">${ic('eye','icon-sm')} Optical History</div>
               <div style="background:#FFFBF5;border:1px solid #FFE4C0;border-radius:8px;padding:14px;font-size:.85rem;line-height:1.7;color:#374151">
                 ${p.opticalHistory || 'No optical history on record.'}
               </div>
             </div>
           </div>
           <div style="margin-top:20px">
-            <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;margin-bottom:12px">
-              Optical Examination Records (${p.examinations.length})
-            </div>
+            <div class="patient-section-label muted">Optical Examination Records (${p.examinations.length})</div>
             ${examsContent}
           </div>`)}
 
@@ -891,11 +926,11 @@ function pagePatientView() {
         ${panel('appointments', `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <div style="font-size:.88rem;color:#6B7280">${patientAppts.length} appointment${patientAppts.length!==1?'s':''} total</div>
-            ${canEdit ? `<button class="btn-primary" onclick="window.openCreateApptModal()">
+            ${canEdit ? `<button class="btn-primary" onclick="window.openCreateApptModal('${p.id}')">
               ${ic('plus','icon-sm')} New Appointment
             </button>` : ''}
           </div>
-          <div class="table-wrap" style="box-shadow:none;border:1px solid #f3f4f6">${appointmentsTable(patientAppts, role, 'pv-appt-tbody')}</div>`)}
+          <div class="table-wrap" style="box-shadow:none;border:1px solid #f3f4f6">${appointmentsTable(patientAppts, role, 'pv-appt-tbody', true)}</div>`)}
 
       </div>
     </div>
@@ -1233,9 +1268,8 @@ function pageSchedule() {
 
   // Build full panel for one doctor
   function buildDocPanel(doctor) {
-    const daysLabel = (doctor.availableDays || []).join(', ')
     const calCells  = buildDocCalendar(doctor)
-    const todayStr  = now.toISOString().split('T')[0]
+    const todayStr  = localDateStr(now)
     const docAppts  = appointments.filter(a =>
       a.date === todayStr && a.status === 'approved' && a.doctorName === doctor.name)
 
@@ -1247,9 +1281,7 @@ function pageSchedule() {
           <div style="flex:1;min-width:0">
             <div style="font-size:1rem;font-weight:700;color:#1C1C1C">${doctor.name}</div>
             <div style="font-size:.8rem;color:#6B7280;margin-top:2px">${doctor.specialization}</div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
-              <span style="font-size:.75rem;color:#6B7280">${ic('clock','icon-sm')} ${daysLabel}</span>
-            </div>
+            ${dayPills(doctor.availableDays)}
           </div>
           ${canEdit ? `
           <div class="sched-header-actions">
@@ -1264,7 +1296,7 @@ function pageSchedule() {
           </div>` : ''}
         </div>
       </div>
-      <div class="grid-2">
+      <div class="grid-2" style="align-items:start">
         <div class="card">
           <div class="card-header">
             <div class="card-title sched-month-title"></div>
@@ -1281,7 +1313,7 @@ function pageSchedule() {
             <div class="calendar-grid" id="sched-cal-${doctor.id}">${calCells}</div>
             <div style="display:flex;gap:14px;margin-top:16px;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:#6B7280">
-                <div style="width:10px;height:10px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border-radius:50%"></div>Today
+                <div style="width:10px;height:10px;background:#E8760A;border-radius:50%"></div>Today
               </div>
               <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:#6B7280">
                 <div style="width:10px;height:10px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:2px"></div>Available
@@ -1354,7 +1386,7 @@ function pageSchedule() {
 //  ADMIN — REPORTS
 // ════════════════════════════════════════════════════════════════
 function pageAdminReports() {
-  const today      = new Date().toISOString().split('T')[0]
+  const today      = localDateStr()
   const monthStart = today.slice(0,8) + '01'
 
   window.state.afterRender = () => {
@@ -1504,88 +1536,103 @@ function pageAdminReports() {
 
       window._printHtmlDocument(html)
     }
+
   }
 
   return `
   <div class="page-header">
     <div class="page-header-left">
-      <h1 class="page-title">Reports Module</h1>
+      <h1 class="page-title">Reports</h1>
       <p class="page-subtitle">Generate reports and view trend summaries for clinic operations.</p>
     </div>
   </div>
   <div class="page-body">
 
     <!-- Filter Card -->
-    <div class="card" id="rpt-filter-card" style="margin-bottom:20px;padding:20px 24px">
-      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-        <div>
-          <label style="display:block;font-size:.72rem;font-weight:600;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">Report Type</label>
-          <select id="rpt-type" class="form-input" style="width:252px">
-            <option value="">\u2014 Select Report Type \u2014</option>
-            <option value="patient-visit">Patient Visit History Report</option>
-            <option value="diagnosis-history">Diagnosis History Report</option>
-            <option value="prescription-records">Prescription Records Report</option>
-            <option value="daily-appointment">Daily Appointment Report</option>
-            <option value="completed-appts">Completed Appointment Report</option>
-            <option value="cancelled-appts">Cancelled Appointment Report</option>
-          </select>
+    <div class="card" id="rpt-filter-card" style="margin-bottom:20px;overflow:visible">
+      <div style="padding:18px 24px 16px;border-bottom:1px solid #f3f4f6">
+        <div style="font-size:.88rem;font-weight:700;color:#111827;line-height:1.2">Generate report</div>
+        <div style="font-size:.72rem;color:#9ca3af;margin-top:2px">Select a report type and date range to get started.</div>
+      </div>
+      <div style="padding:20px 24px">
+        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:220px">
+            <label style="display:block;font-size:.68rem;font-weight:700;color:#6b7280;margin-bottom:6px">Report type</label>
+            <select id="rpt-type" class="form-select" style="height:42px">
+              <option value="">Select a report type</option>
+              <option value="patient-visit">Patient Visit History</option>
+              <option value="diagnosis-history">Diagnosis History</option>
+              <option value="prescription-records">Prescription Records</option>
+              <option value="daily-appointment">Daily Appointment Report</option>
+              <option value="completed-appts">Completed Appointments</option>
+              <option value="cancelled-appts">Cancelled / Disapproved Appointments</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:.68rem;font-weight:700;color:#6b7280;margin-bottom:6px">Date range</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="date" id="rpt-from" class="form-input" value="${monthStart}" style="width:142px">
+              <span style="font-size:.75rem;color:#9ca3af;font-weight:600;flex-shrink:0">\u2192</span>
+              <input type="date" id="rpt-to" class="form-input" value="${today}" style="width:142px">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-primary" id="rpt-gen-btn" onclick="window.generateReport()"
+                    style="display:flex;align-items:center;gap:7px;padding:10px 22px;height:40px;white-space:nowrap">
+              ${ic('bar-chart','icon-sm')} Generate
+            </button>
+            <button class="btn-secondary rpt-no-print" onclick="window.printReport()"
+                    style="display:flex;align-items:center;gap:6px;padding:9px 16px;height:40px">
+              ${ic('printer','icon-sm')} Print
+            </button>
+            <button class="rpt-no-print" onclick="window.resetReport()" title="Reset"
+                    style="width:40px;height:40px;background:none;border:1.5px solid #e5e7eb;padding:0;cursor:pointer;
+                           font-family:'Poppins',sans-serif;border-radius:8px;display:flex;align-items:center;
+                           justify-content:center;color:#9ca3af;transition:all .15s"
+                    onmouseenter="this.style.background='#f9fafb';this.style.color='#374151'"
+                    onmouseleave="this.style.background='none';this.style.color='#9ca3af'">
+              ${ic('x','icon-sm')}
+            </button>
+          </div>
         </div>
-        <div>
-          <label style="display:block;font-size:.72rem;font-weight:600;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">Start Date</label>
-          <input type="date" id="rpt-from" class="form-input" value="${monthStart}" style="width:148px">
-        </div>
-        <div>
-          <label style="display:block;font-size:.72rem;font-weight:600;color:#374151;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">End Date</label>
-          <input type="date" id="rpt-to" class="form-input" value="${today}" style="width:148px">
-        </div>
-        <button class="btn-primary" id="rpt-gen-btn" onclick="window.generateReport()"
-                style="display:flex;align-items:center;gap:7px;padding:10px 20px;height:40px">
-          ${ic('bar-chart','icon-sm')} Generate Report
-        </button>
-        <button class="btn-secondary rpt-no-print" onclick="window.printReport()"
-                style="display:flex;align-items:center;gap:7px;padding:9px 16px;height:40px">
-          ${ic('printer','icon-sm')} Print
-        </button>
-        <button class="rpt-no-print" onclick="window.resetReport()"
-                style="background:none;border:none;padding:9px 14px;height:40px;cursor:pointer;font-family:'Poppins',sans-serif;
-                       font-size:.82rem;color:#6b7280;border-radius:8px;display:flex;align-items:center;gap:6px;
-                       transition:background .15s"
-                onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background='none'">
-          ${ic('x','icon-sm')} Reset
-        </button>
       </div>
     </div>
 
     <!-- Report Results Wrap -->
-    <div class="table-wrap" id="rpt-results-wrap" style="margin-bottom:24px">
-      <div id="rpt-table-header" style="display:none;padding:16px 20px;border-bottom:1px solid #e5e7eb"></div>
+    <div class="card" id="rpt-results-wrap" style="margin-bottom:20px;overflow:hidden">
+      <div id="rpt-table-header" style="display:none;padding:18px 22px 14px;border-bottom:1px solid #f3f4f6"></div>
       <div id="rpt-table-area">
-        <div style="text-align:center;padding:56px 24px;color:#9CA3AF">
-          <div style="font-size:.9rem;font-weight:500;color:#6b7280;margin-bottom:6px">No report generated yet</div>
-          <div style="font-size:.8rem;color:#9ca3af">Select a report type and click <strong>Generate Report</strong> to view data.</div>
+        <div style="text-align:center;padding:56px 24px">
+          <div style="font-size:.92rem;font-weight:600;color:#374151;margin-bottom:6px">No report generated yet.</div>
+          <div style="font-size:.8rem;color:#9ca3af;max-width:280px;margin:0 auto;line-height:1.6">
+            Choose a report type and date range above, then click <strong style="color:#6b7280">Generate</strong>.
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Charts Section (hidden until report generated) -->
     <div id="rpt-trends-section" style="display:none">
-      <div style="display:flex;align-items:center;gap:9px;margin-bottom:4px">
-        ${ic('bar-chart','icon-sm')}
-        <span style="font-size:1.1rem;font-weight:700;color:#1f2937">Charts and Summaries</span>
+      <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #f3f4f6">
+        <div style="font-size:.88rem;font-weight:700;color:#111827">Charts &amp; visual summaries</div>
+        <div style="font-size:.72rem;color:#9ca3af;margin-top:2px">Graphical breakdown of the report data above.</div>
       </div>
-      <p style="font-size:.85rem;color:#6b7280;margin:0 0 20px">Charts and graphs based on generated report data above.</p>
 
       <div class="grid-2" style="margin-bottom:16px">
-        <div class="card">
-          <div class="card-header"><div><div class="card-title" id="rpt-chart-left-title">&nbsp;</div></div></div>
+        <div class="card" style="overflow:hidden">
+          <div style="padding:4px 0 0 0;border-left:4px solid #E8760A">
+            <div class="card-header" style="padding-left:20px"><div><div class="card-title" id="rpt-chart-left-title">&nbsp;</div></div></div>
+          </div>
           <div class="card-body">
-            <div style="height:260px;position:relative"><canvas id="rpt-chart-left"></canvas></div>
+            <div style="height:260px;position:relative" id="rpt-chart-left-wrap"><canvas id="rpt-chart-left"></canvas></div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header"><div><div class="card-title" id="rpt-chart-right-title">&nbsp;</div></div></div>
+        <div class="card" style="overflow:hidden">
+          <div style="padding:4px 0 0 0;border-left:4px solid #2563EB">
+            <div class="card-header" style="padding-left:20px"><div><div class="card-title" id="rpt-chart-right-title">&nbsp;</div></div></div>
+          </div>
           <div class="card-body">
-            <div style="height:260px;position:relative"><canvas id="rpt-chart-right"></canvas></div>
+            <div style="height:260px;position:relative" id="rpt-chart-right-wrap"><canvas id="rpt-chart-right"></canvas></div>
           </div>
         </div>
       </div>
@@ -1599,7 +1646,7 @@ function pageAdminReports() {
 // ════════════════════════════════════════════════════════════════
 function pageAdminSettings() {
   const validSections = ['profile', 'clinic', 'services', 'consultation', 'archives']
-  const sec = validSections.includes(st().filter) ? st().filter : 'clinic'
+  const sec = validSections.includes(st().filter) ? st().filter : 'profile'
 
   // ── Section: My Profile ──────────────────────────────────────
   function sectionProfile() {
@@ -1633,7 +1680,7 @@ function pageAdminSettings() {
         <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
           <div style="position:relative;flex-shrink:0">
             <label for="ad-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-              <div id="ad-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+              <div id="ad-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
                 ${user.photoUrl
                   ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                   : initials(admName)}
@@ -1642,7 +1689,7 @@ function pageAdminSettings() {
                    onmouseover="this.style.background='rgba(0,0,0,.45)'"
                    onmouseout="this.style.background='rgba(0,0,0,0)'"></div>
             </label>
-            <label for="ad-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+            <label for="ad-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
               ${ic('camera','icon-sm')}
             </label>
             <input type="file" id="ad-photo-input" accept="image/*" style="display:none"
@@ -1686,7 +1733,7 @@ function pageAdminSettings() {
               </div>
               <div class="form-group">
                 <label class="form-label">Phone Number</label>
-                <input class="form-input" id="ad-phone" value="${adm.contact || ''}">
+                <input class="form-input" id="ad-phone" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${adm.contact || ''}">
               </div>
             </div>
             <div style="display:flex;justify-content:flex-end;margin-top:4px">
@@ -1745,29 +1792,49 @@ function pageAdminSettings() {
       </div>
     </div>
     <div class="page-body">
-      <div class="card" style="padding:24px 28px">
-        <div class="form-row-2">
-          <div class="form-group">
-            <label class="form-label">Clinic Name <span class="req">*</span></label>
-            <input class="form-input" id="ci-name" value="${clinicInfo.name.replace(/"/g,'&quot;')}">
+      <div class="card" style="padding:28px 32px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Brand Name</label>
+              <input class="form-input" id="ci-logo-name" value="${(clinicInfo.logoName||'OPTICANA').replace(/"/g,'&quot;')}" placeholder="e.g. OPTICANA">
+              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Shown in bold above the clinic name in the website logo.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Clinic Name <span class="req">*</span></label>
+              <input class="form-input" id="ci-name" value="${clinicInfo.name.replace(/"/g,'&quot;')}">
+              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Shown below the brand name in the website logo.</div>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Contact Number</label>
-            <input class="form-input" id="ci-phone" value="${clinicInfo.phone.replace(/"/g,'&quot;')}">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Clinic Address</label>
-          <input class="form-input" id="ci-address" value="${clinicInfo.address.replace(/"/g,'&quot;')}">
-        </div>
-        <div class="form-row-2">
-          <div class="form-group">
-            <label class="form-label">Email Address <span class="req">*</span></label>
-            <input class="form-input" type="email" id="ci-email" value="${clinicInfo.email.replace(/"/g,'&quot;')}">
+            <input class="form-input" id="ci-phone" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${clinicInfo.phone.replace(/"/g,'&quot;')}">
           </div>
           <div class="form-group">
-            <label class="form-label">Operating Hours</label>
-            <input class="form-input" id="ci-hours" value="${clinicInfo.hours.replace(/"/g,'&quot;')}">
+            <label class="form-label">Clinic Address</label>
+            <input class="form-input" id="ci-address" value="${clinicInfo.address.replace(/"/g,'&quot;')}">
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Email Address <span class="req">*</span></label>
+              <input class="form-input" type="email" id="ci-email" value="${clinicInfo.email.replace(/"/g,'&quot;')}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Operating Hours</label>
+              <input class="form-input" id="ci-hours" value="${clinicInfo.hours.replace(/"/g,'&quot;')}">
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Google Maps Embed URL</label>
+              <input class="form-input" id="ci-map-embed" placeholder="Paste the Google Maps embed code or src URL…" value="${(clinicInfo.mapEmbedUrl || '').replace(/"/g,'&quot;')}">
+              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Google Maps → Share → Embed a map → paste the full embed code or just the src URL.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Founded Year</label>
+              <input class="form-input" type="number" id="ci-founded-year" min="1900" max="${new Date().getFullYear()}" placeholder="e.g. 2008" value="${clinicInfo.foundedYear || ''}">
+              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Used to calculate "Years of Service" on the public website.</div>
+            </div>
           </div>
         </div>
 
@@ -1789,6 +1856,24 @@ function pageAdminSettings() {
           </div>
         </div>
 
+        <div style="border-top:1px solid #F3F4F6;margin:20px 0 16px"></div>
+        <div style="font-size:.85rem;font-weight:600;color:#374151;margin-bottom:12px">Hero Background</div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="width:96px;height:54px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#F3F4F6;border:1.5px solid #E5E7EB">
+            <img id="ci-hero-preview" src="${clinicInfo.heroUrl || ''}" style="width:100%;height:100%;object-fit:cover;${clinicInfo.heroUrl ? '' : 'display:none'}">
+          </div>
+          <div>
+            <label for="ci-hero-input" style="cursor:pointer">
+              <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
+                ${ic('upload','icon-sm')} Upload Hero Image
+              </div>
+            </label>
+            <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">PNG, JPG, WebP — recommended 1920×1080</div>
+            <input type="file" id="ci-hero-input" accept="image/png,image/jpeg,image/webp" style="display:none"
+                   onchange="window.handleHeroUpload(this)">
+          </div>
+        </div>
+
         <div style="display:flex;justify-content:flex-end;margin-top:24px">
           <button class="btn-primary" onclick="window.saveClinicInfo()">
             ${ic('check','icon-sm')} Save Changes
@@ -1797,34 +1882,51 @@ function pageAdminSettings() {
       </div>
 
       <!-- About Gallery -->
-      <div class="card" style="padding:24px 28px;margin-top:16px">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px">
-          <div>
-            <div style="font-size:.88rem;font-weight:600;color:#111827;display:flex;align-items:center;gap:6px">${ic('image','icon-sm')} About Gallery</div>
-            <div style="font-size:.72rem;color:#9CA3AF;margin-top:3px">Photos shown in the carousel on the public homepage.</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            <label style="font-size:.75rem;color:#6B7280;font-weight:500;white-space:nowrap">Max photos</label>
-            <input type="number" id="gallery-max-input" min="1" max="20"
-                   value="${clinicInfo.galleryMaxPhotos ?? 1}"
-                   style="width:64px;border:1px solid #E5E7EB;border-radius:6px;padding:4px 6px;font-size:.78rem;text-align:center"
-                   title="How many photos to show in the carousel.">
-            <button class="btn-secondary" style="padding:4px 10px;font-size:.78rem;white-space:nowrap" onclick="window.saveGalleryMax()">Set</button>
-          </div>
-        </div>
-        <div id="gallery-admin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;min-height:60px">
-          <div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Loading…</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding-top:14px;margin-top:14px;border-top:1px solid #F3F4F6">
-          <label id="gallery-upload-label" for="gallery-upload-input" style="cursor:pointer;flex-shrink:0">
-            <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
-              ${ic('upload','icon-sm')} Add Photo
+      <div class="card" style="margin-top:16px">
+        <div class="card-header" style="padding:16px 20px;flex-wrap:wrap;gap:10px;row-gap:10px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div>
+              <div class="card-title" style="font-size:.88rem">About Gallery</div>
+              <div class="card-subtitle">Photos in the carousel on the public homepage.</div>
             </div>
-          </label>
-          <span id="gallery-type-hint" style="font-size:.72rem;color:#9CA3AF">PNG, JPG or SVG</span>
-          <span id="gallery-limit-msg" style="font-size:.72rem;color:#EF4444;display:none">Photo limit reached — remove a photo to add another.</span>
-          <input type="file" id="gallery-upload-input" accept=".png,.jpg,.jpeg,.svg" style="display:none"
-                 onchange="window.galleryUploadPhoto(this)">
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+            <span style="font-size:.72rem;color:#6B7280;font-weight:500;white-space:nowrap">Show max</span>
+            <div style="display:flex;align-items:center;border:1.5px solid #E5E7EB;border-radius:8px;overflow:hidden;background:#fff;height:30px">
+              <button onclick="window.galleryMaxAdjust(-1)"
+                      style="width:28px;height:30px;border:none;border-right:1.5px solid #E5E7EB;background:transparent;cursor:pointer;color:#6B7280;font-size:1.1rem;font-weight:600;display:flex;align-items:center;justify-content:center;transition:background 0.15s"
+                      onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='transparent'">−</button>
+              <input type="number" id="gallery-max-input" min="1" max="10"
+                     value="${clinicInfo.galleryMaxPhotos ?? 10}"
+                     style="width:30px;border:none;outline:none;text-align:center;font-size:.82rem;font-weight:700;color:#111827;background:transparent;padding:0">
+              <button onclick="window.galleryMaxAdjust(1)"
+                      style="width:28px;height:30px;border:none;border-left:1.5px solid #E5E7EB;background:transparent;cursor:pointer;color:#6B7280;font-size:1.1rem;font-weight:600;display:flex;align-items:center;justify-content:center;transition:background 0.15s"
+                      onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='transparent'">+</button>
+            </div>
+            <button class="btn-primary" style="padding:0 14px;font-size:.78rem;height:30px;border-radius:8px;white-space:nowrap" onclick="window.saveGalleryMax()">Save</button>
+          </div>
+        </div>
+        <div style="padding:16px 20px">
+          <div id="gallery-admin-grid">
+            <div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Loading…</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding-top:12px;margin-top:12px;border-top:1px solid #F3F4F6;flex-wrap:wrap">
+            <label id="gallery-upload-label" for="gallery-upload-input" style="cursor:pointer;flex-shrink:0">
+              <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:6px 14px">
+                ${ic('upload','icon-sm')} Add Photo
+              </div>
+            </label>
+            <span id="gallery-type-hint" style="font-size:.72rem;color:#9CA3AF">PNG or JPG</span>
+            <span id="gallery-limit-msg" style="font-size:.72rem;color:#EF4444;display:none">Limit reached — remove a photo first.</span>
+            <input type="file" id="gallery-upload-input" accept=".png,.jpg,.jpeg" style="display:none"
+                   onchange="window.galleryUploadPhoto(this)">
+            <button id="gallery-sel-btn" onclick="window.galleryToggleSelMode()"
+                    style="margin-left:auto;font-size:.8rem;font-weight:600;color:#6B7280;background:none;border:1.5px solid #E5E7EB;border-radius:20px;padding:6px 16px;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s,background .15s;display:flex;align-items:center;gap:6px"
+                    onmouseover="this.style.borderColor='#D1D5DB';this.style.background='#F9FAFB'" onmouseout="this.style.borderColor='#E5E7EB';this.style.background='none'">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              Select
+            </button>
+          </div>
         </div>
       </div>
     </div>`
@@ -1832,11 +1934,7 @@ function pageAdminSettings() {
 
   // ── Section: Services ────────────────────────────────────────
   function sectionServices() {
-    function svcStatusBadge(s) {
-      return s === 'active'
-        ? `<span style="background:#D1FAE5;color:#065F46;font-size:.72rem;font-weight:600;padding:2px 10px;border-radius:20px">Active</span>`
-        : `<span style="background:#F3F4F6;color:#6B7280;font-size:.72rem;font-weight:600;padding:2px 10px;border-radius:20px">Inactive</span>`
-    }
+    setTimeout(() => window.loadServicesAdmin && window.loadServicesAdmin(), 40)
     return `
     <div class="page-header">
       <div class="page-header-left">
@@ -1848,7 +1946,7 @@ function pageAdminSettings() {
 
       <!-- Add New Service form -->
       <div class="card" style="padding:20px 24px;margin-bottom:16px">
-        <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;margin-bottom:16px">${ic('plus-circle','icon-sm')} Add New Service</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:.9rem;font-weight:700;color:#1C1C1C;margin-bottom:16px">${ic('plus','icon-sm')} Add New Service</div>
         <div class="form-row-2">
           <div class="form-group" style="margin-bottom:10px">
             <label class="form-label">Service Name <span class="req">*</span></label>
@@ -1879,41 +1977,23 @@ function pageAdminSettings() {
         </div>
       </div>
 
-      <!-- Services table -->
-      <div class="table-wrap">
-        <div class="table-toolbar">
-          <span class="table-title" id="svc-count">${CLINIC_SERVICES.length} service${CLINIC_SERVICES.length !== 1 ? 's' : ''}</span>
+      <!-- Services card grid (gallery-style) -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #F3F4F6">
+          <span id="svc-count" style="font-size:.85rem;font-weight:600;color:#374151">${CLINIC_SERVICES.length} service${CLINIC_SERVICES.length !== 1 ? 's' : ''}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:.72rem;color:#9CA3AF">Drag to reorder</span>
+            <button id="svc-sel-btn" onclick="window.svcToggleSelMode()"
+                    style="display:flex;align-items:center;gap:5px;font-size:.75rem;font-weight:500;color:#6B7280;background:none;border:1.5px solid #E5E7EB;border-radius:7px;padding:5px 11px;cursor:pointer;font-family:inherit;transition:background .12s,color .12s,border-color .12s">
+              ${ic('check-circle','icon-sm')} Select
+            </button>
+          </div>
         </div>
-        <table class="tbl" style="table-layout:fixed">
-          <colgroup>
-            <col style="width:5%"><col style="width:20%"><col style="width:32%">
-            <col style="width:10%"><col style="width:11%"><col style="width:12%">
-          </colgroup>
-          <thead><tr>
-            <th>#</th>
-            <th data-sort-key="name" data-sort-type="text">Service Name</th>
-            <th>Description</th>
-            <th>Duration</th><th>Status</th><th>Actions</th>
-          </tr></thead>
-          <tbody id="services-tbody">
-            ${CLINIC_SERVICES.length ? CLINIC_SERVICES.map((s, i) => `
-            <tr data-search="${s.name.toLowerCase()} ${s.description.toLowerCase()}" data-sort-name="${s.name.toLowerCase()}">
-              <td style="color:#9CA3AF;font-size:.75rem">${i + 1}</td>
-              <td><strong style="font-size:.83rem">${s.name}</strong></td>
-              <td style="font-size:.78rem;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0">${s.description}</td>
-              <td style="font-size:.82rem">${s.duration} min</td>
-              <td>${svcStatusBadge(s.status)}</td>
-              <td>
-                <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap">
-                  <button class="btn-icon" title="Edit" onclick="window.editServiceModal(${s.id})">${ic('edit','icon-sm')}</button>
-                  <button class="btn-icon" title="Archive" style="color:#D97706;border-color:#FEF3C7" onclick="window.archiveServiceConfirm(${s.id},'${s.name.replace(/'/g,"\\'")}')">
-                    ${ic('archive','icon-sm')}
-                  </button>
-                </div>
-              </td>
-            </tr>`).join('') : emptyRow(6, 'settings', 'No services configured', 'Add a service to get started.')}
-          </tbody>
-        </table>
+        <div style="padding:16px 20px">
+          <div id="services-admin-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+            <div style="color:#9CA3AF;font-size:.78rem;grid-column:1/-1;text-align:center;padding:20px 0">Loading…</div>
+          </div>
+        </div>
       </div>
     </div>`
   }
@@ -1933,7 +2013,7 @@ function pageAdminSettings() {
       }
       return slots.join('')
     }
-    const durationOpts = ['15 min','20 min','25 min','30 min','45 min','60 min']
+    const durationOpts = ['15 min','20 min','25 min','30 min','40 min','45 min','60 min']
     const maxAdvOpts   = ['1 week','2 weeks','1 month','2 months','3 months']
     const minAdvOpts   = ['Same day','1 day','2 days','3 days']
     const allDays      = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
@@ -1954,7 +2034,7 @@ function pageAdminSettings() {
           <div class="form-group" style="margin-bottom:12px">
             <label class="form-label">Default Consultation Duration</label>
             <select class="form-select" id="cs-duration">
-              ${durationOpts.map(o => `<option${o === cs.defaultDuration ? ' selected' : ''}>${o}</option>`).join('')}
+              ${durationOpts.map(o => `<option${o === (cs.defaultDuration || '40 min') ? ' selected' : ''}>${o}</option>`).join('')}
             </select>
             <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">Default time allocated per appointment slot.</div>
           </div>
@@ -2003,9 +2083,16 @@ function pageAdminSettings() {
 
         <label class="cs-lunch-toggle">
           <input type="checkbox" id="cs-lunch-break" class="chk" ${cs.lunchBreak ? 'checked' : ''}
-                 onchange="document.getElementById('cs-lunch-fields').style.display = this.checked ? 'grid' : 'none'">
+                 onchange="
+                   const lb = this.checked;
+                   document.getElementById('cs-lunch-fields').style.display = lb ? 'grid' : 'none';
+                   document.getElementById('cs-no-break-hint').style.display = lb ? 'none' : '';
+                 ">
           <span>Lunch break between sessions</span>
         </label>
+        <div id="cs-no-break-hint" style="font-size:.72rem;color:#9CA3AF;margin-top:4px;margin-left:22px;margin-bottom:12px;${cs.lunchBreak ? 'display:none' : ''}">
+          No break — the clinic runs as one continuous session.
+        </div>
         <div id="cs-lunch-fields" class="form-row-2" style="display:${cs.lunchBreak ? 'grid' : 'none'};margin-top:10px;margin-bottom:16px">
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label">Break Start</label>
@@ -2016,7 +2103,6 @@ function pageAdminSettings() {
             <select class="form-select" id="cs-pm-start">${timeOpts(cs.afternoonStart)}</select>
           </div>
         </div>
-        ${!cs.lunchBreak ? `<div style="font-size:.72rem;color:#9CA3AF;margin-top:-10px;margin-bottom:16px">No break — the clinic runs as one continuous session.</div>` : ''}
 
         <div style="font-size:.8rem;font-weight:600;color:#374151;margin-bottom:8px">Clinic Days</div>
         <div class="cs-day-pills">
@@ -2103,13 +2189,13 @@ function pageAdminSettings() {
             </tr>`).join('')}
           </tbody>
         </table>` : `
-        <table class="tbl"><tbody>${emptyRow(6, 'archive', arcFilter!=='all'?'No archived records of this type':'No archived records', 'Archived profiles will appear here.')}</tbody></table>`}
+        <div class="table-empty">${arcFilter !== 'all' ? 'No archived records of this type.' : 'No archived records.'}</div>`}
       </div>
     </div>`
   }
 
   if (sec === 'archives') window.state.afterRender = () => { window.initPagination('archives-tbody'); window.initSortable('archives-tbody', { key: 'date', type: 'date', dir: -1 }) }
-  if (sec === 'services') window.state.afterRender = () => { window.initPagination('services-tbody'); window.initSortable('services-tbody') }
+  // services section uses a card grid — no table pagination needed
 
   const sections = { profile: sectionProfile, clinic: sectionClinic, services: sectionServices, consultation: sectionConsultation, archives: sectionArchives }
   return (sections[sec] || sections.clinic)()
@@ -2138,7 +2224,9 @@ function pageActivityLog() {
     return `<span style="display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:600;${style}">${label}</span>`
   }
 
-  const today      = new Date().toISOString().split('T')[0]
+  const _ld        = new Date()
+  const _lp        = n => String(n).padStart(2, '0')
+  const today      = `${_ld.getFullYear()}-${_lp(_ld.getMonth()+1)}-${_lp(_ld.getDate())}`
   const monthStart = today.slice(0,8) + '01'
 
   // Fallback photo map keyed by name for log entries that predate the users_id column.
@@ -2214,7 +2302,7 @@ function pageActivityLog() {
       </div>
 
       ${activityLog.length ? `
-      <div class="table-toolbar" style="padding:10px 16px">
+      <div id="log-toolbar" class="table-toolbar" style="padding:10px 16px">
         <span class="table-title" id="log-count">${activityLog.length} log entries</span>
       </div>
       <table class="tbl">
@@ -2222,7 +2310,7 @@ function pageActivityLog() {
           <col style="width:5%"><col style="width:16%"><col style="width:9%">
           <col style="width:38%"><col style="width:18%"><col style="width:14%">
         </colgroup>
-        <thead><tr>
+        <thead id="log-thead"><tr>
           <th>#</th>
           <th data-sort-key="user" data-sort-type="text">User</th>
           <th>Role</th><th>Action</th>
@@ -2230,32 +2318,31 @@ function pageActivityLog() {
           <th>Type</th>
         </tr></thead>
         <tbody id="log-tbody">
-          ${activityLog.map((l,i) => `<tr
-            data-search="${l.user.toLowerCase()} ${l.action.toLowerCase()}"
-            data-role="${l.role.toLowerCase()}"
-            data-type="${l.type}"
-            data-ts="${l.timestamp}"
-            data-sort-user="${l.user.toLowerCase()}"
-            data-sort-ts="${l.timestamp}">
-            <td style="color:#9CA3AF;font-size:.75rem">${i+1}</td>
-            <td><div class="patient-name-cell">${avatar(l.user, 'patient-avatar', l.photoUrl || userPhotoMap[l.user] || null)}<strong style="font-size:.82rem">${l.user}</strong></div></td>
-            <td>${badge(l.role.toLowerCase())}</td>
-            <td style="font-size:.82rem;max-width:380px">${l.action}</td>
-            <td style="font-size:.75rem;color:#9CA3AF;white-space:nowrap">${fmtTimestamp12h(l.timestamp)}</td>
-            <td>${logTypeBadge(l.type)}</td>
-          </tr>`).join('')}
+          ${activityLog.map((l,i) => {
+            const rowDate = (l.timestamp || '').slice(0, 10)
+            const inRange = (!monthStart || rowDate >= monthStart) && (!today || rowDate <= today)
+            return `<tr
+              ${inRange ? '' : 'style="display:none"'}
+              data-search="${l.user.toLowerCase()} ${l.action.toLowerCase()}"
+              data-role="${l.role.toLowerCase()}"
+              data-type="${l.type}"
+              data-ts="${l.timestamp}"
+              data-sort-user="${l.user.toLowerCase()}"
+              data-sort-ts="${l.timestamp}">
+              <td style="color:#9CA3AF;font-size:.75rem">${i+1}</td>
+              <td><div class="patient-name-cell">${avatar(l.user, 'patient-avatar', l.photoUrl || userPhotoMap[l.user] || null)}<strong style="font-size:.82rem">${l.user}</strong></div></td>
+              <td>${badge(l.role.toLowerCase())}</td>
+              <td style="font-size:.82rem;max-width:380px">${l.action}</td>
+              <td style="font-size:.75rem;color:#9CA3AF;white-space:nowrap">${fmtTimestamp12h(l.timestamp)}</td>
+              <td>${logTypeBadge(l.type)}</td>
+            </tr>`
+          }).join('')}
           <tr id="log-empty-row" style="display:none;pointer-events:none">
-            <td colspan="6" style="padding:52px 24px;text-align:center;border:none">
-              <div style="display:inline-flex;flex-direction:column;align-items:center;gap:12px">
-                <div style="width:52px;height:52px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#9CA3AF">${ic('activity','icon-lg')}</div>
-                <p style="margin:0 0 3px;font-size:.9rem;font-weight:600;color:#374151">No activities found</p>
-                <p style="margin:0;font-size:.78rem;color:#9CA3AF">Try adjusting your search or filters.</p>
-              </div>
-            </td>
+            <td colspan="6" style="padding:24px;text-align:center;border:none;color:#9CA3AF;font-size:.85rem">No activities found.</td>
           </tr>
         </tbody>
       </table>
-      ` : `<table class="tbl"><tbody>${emptyRow(6, 'activity', 'No activity logged', 'System events will appear here.')}</tbody></table>`}
+      ` : `<div class="table-empty">No activity logged.</div>`}
     </div>
   </div>`
 }
@@ -2330,14 +2417,14 @@ function pageDoctorDashboard() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const dateStr  = new Date().toLocaleDateString('en-PH', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
 
-  const todayStr  = new Date().toISOString().split('T')[0]
+  const todayStr  = localDateStr()
   const timeVal   = t => { if (!t) return 0; const cl = t.includes('PM') && !t.startsWith('12'), [h,m] = t.replace(/ [AP]M$/,'').split(':').map(Number); return (cl ? h+12 : (t.includes('AM') && h===12 ? 0 : h))*60+m }
 
   const todayList    = appointments.filter(a => a.date === todayStr && !['cancelled','disapproved'].includes(a.status))
                          .sort((a,b) => timeVal(a.time) - timeVal(b.time))
   const upcomingList = appointments.filter(a => a.date > todayStr && ['approved','pending'].includes(a.status))
   const weekStart    = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-  const weekStartStr = weekStart.toISOString().split('T')[0]
+  const weekStartStr = localDateStr(weekStart)
   const thisWeek     = appointments.filter(a => a.status === 'completed' && a.date >= weekStartStr).length
   const pendingAppts = appointments.filter(a => a.status === 'pending').length
 
@@ -2468,10 +2555,10 @@ function pageDoctorDashboard() {
 // ════════════════════════════════════════════════════════════════
 function pageDoctorAppointments() {
   const { filter } = st()
-  const activeFilter = (filter && filter !== 'all') ? filter : 'today'
+  const activeFilter = (filter && ['all','today','upcoming','completed'].includes(filter)) ? filter : 'today'
   if (activeFilter !== filter) window.state.filter = activeFilter
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = localDateStr()
   const timeVal  = t => { if (!t) return 0; const cl = t.includes('PM') && !t.startsWith('12'), [h,m] = t.replace(/ [AP]M$/,'').split(':').map(Number); return (cl ? h+12 : (t.includes('AM') && h===12 ? 0 : h))*60+m }
 
   const todayList    = appointments.filter(a => a.date === todayStr && !['cancelled','disapproved'].includes(a.status))
@@ -2480,20 +2567,24 @@ function pageDoctorAppointments() {
                          .sort((a,b) => a.date.localeCompare(b.date) || timeVal(a.time) - timeVal(b.time))
   const completedList = appointments.filter(a => a.status === 'completed')
                          .sort((a,b) => b.date.localeCompare(a.date))
+  const allList       = [...appointments].sort((a,b) => b.date.localeCompare(a.date) || timeVal(b.time) - timeVal(a.time))
 
-  window.state.afterRender = () => { window.initPagination('doc-appt-tbody'); window.initSortable('doc-appt-tbody') }
+  window.state.afterRender = () => { window.initPagination('doc-appt-tbody'); window.initSortable('doc-appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1 }) }
 
   let list
-  if (activeFilter === 'today')     list = todayList
+  if (activeFilter === 'all')           list = allList
+  else if (activeFilter === 'today')    list = todayList
   else if (activeFilter === 'upcoming') list = upcomingList
   else                                  list = completedList
 
   const titleMap = {
+    all:       'All Appointments',
     today:     "Today's Appointments",
     upcoming:  'Upcoming Appointments',
     completed: 'Completed Appointments'
   }
   const subMap = {
+    all:       'All appointments across every status and date.',
     today:     'Your consultation schedule for today.',
     upcoming:  'Confirmed appointments on your schedule.',
     completed: 'Past completed consultations.'
@@ -2530,7 +2621,7 @@ function pageDoctorAppointments() {
           </div>
         </div>
       </div>
-      <table class="tbl">
+      ${list.length ? `<table class="tbl">
         <colgroup>
           <col style="width:7%"><col style="width:22%"><col style="width:12%">
           <col style="width:10%"><col style="width:20%"><col style="width:13%"><col style="width:16%">
@@ -2542,7 +2633,7 @@ function pageDoctorAppointments() {
           <th>Time</th><th>Type</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="doc-appt-tbody">
-          ${list.length ? list.map(a => `<tr data-search="${(a.patientName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-sort-patient="${(a.patientName||'').toLowerCase()}" data-sort-date="${a.date}">
+          ${list.map(a => `<tr data-search="${(a.patientName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-sort-patient="${(a.patientName||'').toLowerCase()}" data-sort-date="${a.date}">
             <td><code style="font-size:.73rem;color:#9CA3AF">${a.id}</code></td>
             <td><div class="patient-name-cell">
               ${avatar(a.patientName, 'patient-avatar', patients.find(p=>p.id===a.patientId)?.photoUrl || null)}
@@ -2553,10 +2644,9 @@ function pageDoctorAppointments() {
             <td style="font-size:.82rem">${a.type}</td>
             <td>${badge(a.status)}</td>
             <td>${docActions(a)}</td>
-          </tr>`).join('')
-          : emptyRow(7, 'calendar', 'No appointments found', 'Appointments assigned to you will appear here.')}
+          </tr>`).join('')}
         </tbody>
-      </table>
+      </table>` : `<div class="table-empty">No appointments found.</div>`}
     </div>
   </div>`
 }
@@ -2651,13 +2741,13 @@ function pageDoctorSchedule() {
               <div style="width:12px;height:12px;border-radius:3px;background:#ECFDF5;border:1px solid #6EE7B7"></div> Available
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:#6B7280">
-              <div style="width:12px;height:12px;border-radius:3px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)"></div> Today
+              <div style="width:12px;height:12px;border-radius:3px;background:#E8760A"></div> Today
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:#6B7280">
               <div style="width:12px;height:12px;border-radius:3px;background:#F3F4F6"></div> Not Scheduled
             </div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:#6B7280">
-              <div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);margin:3px"></div> Has Appointments
+              <div style="width:6px;height:6px;border-radius:50%;background:#E8760A;margin:3px"></div> Has Appointments
             </div>
           </div>
         </div>
@@ -2728,7 +2818,7 @@ function pageDoctorSettings() {
         <!-- Clickable avatar -->
         <div style="position:relative;flex-shrink:0">
           <label for="doc-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-            <div id="doc-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div id="doc-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
                 ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                 : initials(docName)}
@@ -2737,7 +2827,7 @@ function pageDoctorSettings() {
                  onmouseover="this.style.background='rgba(0,0,0,.45)'"
                  onmouseout="this.style.background='rgba(0,0,0,0)'"></div>
           </label>
-          <label for="doc-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+          <label for="doc-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
             ${ic('camera','icon-sm')}
           </label>
           <input type="file" id="doc-photo-input" accept="image/*" style="display:none"
@@ -2782,7 +2872,7 @@ function pageDoctorSettings() {
             </div>
             <div class="form-group">
               <label class="form-label">Phone Number</label>
-              <input class="form-input" id="doc-phone" value="${doc.contact || ''}">
+              <input class="form-input" id="doc-phone" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${doc.contact || ''}">
             </div>
           </div>
           <div class="form-row-2">
@@ -3058,7 +3148,7 @@ function pageExamRecords() {
           </select>` : ''}
         </div>
       </div>
-      <table class="tbl">
+      ${filtered.length ? `<table class="tbl">
         <colgroup>
           <col style="width:8%"><col style="width:18%"><col style="width:16%"><col style="width:10%">
           <col style="width:14%"><col style="width:12%"><col style="width:8%"><col style="width:14%">
@@ -3068,10 +3158,10 @@ function pageExamRecords() {
           <th data-sort-key="patient" data-sort-type="text">Patient</th>
           <th>Doctor</th>
           <th data-sort-key="date" data-sort-type="date">Date</th>
-          <th>Diagnosis</th><th>Lens Type</th><th>Status</th><th>Actions</th>
+          <th>Diagnosis</th><th>Lens type</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="exam-records-tbody">
-          ${filtered.length ? filtered.map(e => `<tr data-search="${e.patientName.toLowerCase()} ${(e.diagnosis||'').toLowerCase()} ${e.doctor.toLowerCase()}" data-sort-patient="${e.patientName.toLowerCase()}" data-sort-date="${e.date}">
+          ${filtered.map(e => `<tr data-search="${e.patientName.toLowerCase()} ${(e.diagnosis||'').toLowerCase()} ${e.doctor.toLowerCase()}" data-sort-patient="${e.patientName.toLowerCase()}" data-sort-date="${e.date}">
             <td><code style="font-size:.73rem;color:#9CA3AF">${e.id}</code></td>
             <td><div class="patient-name-cell">
               ${avatar(e.patientName, 'patient-avatar', patients.find(p=>p.id===e.patientId)?.photoUrl || null)}
@@ -3099,9 +3189,9 @@ function pageExamRecords() {
                 ${ic('award','icon-sm')}
               </button>` : ''}
             </td>
-          </tr>`).join('') : emptyRow(8, 'file-text', 'No examination records', 'Records appear once examinations are completed.')}
+          </tr>`).join('')}
         </tbody>
-      </table>
+      </table>` : `<div class="table-empty">No examination records.</div>`}
     </div>
   </div>`
 }
@@ -3128,7 +3218,7 @@ function pageNewExamination() {
 
   if (!p) {
     const { role, user } = st()
-    const todayStr = new Date().toISOString().split('T')[0]
+    const todayStr = localDateStr()
     const todayLabel = new Date(todayStr + 'T00:00:00').toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' })
 
     const todayAppts = appointments.filter(a => a.date === todayStr && !['cancelled','disapproved'].includes(a.status))
@@ -3175,7 +3265,7 @@ function pageNewExamination() {
                    View Record
                  </button>`
               : `<button onclick="window.startExamFromAppt('${a.id}')"
-                         style="width:100%;padding:8px;border-radius:8px;border:none;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;font-size:.78rem;font-weight:600;cursor:pointer;transition:opacity .15s;text-align:center"
+                         style="width:100%;padding:8px;border-radius:8px;border:none;background:#E8760A;color:white;font-size:.78rem;font-weight:600;cursor:pointer;transition:opacity .15s;text-align:center"
                          onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
                    Start Examination
                  </button>`
@@ -3300,7 +3390,7 @@ function pageNewExamination() {
   </div>`
   }
 
-  const today    = new Date().toISOString().split('T')[0]
+  const today    = localDateStr()
   const lastExam = p.examinations.length ? p.examinations[0] : null
   const pre      = lastExam || { od:{sph:'',cyl:'',axis:'',va:'',add:''}, os:{sph:'',cyl:'',axis:'',va:'',add:''}, iop:{od:'',os:''}, pd:'' }
 
@@ -3323,18 +3413,18 @@ function pageNewExamination() {
   const stepperHTML = `
   <div id="wiz-stepper" style="display:flex;align-items:center;background:white;border-radius:12px;border:1px solid #e5e7eb;padding:20px 24px;margin-bottom:20px;overflow-x:auto;gap:0">
     ${STEPS.map((s, i) => `
-      <div style="display:flex;align-items:center;${i < STEPS.length - 1 ? 'flex:1;' : ''}min-width:0">
-        <div id="wiz-pill-${s.n}" onclick="examWizJump(${s.n})"
+      <div class="wiz-step-wrap" style="display:flex;align-items:center;${i < STEPS.length - 1 ? 'flex:1;' : ''}min-width:0">
+        <div id="wiz-pill-${s.n}" class="wiz-pill" onclick="examWizJump(${s.n})"
              style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:0;padding:4px 4px;border-radius:8px;transition:background 0.2s;overflow:hidden"
              onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='transparent'">
           <div id="wiz-circle-${s.n}"
-               style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;transition:all 0.3s;${s.n === 1 ? 'background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;box-shadow:0 2px 8px rgba(232,137,28,0.35)' : 'background:#f3f4f6;color:#9ca3af;border:2px solid #e5e7eb'}">${s.n}</div>
-          <div style="min-width:0;overflow:hidden">
-            <div style="font-size:.72rem;font-weight:${s.n === 1 ? '700' : '500'};color:${s.n === 1 ? '#1f2937' : '#9ca3af'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.3s">${s.label}</div>
-            <div style="font-size:.62rem;color:${s.n === 1 ? '#6b7280' : '#d1d5db'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.3s">${s.sub}</div>
+               style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0;transition:all 0.3s;${s.n === 1 ? 'background:#E8760A;color:white' : 'background:#f3f4f6;color:#9ca3af;border:2px solid #e5e7eb'}">${s.n}</div>
+          <div class="wiz-pill-text" style="min-width:0;overflow:hidden">
+            <div class="wiz-pill-label" style="font-size:.72rem;font-weight:${s.n === 1 ? '700' : '500'};color:${s.n === 1 ? '#1f2937' : '#9ca3af'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.3s">${s.label}</div>
+            <div class="wiz-pill-sub" style="font-size:.62rem;color:${s.n === 1 ? '#6b7280' : '#d1d5db'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.3s">${s.sub}</div>
           </div>
         </div>
-        ${i < STEPS.length - 1 ? `<div id="wiz-line-${s.n}" style="flex:1;height:2px;background:#e5e7eb;margin:0 4px;border-radius:2px;transition:background 0.3s;min-width:6px"></div>` : ''}
+        ${i < STEPS.length - 1 ? `<div id="wiz-line-${s.n}" class="wiz-step-line" style="flex:1;height:2px;background:#e5e7eb;margin:0 4px;border-radius:2px;transition:background 0.3s;min-width:6px"></div>` : ''}
       </div>`).join('')}
   </div>`
 
@@ -3342,7 +3432,7 @@ function pageNewExamination() {
   const step1 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('user','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('user','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Patient Information</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Basic details for this examination record</div>
@@ -3369,7 +3459,7 @@ function pageNewExamination() {
       </div>
       <div class="form-group" style="margin:0">
         ${fl('Contact Number')}
-        <input id="ne-contact" class="form-input" style="${inp}" value="${p.contact || ''}" placeholder="09XX XXX XXXX">
+        <input id="ne-contact" class="form-input" style="${inp}" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${p.contact || ''}" placeholder="09XX XXX XXXX">
       </div>
     </div>
     <div class="form-group" style="margin-bottom:16px">
@@ -3390,7 +3480,7 @@ function pageNewExamination() {
   const step2 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('eye','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('eye','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Visual Examination</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Enter optical measurements for both eyes</div>
@@ -3413,7 +3503,7 @@ function pageNewExamination() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div style="border:1px solid #e5e7eb;border-left:4px solid #22c55e;border-radius:12px;padding:20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <div style="width:24px;height:24px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%)"></div></div>
+          <div style="width:24px;height:24px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:#10B981"></div></div>
           <div><div style="font-size:.88rem;font-weight:700;color:#1f2937">Right Eye</div><div style="font-size:.7rem;color:#6b7280">OD — Oculus Dexter</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -3426,7 +3516,7 @@ function pageNewExamination() {
       </div>
       <div style="border:1px solid #e5e7eb;border-left:4px solid #E8891C;border-radius:12px;padding:20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-          <div style="width:24px;height:24px;border-radius:50%;background:#fff8f0;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%)"></div></div>
+          <div style="width:24px;height:24px;border-radius:50%;background:#fff8f0;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:#E8760A"></div></div>
           <div><div style="font-size:.88rem;font-weight:700;color:#1f2937">Left Eye</div><div style="font-size:.7rem;color:#6b7280">OS — Oculus Sinister</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -3449,7 +3539,7 @@ function pageNewExamination() {
   const step3 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('activity','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('activity','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Diagnosis</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Final clinical findings</div>
@@ -3479,7 +3569,7 @@ function pageNewExamination() {
   const step4 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('clipboard','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('clipboard','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Results and Recommendations</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Clinical recommendations for the patient</div>
@@ -3495,7 +3585,7 @@ function pageNewExamination() {
         <label for="r-ish-n" id="rb-ish-n"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #E8891C;background:#FFF7ED;color:#C4720E;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
           <span style="width:14px;height:14px;border-radius:50%;border:2px solid #E8891C;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .2s">
-            <span style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:#E8760A;display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
           </span>Normal</label>
         <label for="r-ish-d" id="rb-ish-d"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
@@ -3514,7 +3604,7 @@ function pageNewExamination() {
         <label for="r-eg-y" id="rb-eg-y"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #E8891C;background:#FFF7ED;color:#C4720E;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
           <span style="width:14px;height:14px;border-radius:50%;border:2px solid #E8891C;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;transition:border-color .2s">
-            <span style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
+            <span style="width:7px;height:7px;border-radius:50%;background:#E8760A;display:block;transition:background .2s,transform .2s cubic-bezier(.34,1.56,.64,1);transform:scale(1)"></span>
           </span>Yes</label>
         <label for="r-eg-n" id="rb-eg-n"
                style="display:inline-flex;align-items:center;gap:7px;padding:7px 18px;border-radius:8px;font-size:.85rem;font-weight:600;border:1.5px solid #e5e7eb;background:#f9fafb;color:#6b7280;cursor:pointer;user-select:none;transition:background .2s,border-color .2s,color .2s,box-shadow .2s;transform:translateZ(0)">
@@ -3546,7 +3636,7 @@ function pageNewExamination() {
       ${fl('Lens Coatings')}
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px">
         ${[['Anti-Reflective','ar'],['Blue Light Filter','bl'],['Photochromic','ph'],['Scratch Resistant','sr']].map(([lbl, key]) =>
-          `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.88rem;font-weight:500"><input type="checkbox" id="ne-coat-${key}" value="${lbl}" ${(lastExam?.lensCoating || []).includes(lbl) ? 'checked' : ''} style="accent-color:#E8891C;width:15px;height:15px"> ${lbl}</label>`
+          `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.88rem;font-weight:500"><input type="checkbox" class="chk" id="ne-coat-${key}" value="${lbl}" ${(lastExam?.lensCoating || []).includes(lbl) ? 'checked' : ''}> ${lbl}</label>`
         ).join('')}
       </div>
     </div>
@@ -3560,7 +3650,7 @@ function pageNewExamination() {
   const step5 = `
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-      <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('package','icon-sm')}</div>
+      <div style="width:36px;height:36px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('package','icon-sm')}</div>
       <div>
         <div style="font-size:.95rem;font-weight:700;color:#1f2937">Dispensing Information</div>
         <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Eyeglass release and payment details</div>
@@ -3593,7 +3683,7 @@ function pageNewExamination() {
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:28px" id="rx-preview-wrapper">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
       <div style="display:flex;align-items:center;gap:12px">
-        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('file-text','icon-sm')}</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic('file-text','icon-sm')}</div>
         <div>
           <div style="font-size:.95rem;font-weight:700;color:#1f2937">Prescription Summary</div>
           <div style="font-size:.75rem;color:#6b7280;margin-top:1px">Auto-generated from your entries</div>
@@ -3605,7 +3695,6 @@ function pageNewExamination() {
       <div style="text-align:center;color:#9CA3AF;font-size:.84rem;padding:16px">Loading preview...</div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
-      <button class="btn-secondary" onclick="window.updateRxPreview(window._examPatientId)">${ic('refresh-cw','icon-sm')} Refresh</button>
       <button class="btn-secondary" onclick="window.printNewExamDraft(window._examPatientId)">${ic('printer','icon-sm')} Print Prescription</button>
     </div>
   </div>`
@@ -3616,19 +3705,18 @@ function pageNewExamination() {
   const navHTML = `
   <div id="wiz-nav" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;background:white;border-radius:12px;border:1px solid #e5e7eb;padding:16px 20px">
     <button id="wiz-btn-back" onclick="examWizGo(-1)"
-            style="display:none;align-items:center;gap:8px;padding:10px 20px;background:white;color:#374151;border:1.5px solid #d1d5db;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:background 0.15s"
+            style="display:inline-flex;visibility:hidden;align-items:center;gap:8px;padding:10px 20px;background:white;color:#374151;border:1.5px solid #d1d5db;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:background 0.15s"
             onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
       ${ic('chevron-left','icon-sm')} Back
     </button>
-    <div id="wiz-step-label" style="font-size:.8rem;color:#6b7280;font-weight:600">Step 1 of 6: Patient Info</div>
     <div style="display:flex;gap:10px;align-items:center">
       <button id="wiz-btn-next" onclick="examWizGo(1)"
-              style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(232,137,28,0.3);transition:opacity 0.2s"
+              style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;background:#E8760A;color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity 0.2s"
               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         Next ${ic('chevron-right','icon-sm')}
       </button>
       <button id="wiz-btn-save" onclick="window.saveNewExam(window._examPatientId)"
-              style="display:none;align-items:center;gap:8px;padding:10px 24px;background:linear-gradient(135deg,#6EE7B7 0%,#10B981 60%,#059669 100%);color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.3);transition:opacity 0.2s"
+              style="display:none;align-items:center;gap:8px;padding:10px 24px;background:#10B981;color:white;border:none;border-radius:8px;font-family:'Poppins',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:opacity 0.2s"
               onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
         ${ic('check','icon-sm')} Save Examination
       </button>
@@ -3641,7 +3729,7 @@ function pageNewExamination() {
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:20px">
     <!-- Patient Profile -->
     <div style="text-align:center;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f3f4f6">
-      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.02em;box-shadow:0 4px 14px rgba(232,118,10,.3);overflow:hidden">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}</div>
+      <div style="width:72px;height:72px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.02em;overflow:hidden">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}</div>
       <div style="font-size:1rem;font-weight:800;color:#1f2937;margin-bottom:2px">${p.name}</div>
       <div style="font-size:.75rem;font-family:monospace;color:#9CA3AF;margin-bottom:6px">${p.id}</div>
       <span style="display:inline-block;background:#dcfce7;color:#16a34a;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 10px;border-radius:20px">${p.status || 'Active'}</span>
@@ -3715,7 +3803,7 @@ function pageNewExamination() {
   </div>
 
   <div class="page-body">
-  <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;max-width:100%;overflow:hidden">
+  <div class="exam-layout">
 
     <!-- LEFT: Wizard -->
     <div style="min-width:0;overflow:hidden">
@@ -3727,13 +3815,90 @@ function pageNewExamination() {
     </div>
 
     <!-- RIGHT: Patient Info + Timeline -->
-    <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:24px;min-width:0;width:300px;max-width:300px">
+    <div class="exam-sidebar">
       ${rightColumn}
     </div>
 
   </div>
 
   <style>
+    .exam-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+      align-items: start;
+      max-width: 100%;
+      overflow: hidden;
+    }
+    .exam-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: sticky;
+      top: 24px;
+      min-width: 0;
+      width: 300px;
+      max-width: 300px;
+    }
+    @media (max-width: 768px) {
+      .exam-layout {
+        grid-template-columns: 1fr;
+      }
+      .exam-sidebar {
+        width: 100%;
+        max-width: 100%;
+        position: static;
+      }
+      /* Stepper: match appointment booking stepper — absolute lines from circle center */
+      #wiz-stepper { padding: 14px 0; gap: 0; overflow-x: visible; }
+      .wiz-step-wrap {
+        position: relative !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        flex: 1 !important;
+        min-width: 0;
+      }
+      /* Pill: no z-index so it doesn't block lines from adjacent wraps */
+      .wiz-pill {
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 5px !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        position: relative;
+      }
+      /* Circle: z-index 2 so it renders above the connector lines */
+      .wiz-pill > div:first-child {
+        position: relative;
+        z-index: 2;
+      }
+      .wiz-pill-text { text-align: center; overflow: visible !important; min-width: 0; }
+      .wiz-pill-label {
+        font-size: .58rem !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        text-align: center;
+        line-height: 1.3;
+      }
+      .wiz-pill-sub { display: none !important; }
+      /* Line: z-index 1 (above transparent pill, below circle z-2), full center-to-center span */
+      .wiz-step-line {
+        position: absolute !important;
+        top: 13px !important;
+        left: 50% !important;
+        width: 100% !important;
+        height: 2px !important;
+        margin: 0 !important;
+        flex: none !important;
+        z-index: 1;
+        min-width: unset !important;
+      }
+      /* Nav: compact padding on mobile, buttons keep natural size */
+      #wiz-nav { padding: 12px 14px; }
+      #wiz-btn-back { padding: 9px 16px !important; font-size: .84rem !important; }
+      #wiz-btn-next, #wiz-btn-save { padding: 9px 20px !important; font-size: .84rem !important; }
+    }
     @media print {
       #sidebar, .topbar, .page-header, #rx-preview-wrapper .btn-secondary,
       #rx-preview-wrapper ~ * { display: none !important; }
@@ -3760,7 +3925,7 @@ function pagePatientExamHistory() {
   <div class="page-header">
     <div class="page-header-left">
       <h1 class="page-title">My Examination History</h1>
-      <p class="page-subtitle">Your complete optical examination records</p>
+      <p class="page-subtitle">Your complete optical examination records from Cana Optical Clinic</p>
     </div>
   </div>
   <div class="page-body">
@@ -3768,7 +3933,7 @@ function pagePatientExamHistory() {
     ${sorted.length ? `
     <div class="table-wrap">
       <div class="table-toolbar">
-        <span class="table-title">${sorted.length} examination${sorted.length!==1?'s':''}</span>
+        <span class="table-title">${sorted.length} record${sorted.length!==1?'s':''}</span>
         <div class="table-actions">
           <div class="search-input-wrap">
             ${ic('search','icon-sm')}
@@ -3780,7 +3945,7 @@ function pagePatientExamHistory() {
       <table class="tbl">
         <colgroup>
           <col style="width:12%"><col style="width:18%"><col style="width:26%">
-          <col style="width:16%"><col style="width:12%"><col style="width:16%">
+          <col style="width:14%"><col style="width:10%"><col style="width:20%">
         </colgroup>
         <thead><tr>
           <th data-sort-key="date" data-sort-type="date">Date</th>
@@ -3813,7 +3978,7 @@ function pagePatientExamHistory() {
     <div class="table-empty" style="padding:48px">
       No examination records yet. Records will appear here after your first consultation.<br>
       <button class="btn-primary" style="margin-top:16px"
-              onclick="window.navigate('patient-appts',{filter:'request'})">Book an Appointment</button>
+              onclick="window.navigate('patient-request-appt')">Book an Appointment</button>
     </div>`}
   </div>`
 }
@@ -3823,7 +3988,7 @@ function pagePatientExamHistory() {
 // ════════════════════════════════════════════════════════════════
 function pagePatientDashboard() {
   const { user } = st()
-  const today    = new Date().toISOString().split('T')[0]
+  const today    = localDateStr()
   const myAppts  = appointments.filter(a => a.patientId === user.id)
   const upcoming = myAppts.filter(a => ['pending','approved'].includes(a.status) && a.date >= today)
     .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
@@ -3844,10 +4009,10 @@ function pagePatientDashboard() {
         <h2>Hello, ${user.firstName}!</h2>
         <p>Your patient ID is <strong style="color:#E8760A">${user.id}</strong> &bull; QR Code ready below</p>
         <div class="hero-btn-row">
-          <button onclick="window.navigate('patient-appts',{filter:'request'})"
-            style="display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,#F59E0B 0%,#C4620A 100%);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .15s,box-shadow .2s;box-shadow:0 4px 16px rgba(232,137,28,.38),0 1px 4px rgba(196,98,10,.2)"
-            onmouseover="this.style.opacity='.9';this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(232,137,28,.45)'"
-            onmouseout="this.style.opacity='1';this.style.transform='translateY(0)';this.style.boxShadow='0 4px 16px rgba(232,137,28,.38),0 1px 4px rgba(196,98,10,.2)'"
+          <button onclick="window.navigate('patient-request-appt')"
+            style="display:flex;align-items:center;justify-content:center;gap:6px;background:#E8760A;border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .15s"
+            onmouseover="this.style.opacity='.9';this.style.transform='translateY(-1px)'"
+            onmouseout="this.style.opacity='1';this.style.transform='translateY(0)'"
             onmousedown="this.style.transform='scale(0.98)'"
             onmouseup="this.style.transform='translateY(-1px)'">
             ${ic('plus','icon-sm')} Book Appointment
@@ -3860,13 +4025,13 @@ function pagePatientDashboard() {
             onmouseup="this.style.transform='translateY(-2px)'">
             ${ic('file-text','icon-sm')} Prescriptions
           </button>
-          <button onclick="window.navigate('patient-records')"
+          <button onclick="window.navigate('patient-exam-history')"
             style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease"
             onmouseover="this.style.background='rgba(255,255,255,.2)';this.style.borderColor='rgba(255,255,255,.4)';this.style.color='#fff';this.style.transform='translateY(-2px)'"
             onmouseout="this.style.background='rgba(255,255,255,.1)';this.style.borderColor='rgba(255,255,255,.18)';this.style.color='rgba(255,255,255,.85)';this.style.transform='translateY(0)'"
             onmousedown="this.style.transform='translateY(0)'"
             onmouseup="this.style.transform='translateY(-2px)'">
-            ${ic('eye','icon-sm')} Exam History
+            ${ic('eye','icon-sm')} Examination History
           </button>
           <button onclick="window.navigate('doctor-availability')"
             style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:500;cursor:pointer;font-family:inherit;transition:background .18s ease,border-color .18s ease,transform .18s ease,color .18s ease"
@@ -3881,7 +4046,7 @@ function pagePatientDashboard() {
     </div>
 
     ${nextAppt ? `
-    <div style="border-left:4px solid #E8760A;background:#FFF8F0;border-radius:0 10px 10px 0;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="border-left:4px solid #E8760A;background:#FFF8F0;border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#E8760A;margin-bottom:2px">Next Appointment</div>
         <div style="font-size:.95rem;font-weight:700;color:#1C1C1C">${nextAppt.doctorName}</div>
@@ -3889,7 +4054,7 @@ function pagePatientDashboard() {
       </div>
       <div>${badge(nextAppt.status)}</div>
       <button class="btn-secondary" style="font-size:.8rem;padding:6px 14px"
-              onclick="window.navigate('patient-appts')">${ic('calendar','icon-sm')} View All</button>
+              onclick="window.navigate('patient-appts',{filter:'${nextAppt.status}'})">${ic('calendar','icon-sm')} View All</button>
     </div>` : ''}
 
 
@@ -3950,28 +4115,26 @@ function pagePatientDashboard() {
 //  PATIENT — APPOINTMENTS
 // ════════════════════════════════════════════════════════════════
 function pagePatientAppts() {
-  const { user, filter } = st()
-  const tab     = filter === 'request' ? 'request' : 'history'
+  const { user, filter, page } = st()
+  const tab     = (page === 'patient-request-appt') ? 'request' : (filter || 'all')
   const myAppts = appointments.filter(a => a.patientId === user.id)
+  const _today = localDateStr()
+  const statusFilter = (!tab || tab === 'all' || tab === 'request' || tab === 'today') ? null : tab
 
-  const cnt = s => myAppts.filter(a => a.status === s).length
-  const subTabs = ['all','approved','pending','completed','cancelled','disapproved']
-
-  // History default: upcoming (pending/approved, future) ascending so soonest is at top,
-  // then past/completed descending so most recent history is just below.
-  const _today = new Date().toISOString().split('T')[0]
-  const _upcoming = myAppts
-    .filter(a => ['pending','approved'].includes(a.status) && a.date >= _today)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
-  const _past = myAppts
-    .filter(a => !['pending','approved'].includes(a.status) || a.date < _today)
-    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
-  const sortedAppts = [..._upcoming, ..._past]
+  let _pool = tab === 'today'
+    ? myAppts.filter(a => a.date === _today)
+    : statusFilter ? myAppts.filter(a => a.status === statusFilter) : myAppts
+  const _asc = tab === 'pending' || tab === 'approved'
+  const sortedAppts = tab === 'today'
+    ? [..._pool].sort((a, b) => a.time.localeCompare(b.time))
+    : _asc
+      ? [..._pool].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+      : [..._pool].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
 
   if (tab === 'request') {
     window.state.afterRender = () => window.amcInit()
   } else {
-    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', { key: 'date', type: 'date', dir: 1 }) }
+    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', tab === 'today' ? { key: 'time', type: 'text', dir: 1 } : { key: 'date', type: 'date', dir: _asc ? 1 : -1 }) }
   }
 
   const _minAdv = minAdvanceDays()
@@ -3991,22 +4154,11 @@ function pagePatientAppts() {
   return `
   <div class="page-header">
     <div class="page-header-left">
-      <h1 class="page-title">Appointments</h1>
-      <p class="page-subtitle">Request new appointments or view your history</p>
+      <h1 class="page-title">${tab === 'request' ? 'Request Appointment' : tab === 'today' ? "Today's Appointments" : (statusFilter ? statusFilter.charAt(0).toUpperCase()+statusFilter.slice(1)+' Appointments' : 'My Appointments')}</h1>
+      <p class="page-subtitle">${tab === 'request' ? 'Book a new consultation with one of our doctors' : tab === 'today' ? 'Your appointments scheduled for today' : 'View your appointment history'}</p>
     </div>
   </div>
   <div class="page-body">
-
-    <div class="filter-tabs" style="margin-bottom:20px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:5;background:#f5f6fa">
-      <button class="filter-tab${tab==='request'?' active':''}"
-              onclick="window.navigate('patient-appts',{filter:'request'})">
-        ${ic('plus','icon-sm')} Request Appointment
-      </button>
-      <button class="filter-tab${tab==='history'?' active':''}"
-              onclick="window.navigate('patient-appts',{filter:'history'})">
-        ${ic('calendar','icon-sm')} My History
-      </button>
-    </div>
 
     ${tab === 'request' ? `
     <style>
@@ -4023,13 +4175,12 @@ function pagePatientAppts() {
       .wiz-step-item { display:flex; flex-direction:column; align-items:center; flex:1; position:relative; }
       .wiz-step-item:not(:last-child)::after { content:''; position:absolute; top:14px; left:50%; width:100%;
         height:2px; background:#e5e7eb; z-index:0; transition:background .3s; }
-      .wiz-step-item.done:not(:last-child)::after { background:linear-gradient(90deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); }
+      .wiz-step-item.done:not(:last-child)::after { background:#E8760A; }
       .wiz-circle { width:28px; height:28px; border-radius:50%; border:2px solid #e5e7eb; background:#fff;
         display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700;
         color:#9CA3AF; z-index:1; position:relative; transition:all .25s; flex-shrink:0; }
-      .wiz-step-item.done .wiz-circle { background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); border-color:#E8760A; color:#fff; }
-      .wiz-step-item.active .wiz-circle { border-color:#E8760A; color:#E8760A;
-        box-shadow:0 0 0 4px rgba(232,118,10,.15); }
+      .wiz-step-item.done .wiz-circle { background:#E8760A; border-color:#E8760A; color:#fff; }
+      .wiz-step-item.active .wiz-circle { border-color:#E8760A; color:#E8760A; }
       .wiz-step-label { font-size:.68rem; color:#9CA3AF; margin-top:5px; font-weight:500; }
       .wiz-step-item.done .wiz-step-label,
       .wiz-step-item.active .wiz-step-label { color:#E8760A; font-weight:600; }
@@ -4039,7 +4190,7 @@ function pagePatientAppts() {
         color:#6B7280; cursor:pointer; padding:8px 0; display:flex; align-items:center; gap:5px; }
       .wiz-btn-back:hover { color:#374151; }
       .wiz-btn-next { font-family:'Poppins',sans-serif; font-size:.88rem; font-weight:600; cursor:pointer;
-        padding:11px 28px; border-radius:8px; border:none; background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); color:#fff;
+        padding:11px 28px; border-radius:8px; border:none; background:#E8760A; color:#fff;
         display:flex; align-items:center; gap:7px; transition:opacity .2s; }
       .wiz-btn-next:disabled { opacity:.38; cursor:not-allowed; }
       .wiz-btn-next:not(:disabled):hover { opacity:.85; }
@@ -4050,7 +4201,7 @@ function pagePatientAppts() {
         font-family:'Poppins',sans-serif; }
       .doc-card:hover { border-color:#E8760A; background:#FFFBF5; }
       .doc-card.selected { border-color:#E8760A; background:#FFF7ED; }
-      .doc-card-avatar { width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
+      .doc-card-avatar { width:40px; height:40px; border-radius:50%; background:#E8760A;
         display:flex; align-items:center; justify-content:center; font-size:.78rem;
         font-weight:700; color:#fff; flex-shrink:0; }
       /* ── Type cards ── */
@@ -4063,7 +4214,7 @@ function pagePatientAppts() {
       .time-slot { padding:9px 14px; border-radius:8px; border:1.5px solid #e5e7eb; background:#fff;
         font-family:'Poppins',sans-serif; font-size:.82rem; cursor:pointer; transition:all .15s; white-space:nowrap; }
       .time-slot:hover:not(.taken) { border-color:#E8760A; }
-      .time-slot.selected { background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%); color:#fff; border-color:#E8760A; }
+      .time-slot.selected { background:#E8760A; color:#fff; border-color:#E8760A; }
       .time-slot.taken { background:#F3F4F6; color:#9CA3AF; cursor:default; text-decoration:line-through; }
       /* ── Mini calendar ── */
       .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
@@ -4073,13 +4224,17 @@ function pagePatientAppts() {
       .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
       .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
       .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
-      .amc-day.amc-selected { background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%) !important; color:#fff !important; font-weight:700; }
+      .amc-day.amc-selected { background:#E8760A !important; color:#fff !important; font-weight:700; }
       .amc-day.amc-past { opacity:.35; cursor:default; }
       .amc-day.amc-far { opacity:.3; cursor:default; background:#f9fafb; }
       .amc-day.amc-empty { cursor:default; }
       .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; flex-direction:column; justify-content:center; aspect-ratio:unset; min-height:46px; gap:1px; padding:3px 2px; }
       .amc-holiday-lbl { font-size:.42rem; line-height:1.2; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:500; padding:0 1px; }
       .amc-day.amc-blocked { background:#FEE2E2; color:#B91C1C; cursor:default; font-weight:700; text-decoration:line-through; text-decoration-color:rgba(185,28,28,0.5); }
+      @media (max-width:480px) {
+        .amc-day.amc-holiday { min-height:38px; font-size:.7rem; }
+        .amc-holiday-lbl { font-size:.35rem; }
+      }
       /* ── Summary sidebar (desktop) ── */
       .wiz-summary-rail { position:sticky; top:24px; }
       .sum-row { display:flex; align-items:flex-start; gap:10px; margin-bottom:14px; }
@@ -4133,8 +4288,8 @@ function pagePatientAppts() {
                 Booking with <strong id="amc-prefill-doc-name"></strong>. Only their available days are shown. Select your preferred date below.
               </div>
             </div>
-            <div style="background:#eff6ff;border-left:3px solid #3b82f6;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" width="16" height="16" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>
+            <div style="background:#eff6ff;border-left:3px solid #3b82f6;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+              <span style="flex-shrink:0;display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
               <div style="font-size:.82rem;color:#1e40af;line-height:1.5">
                 ${advanceNoticeHtml}<br>
                 ${clinicHoursNotice}
@@ -4151,7 +4306,7 @@ function pagePatientAppts() {
             <div class="appt-mini-cal" id="amc-cells"></div>
             <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
               <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#ECFDF5;border:1px solid #6EE7B7;display:inline-block"></span>Available</span>
-              <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);display:inline-block"></span>Today / Selected</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#E8760A;display:inline-block"></span>Today / Selected</span>
               <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#F3F4F6;display:inline-block"></span>Unavailable</span>
               <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#FFF1F2;border:1px solid #fda4af;display:inline-block"></span>PH Holiday</span>
             </div>
@@ -4304,8 +4459,8 @@ function pagePatientAppts() {
               <div><div class="sum-label">Type</div><div class="sum-val" id="sum-type">Eye Examination</div></div>
             </div>
             <div style="border-top:1px solid #f3f4f6;margin:16px 0"></div>
-            <div style="font-size:.73rem;color:#9CA3AF;line-height:1.5" id="sum-hint">
-              ${ic('info','icon-sm')} Fill in all steps to submit your request.
+            <div style="display:flex;align-items:center;gap:5px;font-size:.73rem;color:#9CA3AF;line-height:1.4" id="sum-hint">
+              ${ic('info','icon-sm')} <span>Fill in all steps to submit your request.</span>
             </div>
           </div>
         </div>
@@ -4314,15 +4469,8 @@ function pagePatientAppts() {
     </div>
     ` : `
     <div class="table-wrap">
-      <div class="filter-tabs" style="padding:12px 16px 0">
-        ${subTabs.map(t => `
-          <button class="filter-tab pt-appt-tab${t==='all'?' active':''}" data-tab="${t}"
-                  onclick="window.filterPatientAppts('${t}')">
-            ${t.charAt(0).toUpperCase()+t.slice(1)}${t!=='all'?` <span style="font-size:.72rem;background:#F3F4F6;color:#6B7280;border-radius:10px;padding:1px 6px;margin-left:3px">${cnt(t)}</span>`:''}
-          </button>`).join('')}
-      </div>
       <div class="table-toolbar">
-        <span class="table-title">My Appointment History (${myAppts.length})</span>
+        <span class="table-title">${tab === 'today' ? "Today's Appointments" : statusFilter ? statusFilter.charAt(0).toUpperCase()+statusFilter.slice(1)+' Appointments' : 'All Appointments'} (${sortedAppts.length})</span>
         <div class="table-actions">
           <div class="search-input-wrap">
             ${ic('search','icon-sm')}
@@ -4330,8 +4478,8 @@ function pagePatientAppts() {
           </div>
         </div>
       </div>
-      ${myAppts.length ? `
-      <table class="tbl" style="table-layout:fixed">
+      ${sortedAppts.length ? `
+      <table class="tbl">
         <colgroup>
           <col style="width:24%"><col style="width:15%"><col style="width:12%"><col style="width:22%"><col style="width:14%"><col style="width:13%">
         </colgroup>
@@ -4351,7 +4499,7 @@ function pagePatientAppts() {
               <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
                 <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
                 ${(a.status==='pending'||a.status==='approved') ? `
-                  ${a.rescheduleRequest ? `<span title="Reschedule request pending" style="display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:999px;padding:1px 7px;white-space:nowrap">${ic('refresh-cw','icon-xs')} Requested</span>` : `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`}
+                  ${a.status==='approved' ? (a.rescheduleRequest ? `<span title="Reschedule request pending" style="display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:999px;padding:1px 7px;white-space:nowrap">${ic('refresh-cw','icon-xs')} Requested</span>` : `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`) : ''}
                   ${apptCancellable(a)
                     ? `<button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>`
                     : `<button class="btn-icon" title="Cancellation window has passed" style="color:#9CA3AF;opacity:.5;cursor:not-allowed" onclick="window.explainCancelDeadline()">${ic('x-circle','icon-sm')}</button>`}` : ''}
@@ -4359,7 +4507,7 @@ function pagePatientAppts() {
             </td>
           </tr>`).join('')}
         </tbody>
-      </table>` : `<div class="table-empty">No appointment history yet.</div>`}
+      </table>` : `<div class="table-empty">${tab === 'today' ? 'No appointments scheduled for today.' : `No ${statusFilter || ''} appointments found.`}</div>`}
     </div>`}
   </div>`
 }
@@ -4436,7 +4584,7 @@ function pagePatientRecords() {
         <div style="font-size:.78rem"><strong>Diagnosis:</strong> ${e.diagnosis}</div>
         <div style="font-size:.78rem"><strong>Recommendation:</strong> ${e.recommendation}</div>
         <div style="font-size:.75rem;color:#9CA3AF;margin-top:4px">${e.remarks}</div>
-      </div>`).join('') : `<div class="table-empty">No examination records yet. Records are created when a doctor completes a patient consultation.</div>`}
+      </div>`).join('') : emptyState('eye', 'No examination records', 'No examination records on file.')}
     </div>
   </div>`
 }
@@ -4517,8 +4665,8 @@ function pagePatientQR() {
           ${steps.map(([title, desc], i) => `
           <div style="display:flex;gap:16px;${i < steps.length - 1 ? 'margin-bottom:20px' : ''}">
             <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
-              <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div>
-              ${i < steps.length - 1 ? `<div style="width:2px;flex:1;background:repeating-linear-gradient(to bottom,#E5E7EB 0,#E5E7EB 4px,transparent 4px,transparent 8px);margin-top:4px;min-height:24px"></div>` : ''}
+              <div style="width:28px;height:28px;border-radius:50%;background:#E8760A;color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div>
+              ${i < steps.length - 1 ? `<div style="width:2px;flex:1;background:#E5E7EB;margin-top:4px;min-height:24px"></div>` : ''}
             </div>
             <div style="padding-top:4px${i < steps.length - 1 ? ';padding-bottom:20px' : ''}">
               <div style="font-size:.95rem;font-weight:600;color:#1C1C1C;margin-bottom:4px">${title}</div>
@@ -4570,7 +4718,7 @@ function pageStaffSettings() {
         <!-- Clickable avatar -->
         <div style="position:relative;flex-shrink:0">
           <label for="st-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-            <div id="st-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div id="st-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
                 ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                 : initials(staffName)}
@@ -4579,7 +4727,7 @@ function pageStaffSettings() {
                  onmouseover="this.style.background='rgba(0,0,0,.45)'"
                  onmouseout="this.style.background='rgba(0,0,0,0)'"></div>
           </label>
-          <label for="st-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+          <label for="st-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
             ${ic('camera','icon-sm')}
           </label>
           <input type="file" id="st-photo-input" accept="image/*" style="display:none"
@@ -4624,7 +4772,7 @@ function pageStaffSettings() {
             </div>
             <div class="form-group">
               <label class="form-label">Phone Number</label>
-              <input class="form-input" id="st-phone" value="${staffMember.contact || ''}">
+              <input class="form-input" id="st-phone" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${staffMember.contact || ''}">
             </div>
           </div>
           <div style="display:flex;justify-content:flex-end;margin-top:4px">
@@ -4710,35 +4858,17 @@ function pagePatientPrescriptions() {
           <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px">
             <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#E8760A;margin-bottom:10px">OD — Right Eye</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
-              <div>
-                <div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">SPH</div>
-                <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.od.sph}</div>
-              </div>
-              <div>
-                <div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">CYL</div>
-                <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.od.cyl}</div>
-              </div>
-              <div>
-                <div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">AXIS</div>
-                <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.od.axis || '—'}</div>
-              </div>
+              <div><div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">SPH</div><div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.od.sph}</div></div>
+              <div><div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">CYL</div><div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.od.cyl}</div></div>
+              <div><div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">AXIS</div><div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.od.axis || '—'}</div></div>
             </div>
           </div>
           <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px">
             <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#3B82F6;margin-bottom:10px">OS — Left Eye</div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
-              <div>
-                <div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">SPH</div>
-                <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.os.sph}</div>
-              </div>
-              <div>
-                <div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">CYL</div>
-                <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.os.cyl}</div>
-              </div>
-              <div>
-                <div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">AXIS</div>
-                <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.os.axis || '—'}</div>
-              </div>
+              <div><div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">SPH</div><div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.os.sph}</div></div>
+              <div><div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">CYL</div><div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.os.cyl}</div></div>
+              <div><div style="font-size:.65rem;color:#9CA3AF;margin-bottom:2px">AXIS</div><div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1C1C1C">${rx.os.axis || '—'}</div></div>
             </div>
           </div>
         </div>
@@ -4760,9 +4890,10 @@ function pagePatientPrescriptions() {
 function pagePatientNotifications() {
   const notifs = window._notifications || []
 
-  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'star', reminder:'clock', record:'eye', prescription:'file-text', info:'info' }
-  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#8B5CF6', reminder:'#D97706', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280' }
-  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#F5F3FF', reminder:'#FFF3CD', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6' }
+  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', record:'eye', prescription:'file-text', info:'info' }
+  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280' }
+  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6' }
+  const resolveType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
   const unreadCount = notifs.filter(n => !n.isRead).length
 
@@ -4800,13 +4931,13 @@ function pagePatientNotifications() {
       <div id="notif-${n.id}" onclick="window.markNotifRead(${n.id})"
            style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid #F3F4F6;cursor:pointer;transition:background .15s;${n.isRead ? '' : 'background:#FAFAF8'}"
            onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='${n.isRead ? 'transparent' : '#FAFAF8'}'">
-        <div style="width:38px;height:38px;border-radius:50%;background:${typeBg[n.type]||'#F3F4F6'};display:flex;align-items:center;justify-content:center;color:${typeColor[n.type]||'#6B7280'};flex-shrink:0">
-          ${ic(typeIcon[n.type] || 'info','icon-sm')}
+        <div style="width:38px;height:38px;border-radius:50%;background:${typeBg[resolveType(n)]||'#F3F4F6'};display:flex;align-items:center;justify-content:center;color:${typeColor[resolveType(n)]||'#6B7280'};flex-shrink:0">
+          ${ic(typeIcon[resolveType(n)] || 'info','icon-sm')}
         </div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
             <span style="font-size:.87rem;font-weight:${n.isRead ? '500' : '700'};color:#1C1C1C">${n.title}</span>
-            ${n.isRead ? '' : `<span style="width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);flex-shrink:0;display:inline-block"></span>`}
+            ${n.isRead ? '' : `<span style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0;display:inline-block"></span>`}
           </div>
           <p style="font-size:.8rem;color:#6B7280;margin:0;line-height:1.5">${n.body}</p>
           <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">${window._notifTimeAgo ? window._notifTimeAgo(n.createdAt) : n.createdAt}</div>
@@ -4862,7 +4993,7 @@ function pagePatientSettings() {
         <!-- Clickable avatar -->
         <div style="position:relative;flex-shrink:0">
           <label for="pt-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
-            <div id="pt-avatar" style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
+            <div id="pt-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
                 ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
                 : initials(user.name)}
@@ -4879,7 +5010,7 @@ function pagePatientSettings() {
             </div>
           </label>
           <!-- Camera badge -->
-          <label for="pt-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
+          <label for="pt-photo-input" style="position:absolute;bottom:0;right:0;width:24px;height:24px;border-radius:50%;background:#E8760A;border:2px solid #fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.2)">
             ${ic('camera','icon-sm')}
           </label>
           <input type="file" id="pt-photo-input" accept="image/*" style="display:none"
@@ -4922,7 +5053,7 @@ function pagePatientSettings() {
           <div class="form-row-2">
             <div class="form-group">
               <label class="form-label">Contact Number</label>
-              <input type="text" class="form-input" value="${patient?.contact || ''}" id="sett-contact">
+              <input type="text" class="form-input" id="sett-contact" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${patient?.contact || ''}">
             </div>
             <div class="form-group">
               <label class="form-label">Email Address</label>
@@ -4949,8 +5080,8 @@ function pagePatientSettings() {
                      style="background:#F9FAFB;color:#9CA3AF;cursor:not-allowed">
             </div>
           </div>
-          <div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:0 6px 6px 0;padding:10px 14px;display:flex;align-items:flex-start;gap:8px;font-size:.8rem;color:#92400E">
-            ${ic('info','icon-sm')} Contact the clinic to update your date of birth, gender, or medical history.
+          <div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:0 6px 6px 0;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:.8rem;color:#92400E">
+            <span style="flex-shrink:0;display:flex">${ic('info','icon-sm')}</span> Contact the clinic to update your date of birth, gender, or medical history.
           </div>
           <div style="display:flex;justify-content:flex-end">
             <button class="btn-primary" onclick="window.savePatientSettings()">
@@ -5226,7 +5357,7 @@ function pagePatientDoctorAvail() {
       <div style="font-size:.88rem;font-weight:700;color:#1C1C1C;margin-bottom:2px">${dayFull}</div>
       <div style="font-size:.78rem;color:#6B7280;margin-bottom:12px">${doc.name} &nbsp;·&nbsp; 8:00 AM – 5:00 PM</div>
       <button onclick="window.patCalBookAppt('${docId}')"
-              style="width:100%;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;border:none;border-radius:8px;padding:9px 0;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s"
+              style="width:100%;background:#E8760A;color:#fff;border:none;border-radius:8px;padding:9px 0;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s"
               onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
         Book This Date →
       </button>`
@@ -5271,7 +5402,6 @@ function pagePatientDoctorAvail() {
   }
 
   function buildPatDocPanel(doctor) {
-    const daysLabel  = (doctor.availableDays || []).join(', ')
     const viewYear   = baseYear
     const viewMonth  = baseMonth
     const calCells   = buildPatDocCalendar(doctor, viewYear, viewMonth)
@@ -5297,10 +5427,14 @@ function pagePatientDoctorAvail() {
 
         <!-- Doctor header row -->
         <div class="card-body" style="display:flex;align-items:center;gap:16px;padding-bottom:14px;flex-wrap:wrap">
-          <div class="profile-avatar-lg" style="width:52px;height:52px;font-size:1.1rem;flex-shrink:0">${initials(doctor.name)}</div>
+          <div class="profile-avatar-lg" style="width:52px;height:52px;font-size:1.1rem;flex-shrink:0;${doctor.photoUrl?'padding:0;overflow:hidden;background:none;':''}">
+            ${doctor.photoUrl
+              ? `<img src="${doctor.photoUrl}" alt="${doctor.name}" style="width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%;display:block">`
+              : initials(doctor.name)}
+          </div>
           <div style="flex:1;min-width:0">
             <div style="font-size:1rem;font-weight:700;color:#1C1C1C">${doctor.name}</div>
-            <div style="font-size:.8rem;color:#6B7280;margin-top:2px">${doctor.specialization} &nbsp;·&nbsp; ${daysLabel}</div>
+            <div style="font-size:.8rem;color:#6B7280;margin-top:2px">${doctor.specialization}</div>
           </div>
           <button class="btn-primary" style="flex-shrink:0;font-size:.82rem"
                   onclick="window.patCalBookAppt('${doctor.id}')">
@@ -5325,7 +5459,7 @@ function pagePatientDoctorAvail() {
             <div id="pat-cal-grid-${doctor.id}" class="calendar-grid">${calCells}</div>
             <div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap">
               <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:#6B7280">
-                <div style="width:10px;height:10px;background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);border-radius:50%"></div>Today
+                <div style="width:10px;height:10px;background:#E8760A;border-radius:50%"></div>Today
               </div>
               <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:#6B7280">
                 <div style="width:10px;height:10px;background:#ECFDF5;border:1.5px solid #10B981;border-radius:2px"></div>Available
@@ -5391,7 +5525,7 @@ function pagePatientDoctorAvail() {
             <div>
               <div class="doc-card-name">${d.name.replace('Dr. ','')}</div>
               <div class="doc-card-spec">${d.specialization}</div>
-              ${d.availableDays?.length ? `<div style="font-size:.68rem;color:#E8760A;margin-top:3px;font-weight:600">${d.availableDays.join(', ')}</div>` : ''}
+              ${d.availableDays?.length ? dayPills(d.availableDays, 'sm') : ''}
             </div>
           </button>`).join('')}
         </div>

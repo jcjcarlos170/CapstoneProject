@@ -98,7 +98,7 @@ function replyEmailBody(string $name, string $original, string $reply, string $r
 
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
+          <td style="background:#E8760A;
                      padding:32px 40px 28px;text-align:center;">
             <div style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                         font-size:22px;font-weight:800;color:#ffffff;

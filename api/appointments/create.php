@@ -102,10 +102,9 @@ try {
 
     $conflict = checkApptConflict($pdo, $doctorId, $date, $time, $durationMin);
     if ($conflict !== null) {
-        $totalGap = $durationMin + 15;
         jsonResponse(['success' => false, 'message' =>
             "This time conflicts with an existing appointment at {$conflict}. "
-          . "Please choose a slot at least {$totalGap} minutes before or after it."]);
+          . "Please choose a different slot."]);
     }
 
     // Generate next ID: A001, A002, …

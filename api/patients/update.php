@@ -48,7 +48,7 @@ try {
             $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');
             $chk->execute([$email, $userId]);
             if ($chk->fetch()) {
-                jsonResponse(['success' => false, 'message' => 'That email is already registered to another account.']);
+                jsonResponse(['success' => false, 'message' => 'An account with this email already exists.']);
             }
             $pdo->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $userId]);
         }

@@ -1,13 +1,16 @@
 /* ── Shared base for all public pages ── */
+/* ════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — change these to retheme all public pages
+════════════════════════════════════════════════════════════════ */
 :root {
-  --orange:    #E8891C;
-  --orange-dk: #C4720E;
-  --orange-lt: #FFF3E0;
-  --orange-md: #FDE8C8;
-  --text:      #1a1a1a;
-  --muted:     #6b7280;
-  --light:     #f9fafb;
-  --border:    #e5e7eb;
+  --orange:    #E8891C;   /* brand primary — buttons, accents, links */
+  --orange-dk: #C4720E;   /* hover / focus state */
+  --orange-lt: #FFF3E0;   /* light tint — icon backgrounds, hover fills */
+  --orange-md: #FDE8C8;   /* medium tint — ring, badge backgrounds */
+  --text:      #1a1a1a;   /* body / heading text */
+  --muted:     #6b7280;   /* secondary text */
+  --light:     #f9fafb;   /* subtle section backgrounds */
+  --border:    #e5e7eb;   /* borders and dividers */
   --white:     #ffffff;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,7 +35,9 @@ body { opacity: 0; animation: pageIn 0.2s ease forwards; }
 .footer-links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 11px; }
 .footer-links li { font-size: 0.82rem; color: rgba(255,255,255,0.55); }
 .footer-links a { font-size: 0.82rem; color: rgba(255,255,255,0.55); transition: color 0.2s ease; }
-.footer-links a:hover { color: #fff; }.footer-info { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 13px; }
+.footer-links a:hover { color: #fff; }
+.footer-booknow { color: #D97706 !important; font-weight: 600; transition: color 0.2s ease, opacity 0.2s ease !important; }
+.footer-booknow:hover { color: #F59E0B !important; opacity: 0.85; }.footer-info { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 13px; }
 .footer-info li { display: flex; gap: 10px; align-items: flex-start; }
 .footer-info svg { width: 14px; height: 14px; min-width: 14px; stroke: var(--orange); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-top: 1px; }
 .footer-info li span, .footer-info li a { font-size: 0.8rem; color: rgba(255,255,255,0.55); line-height: 1.55; transition: color 0.2s ease; }

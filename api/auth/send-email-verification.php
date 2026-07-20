@@ -87,7 +87,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
                     max-width:520px;width:100%;">
 
         <tr>
-          <td style="background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
+          <td style="background:#E8760A;
                      padding:32px 40px 28px;text-align:center;">
             <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:4px;">OPTICANA</div>
             <div style="font-size:11px;font-weight:500;letter-spacing:2.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Cana Optical Clinic</div>

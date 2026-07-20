@@ -32,7 +32,7 @@
     .then(function (r) { return r.json() })
     .then(function (d) {
       if (!d || !d.success || !d.user) return
-      applyProfileUI(d.user, base)
+      applyProfileUI(d.user, base, d.role)
       prefillContactForm(d.user)
       // Hide the hero "Register" button — logged-in users already have an account
       document.querySelectorAll('a[href*="#register"]').forEach(function (el) {
@@ -53,10 +53,26 @@
     return (name || '').trim().split(/\s+/).map(function (p) { return p[0] }).slice(0, 2).join('').toUpperCase()
   }
 
-  function applyProfileUI(user, base) {
+  function applyProfileUI(user, base, role) {
     var dashboardHref = base + 'app.html'
     var logoutHref    = base + 'api/auth/logout.php'
     var indexHref     = base + 'index.html'
+
+    // Admin, staff, and doctors don't need booking buttons — hide them all
+    if (role === 'admin' || role === 'staff' || role === 'doctor') {
+      var toHide = [
+        'a.nav-book',                      // desktop navbar "Book Now"
+        'li.nav-link-book',                // mobile nav "Book Now" item
+        'a.cta-btn',                       // page CTA "Book an Appointment"
+        'a.footer-booknow',                // footer quick link
+        'a.btn-solid[href*="app.html"]',   // hero "Book Appointment" button
+      ]
+      toHide.forEach(function (sel) {
+        document.querySelectorAll(sel).forEach(function (el) {
+          el.style.display = 'none'
+        })
+      })
+    }
 
     // ── Desktop: replace the standalone "Login" link with a profile button ──
     document.querySelectorAll('.nav-actions > a.nav-login').forEach(function (loginLink) {
@@ -151,6 +167,16 @@
       document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = base + clinic.logoUrl })
     }
 
+    if (clinic.logoName) {
+      document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = clinic.logoName })
+    }
+
+    if (clinic.name) {
+      document.querySelectorAll('.nav-logo-sub, .footer-logo-sub').forEach(function (el) { el.textContent = clinic.name })
+      var footerLine = document.querySelector('.footer-line')
+      if (footerLine) footerLine.textContent = '© ' + new Date().getFullYear() + ' ' + clinic.name + '. All rights reserved.'
+    }
+
     // Contact page info card (phone/email stay clickable there)
     var addressEl = document.getElementById('ci-pub-address')
     if (addressEl && clinic.address) addressEl.textContent = clinic.address
@@ -199,4 +225,40 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
     })
   }
+
+  // ── Hide navbar when footer is visible, restore when footer leaves ──
+  var navbar = document.getElementById('navbar')
+  var footer = document.getElementById('footer')
+  if (navbar && footer && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (entries) {
+      navbar.classList.toggle('navbar-folded', entries[0].isIntersecting)
+    }, { threshold: 0.05 }).observe(footer)
+  }
+
+  // ── Scroll-to-top button ──────────────────────────────────────────
+  var scrollBtn = document.createElement('button')
+  scrollBtn.setAttribute('aria-label', 'Back to top')
+  scrollBtn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="18 15 12 9 6 15"/></svg>'
+  scrollBtn.style.cssText =
+    'position:fixed;bottom:28px;right:28px;z-index:9000;' +
+    'width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;' +
+    'background:#E8760A;color:#fff;' +
+    'display:flex;align-items:center;justify-content:center;' +
+    'box-shadow:0 2px 6px rgba(0,0,0,.15);' +
+    'opacity:0;transform:translateY(12px);pointer-events:none;' +
+    'transition:opacity .22s ease,transform .22s ease,background .15s ease;'
+  scrollBtn.addEventListener('mouseenter', function () { this.style.background = '#d06800' })
+  scrollBtn.addEventListener('mouseleave', function () { this.style.background = '#E8760A' })
+  scrollBtn.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+  document.body.appendChild(scrollBtn)
+
+  window.addEventListener('scroll', function () {
+    var show = window.scrollY > 320
+    scrollBtn.style.opacity      = show ? '1' : '0'
+    scrollBtn.style.transform    = show ? 'translateY(0)' : 'translateY(12px)'
+    scrollBtn.style.pointerEvents = show ? '' : 'none'
+  }, { passive: true })
 })()

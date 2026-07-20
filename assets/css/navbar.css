@@ -1,4 +1,5 @@
 /* ── Shared navbar used by every public page (landing + inner pages) ── */
+#navbar.navbar-folded { transform: translateY(-100%); }
 /* Built on Bootstrap's navbar/collapse components; visuals fully overridden here.
    Page-specific chrome (fixed no-scroll body, mini fixed footer) lives in each
    page's own stylesheet, NOT here — this file must stay safe to load on the
@@ -11,7 +12,7 @@
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(229,231,235,0.7);
   box-shadow: 0 1px 12px rgba(0,0,0,0.06);
-  transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, transform 0.35s cubic-bezier(0.4,0,0.2,1);
 }
 .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .nav-logo.navbar-brand { margin-right: 0; padding: 0; font-size: 1rem; }
@@ -32,8 +33,8 @@
 .nav-login { font-size: 0.85rem; font-weight: 500; color: var(--muted); padding: 6px 12px; transition: color 0.2s ease; }
 .nav-login:hover { color: var(--orange); }
 .nav-login:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
-.nav-book { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; background: linear-gradient(135deg, #F59E0B 0%, #E8891C 55%, #C4620A 100%); color: #fff; font-size: 0.85rem; font-weight: 600; border-radius: 999px; transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease; box-shadow: 0 2px 12px rgba(232,137,28,0.38), 0 1px 3px rgba(196,98,10,0.2); }
-.nav-book:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(232,137,28,0.48), 0 1px 4px rgba(196,98,10,0.25); }
+.nav-book { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; background: var(--orange); color: #fff; font-size: 0.85rem; font-weight: 600; border-radius: 999px; transition: opacity 0.25s ease, transform 0.25s ease; }
+.nav-book:hover { opacity: 0.9; transform: translateY(-1px); }
 .nav-book:active { transform: translateY(0); }
 .nav-book:focus-visible { outline: 2px solid var(--orange-dk); outline-offset: 2px; }
 .nav-link-login { display: none; }
@@ -48,7 +49,7 @@
 .nav-profile-btn { display: flex; align-items: center; gap: 8px; background: transparent; border: none; cursor: pointer; padding: 4px 10px 4px 4px; border-radius: 999px; transition: background 0.2s ease; }
 .nav-profile-btn:hover { background: rgba(127,127,127,0.1); }
 .nav-profile-btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
-.nav-profile-avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #FAA84F 0%, #E8760A 60%, #C4620A 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
+.nav-profile-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; overflow: hidden; flex-shrink: 0; }
 .nav-profile-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .nav-profile-name { font-size: 0.85rem; font-weight: 600; color: var(--muted); white-space: nowrap; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .nav-profile-chevron { flex-shrink: 0; color: var(--muted); transition: transform 0.2s ease; }

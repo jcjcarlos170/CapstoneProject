@@ -11,7 +11,7 @@ var state = {
   filter: 'all',
   selectedRole: 'admin',
   sidebarCollapsed: false,
-  settingsSection: 'clinic',
+  settingsSection: 'profile',
   afterRender: null
 }
 
@@ -23,33 +23,29 @@ const SIDEBAR_CONFIG = {
     { section: 'Clinic' },
     { key: 'appointments',         label: 'Appointments',     icon: 'calendar', badgeKey: '_apptPendingCount',
       children: [
+        { key: 'appointments', filter: 'all',         label: 'All Appointments' },
         { key: 'appointments', filter: 'today',       label: 'Today' },
         { key: 'appointments', filter: 'pending',     label: 'Pending', badgeKey: '_apptPendingCount' },
         { key: 'appointments', filter: 'approved',    label: 'Approved' },
         { key: 'appointments', filter: 'cancelled',   label: 'Cancelled' },
         { key: 'appointments', filter: 'disapproved', label: 'Disapproved' },
-        { key: 'appointments', filter: 'completed',   label: 'Completed' }
+        { key: 'appointments', filter: 'completed',   label: 'Completed' },
+        { key: 'appointments', filter: 'no-show',     label: 'No-show' }
       ]
     },
-    { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text',
-      children: [
-        { key: 'patient-list',     label: 'All Patients' },
-        { key: 'add-patient',      label: 'Add Patient' }
-      ]
-    },
+    { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text' },
     { key: 'contact-messages',     label: 'Contact Messages', icon: 'mail', badgeKey: '_contactUnreadCount' },
-    { key: 'examination',          label: 'Optical Examination', icon: 'eye',
-      children: [
-        { key: 'exam-records',     label: 'Exam Records' }
-      ]
-    },
+    { key: 'exam-records',         label: 'Optical Examination', icon: 'eye' },
     { key: 'schedule',             label: 'Doctor Schedule',  icon: 'clock' },
     { key: 'admin-reports',        label: 'Reports',          icon: 'bar-chart' },
     { section: 'System' },
     { key: 'admin-users',          label: 'User Management',  icon: 'users',
       children: [
-        { key: 'admin-users',      label: 'All Users' },
-        { key: 'add-user',         label: 'Add User', action: 'openAddUserModal' }
+        { key: 'admin-users', filter: 'all',     label: 'All Users' },
+        { key: 'admin-users', filter: 'admin',   label: 'Admin' },
+        { key: 'admin-users', filter: 'staff',   label: 'Staff' },
+        { key: 'admin-users', filter: 'doctor',  label: 'Doctor' },
+        { key: 'admin-users', filter: 'patient', label: 'Patient' }
       ]
     },
     { key: 'activity-log',         label: 'Activity Log',     icon: 'activity' },
@@ -70,20 +66,17 @@ const SIDEBAR_CONFIG = {
     { section: 'Clinic' },
     { key: 'appointments',         label: 'Appointments',     icon: 'calendar', badgeKey: '_apptPendingCount',
       children: [
+        { key: 'appointments', filter: 'all',         label: 'All Appointments' },
         { key: 'appointments', filter: 'today',       label: 'Today' },
         { key: 'appointments', filter: 'pending',     label: 'Pending', badgeKey: '_apptPendingCount' },
         { key: 'appointments', filter: 'approved',    label: 'Approved' },
         { key: 'appointments', filter: 'cancelled',   label: 'Cancelled' },
         { key: 'appointments', filter: 'disapproved', label: 'Disapproved' },
-        { key: 'appointments', filter: 'completed',   label: 'Completed' }
+        { key: 'appointments', filter: 'completed',   label: 'Completed' },
+        { key: 'appointments', filter: 'no-show',     label: 'No-show' }
       ]
     },
-    { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text',
-      children: [
-        { key: 'patient-list',     label: 'All Patients' },
-        { key: 'add-patient',      label: 'Add Patient' }
-      ]
-    },
+    { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text' },
     { key: 'contact-messages',     label: 'Contact Messages', icon: 'mail', badgeKey: '_contactUnreadCount' },
     { key: 'schedule',             label: 'Doctor Schedule',  icon: 'clock' },
     { section: 'Account' },
@@ -96,6 +89,7 @@ const SIDEBAR_CONFIG = {
     { section: 'Clinic' },
     { key: 'doctor-appointments',  label: 'My Appointments',  icon: 'calendar',
       children: [
+        { key: 'doctor-appointments', filter: 'all',       label: 'All Appointments' },
         { key: 'doctor-appointments', filter: 'today',     label: 'Today' },
         { key: 'doctor-appointments', filter: 'upcoming',  label: 'Upcoming' },
         { key: 'doctor-appointments', filter: 'completed', label: 'Completed' }
@@ -117,10 +111,17 @@ const SIDEBAR_CONFIG = {
     { section: 'Overview' },
     { key: 'patient-dashboard',    label: 'Dashboard',        icon: 'home' },
     { section: 'Services' },
+    { key: 'patient-request-appt', label: 'Request Appointment', icon: 'plus-circle' },
     { key: 'patient-appts',        label: 'My Appointments',  icon: 'calendar',
       children: [
-        { key: 'patient-appts',    filter: 'request', label: 'Request Appointment' },
-        { key: 'patient-appts',    filter: 'history', label: 'Appointment History' }
+        { key: 'patient-appts', filter: 'all',        label: 'All Appointments' },
+        { key: 'patient-appts', filter: 'today',      label: 'Today' },
+        { key: 'patient-appts', filter: 'approved',   label: 'Approved' },
+        { key: 'patient-appts', filter: 'pending',    label: 'Pending' },
+        { key: 'patient-appts', filter: 'completed',  label: 'Completed' },
+        { key: 'patient-appts', filter: 'cancelled',    label: 'Cancelled' },
+        { key: 'patient-appts', filter: 'disapproved', label: 'Disapproved' },
+        { key: 'patient-appts', filter: 'no-show',     label: 'No-show' },
       ]
     },
     { key: 'doctor-availability',  label: 'Doctor Availability', icon: 'user' },
@@ -168,6 +169,7 @@ const PAGE_LABELS = {
   'doctor-settings':       'Settings',
   'patient-dashboard':     'Dashboard',
   'patient-appts':         'My Appointments',
+  'patient-request-appt': 'Request Appointment',
   'patient-records':       'My Records',
   'patient-qr':            'My QR Code',
   'doctor-availability':   'Doctor Availability',
@@ -184,8 +186,8 @@ function navigate(page, params = {}) {
   if (page === 'add-user')    { window.openAddUserModal();    return }
   if (page === 'add-patient') { window.navigate('patient-list'); setTimeout(() => window.openAddPatientModal(), 100); return }
 
-  // Default admin-settings to clinic section
-  if (page === 'admin-settings' && params.filter === undefined) params.filter = 'clinic'
+  // Default admin-settings to profile section
+  if (page === 'admin-settings' && params.filter === undefined) params.filter = 'profile'
 
   if (params.filter !== undefined) state.filter = params.filter
   state.page   = page
@@ -239,6 +241,7 @@ function renderPage() {
     'doctor-settings':       Pages.pageDoctorSettings,
     'patient-dashboard':     Pages.pagePatientDashboard,
     'patient-appts':         Pages.pagePatientAppts,
+    'patient-request-appt': Pages.pagePatientAppts,
     'patient-records':       Pages.pagePatientRecords,
     'patient-qr':            Pages.pagePatientQR,
     'doctor-availability':   Pages.pagePatientDoctorAvail,
@@ -305,12 +308,14 @@ function renderSidebar() {
       : `window.navigate('${item.key}')`
 
     if (hasChildren) {
-      const isOpen = item.children.some(c => c.key === state.page)
+      const isChildActive = item.children.some(c => c.key === state.page && (c.filter === undefined || state.filter === c.filter))
+      const isParentSelf  = state.page === item.key && !isChildActive
+      const isOpen        = isChildActive || isParentSelf
       const pBadgeCount = item.badgeKey ? (window[item.badgeKey] || 0) : 0
       const pBadgeHtml  = pBadgeCount > 0 ? `<span class="nav-badge">${pBadgeCount > 99 ? '99+' : pBadgeCount}</span>` : ''
       nav += `
         <div>
-          <div class="nav-item${isOpen ? ' nav-parent-open' : ''}" onclick="window.toggleDropdown('dd-${item.key}')">
+          <div class="nav-item${isOpen ? ' nav-parent-open' : ''}${isParentSelf ? ' active' : ''}" onclick="window.toggleSidebarParent('${item.key}')">
             ${window.icon(item.icon, 'icon')}
             <span class="nav-item-label">${item.label}</span>
             ${pBadgeHtml}
@@ -400,11 +405,19 @@ function renderTopbar() {
 
   // Find sub-label from sidebar config when a filter is active
   const config = SIDEBAR_CONFIG[role] || []
-  const parentItem = config.find(item => item.key === page && item.children)
   let subLabel = null
-  if (parentItem && state.filter && state.filter !== 'all') {
-    const child = parentItem.children.find(c => c.filter === state.filter)
-    if (child) subLabel = child.label
+  if (state.filter && state.filter !== 'all') {
+    // Check top-level items with a filter first (e.g. Request Appointment)
+    const topItem = config.find(item => item.key === page && !item.children && item.filter === state.filter)
+    if (topItem) {
+      subLabel = topItem.label
+    } else {
+      const parentItem = config.find(item => item.key === page && item.children)
+      if (parentItem) {
+        const child = parentItem.children.find(c => c.filter === state.filter)
+        if (child) subLabel = child.label
+      }
+    }
   }
 
   const chevron = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm" style="color:#D1D5DB"><polyline points="9 18 15 12 9 6"/></svg>`
@@ -445,10 +458,10 @@ function renderTopbar() {
 
       <!-- Clinic identity -->
       <div class="topbar-clinic">
-        <img src="${window._clinicLogoUrl || 'brand_assests/cana logo.png'}" alt="Cana Optical" class="topbar-clinic-img">
+        <img src="${window._clinicLogoUrl || 'brand_assests/cana logo.png'}" alt="Clinic Logo" class="topbar-clinic-img">
         <div class="topbar-clinic-text">
-          <span class="topbar-clinic-name">Cana Optical</span>
-          <span class="topbar-clinic-sub">Carmona, Cavite</span>
+          <span class="topbar-clinic-name">${window._clinicName || clinicInfo.name || 'Cana Optical Clinic'}</span>
+          <span class="topbar-clinic-sub">${(function(){ const a = window._clinicAddress || clinicInfo.address || ''; const parts = a.split(',').map(s=>s.trim()).filter(Boolean); return parts.length >= 2 ? parts.slice(-2).join(', ') : (a || 'Carmona, Cavite') }())}</span>
         </div>
       </div>`
   }
@@ -467,8 +480,9 @@ function _notifTimeAgo(dateStr) {
 }
 window._notifTimeAgo = _notifTimeAgo
 
-const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'star', info:'info', contact_message:'mail' }
-const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', welcome:'purple', info:'gray', contact_message:'orange' }
+const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', info:'info', contact_message:'mail' }
+const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', welcome:'orange', info:'gray', contact_message:'orange' }
+const _resolveNotifType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
 // Returns { page, params } so callers always pass an explicit filter,
 // preventing stale state.filter from a previous navigation bleeding in.
@@ -478,12 +492,46 @@ function _notifNavTarget(type, role) {
                  : role === 'doctor' ? 'doctor-dashboard'
                  :                     'patient-dashboard'
 
-  // Route appointment notifications to the correct appointments list per role
+  // Route appointment notifications to the correct filter per role and type
   const apptTypes = new Set(['approved','cancelled','disapproved','rescheduled','new_appointment','reschedule_request','reminder'])
   if (apptTypes.has(type)) {
-    if (role === 'patient') return { page: 'patient-appts',        params: { filter: 'history' } }
-    if (role === 'doctor')  return { page: 'doctor-appointments',  params: {} }
-    return                         { page: 'appointments',         params: {} }
+    // Patients: go to the filter that matches the status they were notified about
+    if (role === 'patient') {
+      const patientFilter = {
+        approved:            'approved',
+        cancelled:           'cancelled',
+        disapproved:         'disapproved',
+        rescheduled:         'approved',   // rescheduled stays approved
+        reminder:            'approved',
+        new_appointment:     'pending',
+        reschedule_request:  'all',
+      }[type] || 'all'
+      return { page: 'patient-appts', params: { filter: patientFilter } }
+    }
+    // Doctors: filter by the relevant status
+    if (role === 'doctor') {
+      const doctorFilter = {
+        approved:           'approved',
+        cancelled:          'cancelled',
+        disapproved:        'disapproved',
+        rescheduled:        'approved',
+        reminder:           'approved',
+        new_appointment:    'pending',
+        reschedule_request: 'pending',
+      }[type] || ''
+      return { page: 'doctor-appointments', params: { filter: doctorFilter } }
+    }
+    // Admin / staff
+    const staffFilter = {
+      new_appointment:    'pending',
+      reschedule_request: 'pending',
+      approved:           'approved',
+      cancelled:          'cancelled',
+      disapproved:        'disapproved',
+      rescheduled:        'approved',
+      reminder:           'approved',
+    }[type] || ''
+    return { page: 'appointments', params: { filter: staffFilter } }
   }
 
   const map = {
@@ -503,11 +551,11 @@ function _buildNotifDropdownHtml() {
   const notifs = window._notifications || []
   const recent = notifs.slice(0, 5)
   if (!recent.length) {
-    return `<div style="text-align:center;padding:28px 16px;color:#9CA3AF;font-size:.8rem">No notifications yet</div>`
+    return `<div class="table-empty">No notifications yet.</div>`
   }
   return recent.map(n => `
     <div class="notify-item${n.isRead ? '' : ' unread'}" onclick="window._markNotifDropdown(${n.id})" style="cursor:pointer">
-      <div class="notify-item-icon ${_NOTIF_COLOR[n.type] || 'gray'}">${window.icon(_NOTIF_ICON[n.type] || 'info', 'icon-sm')}</div>
+      <div class="notify-item-icon ${_NOTIF_COLOR[_resolveNotifType(n)] || 'gray'}">${window.icon(_NOTIF_ICON[_resolveNotifType(n)] || 'info', 'icon-sm')}</div>
       <div class="notify-item-body">
         <div class="notify-item-title">${n.title}</div>
         <div class="notify-item-msg">${n.body}</div>
@@ -547,6 +595,19 @@ function _markNotifDropdown(id) {
   navigate(_np, _npar)
 }
 window._markNotifDropdown = _markNotifDropdown
+
+// ── Sidebar parent toggle ────────────────────────────────────────
+function toggleSidebarParent(key) {
+  const submenu = document.getElementById('dd-' + key)
+  const arrow   = document.getElementById('arrow-dd-' + key)
+  const parent  = submenu && submenu.previousElementSibling
+  if (!submenu) return
+  const open = !submenu.classList.contains('open')
+  submenu.classList.toggle('open', open)
+  if (arrow)  arrow.classList.toggle('open', open)
+  if (parent) parent.classList.toggle('nav-parent-open', open)
+}
+window.toggleSidebarParent = toggleSidebarParent
 
 // ── Dropdown toggles (exported for global access) ────────────────
 function toggleNotifyDropdown(e) {

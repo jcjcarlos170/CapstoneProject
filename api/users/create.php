@@ -58,7 +58,7 @@ try {
     $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $chk->execute([$email]);
     if ($chk->fetch()) {
-        jsonResponse(['success' => false, 'message' => 'This email is already registered.']);
+        jsonResponse(['success' => false, 'message' => 'An account with this email already exists.']);
     }
 
     // Generate next sequential ID (ADM001, S001, D001, …)
@@ -86,12 +86,13 @@ try {
 
     // Create role-specific profile row
     if ($role === 'Doctor') {
-        $spec = trim($b['specialization'] ?? '') ?: 'Optometrist';
-        $prc  = trim($b['prcLicense']    ?? '');
+        $spec   = trim($b['specialization'] ?? '') ?: 'Optometrist';
+        $degree = trim($b['degree']         ?? '') ?: 'OD';
+        $prc    = trim($b['prcLicense']     ?? '');
         $pdo->prepare(
-            'INSERT INTO doctors (id, user_id, first_name, last_name, contact, specialization, prc_license, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-        )->execute([$newId, $userId, $first, $last, $contact, $spec, $prc ?: null, 'active']);
+            'INSERT INTO doctors (id, user_id, first_name, last_name, contact, specialization, degree, prc_license, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$newId, $userId, $first, $last, $contact, $spec, $degree, $prc ?: null, 'active']);
     } else {
         $pdo->prepare(
             "INSERT INTO `{$table}` (id, user_id, first_name, last_name, contact, status)
@@ -114,6 +115,7 @@ try {
     ];
     if ($role === 'Doctor') {
         $userObj['specialization'] = $spec;
+        $userObj['degree']         = $degree;
         $userObj['prcLicense']     = $prc;
         $userObj['available']      = true;
         $userObj['days']           = [];

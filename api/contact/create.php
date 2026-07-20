@@ -86,7 +86,7 @@ function _contactEmailBody(string $name, string $email, string $service, string 
     <tr><td align="center">
       <table width="100%" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">
         <tr>
-          <td style="background:linear-gradient(135deg,#F59E0B 0%,#C4620A 100%);padding:28px 32px;text-align:center">
+          <td style="background:#E8760A;padding:28px 32px;text-align:center">
             <div style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.02em">&#128236; New Contact Message</div>
             <div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:4px">Opticana — Cana Optical Clinic</div>
           </td>

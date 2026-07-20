@@ -71,6 +71,7 @@ var _svcNextId = 9
 
 var clinicInfo = {
   name: 'Cana Optical Clinic',
+  logoName: 'OPTICANA',
   tagline: 'Clear Vision. Compassionate Care.',
   address: 'Unit 3 Paseo de Carmona, Brgy. Maduya, Carmona, Cavite',
   phone: '0929 663 6080',
@@ -140,7 +141,7 @@ function getAppointmentsForPatient(patientId) {
   return appointments.filter(a => a.patientId === patientId)
 }
 function getTodayAppts() {
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDateStr()
   return appointments.filter(a => a.date === today)
 }
 
@@ -169,6 +170,11 @@ function nowTimestamp() {
   const pad = n => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
+function localDateStr(d = new Date()) {
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+window.localDateStr = localDateStr
 
 function addActivityLog(entry) {
   activityLog.unshift(entry)

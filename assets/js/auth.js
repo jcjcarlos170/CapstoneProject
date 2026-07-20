@@ -268,6 +268,133 @@ function acceptTerms() {
 }
 window.acceptTerms = acceptTerms
 
+// ── Multi-step registration wizard ────────────────────────────────
+window._regStep = 1
+
+function _regGoToStep(n) {
+  const prev = window._regStep
+  const dir  = (prev === 0 || n > prev) ? 1 : -1
+
+  for (let i = 1; i <= 3; i++) {
+    const p = document.getElementById('reg-panel-' + i)
+    if (p) p.style.display = i === n ? '' : 'none'
+  }
+
+  // Clear error banner and any field highlights on every step transition
+  const errEl = document.getElementById('reg-error')
+  if (errEl) errEl.style.display = 'none'
+  document.querySelectorAll('#register-screen .reg-input.error').forEach(el => el.classList.remove('error'))
+
+  if (n === 3) {
+    const h = document.getElementById('reg-hidden-email')
+    if (h) h.value = document.getElementById('reg-email')?.value || ''
+  }
+
+  if (prev !== 0) {
+    const card = document.querySelector('#register-screen .auth-split-card')
+    if (card) {
+      card.classList.remove('auth-card-step-in')
+      void card.offsetWidth
+      card.classList.add('auth-card-step-in')
+    }
+  }
+
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById('rstep-dot-' + i)
+    const num = document.getElementById('rstep-num-' + i)
+    if (!dot) continue
+    if (i < n) {
+      dot.className = 'reg-step-item reg-step-done'
+      if (num) num.textContent = '✓'
+    } else if (i === n) {
+      dot.className = 'reg-step-item reg-step-active'
+      if (num) num.textContent = String(i)
+    } else {
+      dot.className = 'reg-step-item'
+      if (num) num.textContent = String(i)
+    }
+    const line = document.getElementById('rstep-line-' + i)
+    if (line) line.className = 'reg-step-line' + (i < n ? ' reg-step-line-done' : '')
+  }
+  const backBtn   = document.getElementById('reg-nav-back')
+  const nextBtn   = document.getElementById('reg-nav-next')
+  const submitBtn = document.getElementById('reg-submit-btn')
+  if (backBtn) {
+    const svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="15 18 9 12 15 6"/></svg>'
+    backBtn.innerHTML = svg + (n === 1 ? ' Back to Login' : ' Back')
+  }
+  if (nextBtn)   nextBtn.style.display   = n < 3 ? '' : 'none'
+  if (submitBtn) submitBtn.style.display = n === 3 ? '' : 'none'
+  window._regStep = n
+  if (n === 3) setTimeout(() => window._checkRegTermsScroll(), 80)
+}
+
+function regNextStep() {
+  const step   = window._regStep
+  const errEl  = document.getElementById('reg-error')
+  const errMsg = document.getElementById('reg-error-msg')
+  if (errEl) errEl.style.display = 'none'
+
+  // Clear all field errors for the current step panel
+  const panel = document.getElementById('reg-panel-' + step)
+  if (panel) panel.querySelectorAll('.reg-input.error').forEach(el => el.classList.remove('error'))
+
+  const markError = id => document.getElementById(id)?.classList.add('error')
+
+  if (step === 1) {
+    const first  = (document.getElementById('reg-first')?.value  || '').trim()
+    const last   = (document.getElementById('reg-last')?.value   || '').trim()
+    const dob    = (document.getElementById('reg-dob')?.value    || '')
+    const gender = (document.getElementById('reg-gender')?.value || '')
+    if (!first) markError('reg-first')
+    if (!last)  markError('reg-last')
+    if (!dob)   markError('reg-dob')
+    if (!gender) markError('reg-gender')
+    if (!first || !last || !dob || !gender) {
+      if (errMsg) errMsg.textContent = 'Please fill in all required fields.'
+      if (errEl)  errEl.style.display = 'flex'; return
+    }
+  } else if (step === 2) {
+    const contact = (document.getElementById('reg-contact')?.value || '').trim()
+    const email   = (document.getElementById('reg-email')?.value   || '').trim()
+    const address = (document.getElementById('reg-address')?.value || '').trim()
+    if (!contact) markError('reg-contact')
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) markError('reg-email')
+    if (!address) markError('reg-address')
+    if (!contact || !address) {
+      if (errMsg) errMsg.textContent = 'Please fill in all required fields.'
+      if (errEl)  errEl.style.display = 'flex'; return
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (errMsg) errMsg.textContent = !email ? 'Please fill in all required fields.' : 'Please enter a valid email address.'
+      if (errEl)  errEl.style.display = 'flex'; return
+    }
+  }
+
+  if (step < 3) _regGoToStep(step + 1)
+}
+window.regNextStep = regNextStep
+
+function regPrevStep() {
+  const step = window._regStep
+  if (step <= 1) { showLogin(); return }
+  _regGoToStep(step - 1)
+}
+window.regPrevStep = regPrevStep
+
+function _checkRegTermsScroll() {
+  const box = document.getElementById('reg-terms-box')
+  const cb  = document.getElementById('reg-terms-agree')
+  if (!box || !cb || !cb.disabled) return
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40
+  if (atBottom) {
+    cb.disabled = false
+    const hint = document.getElementById('reg-terms-hint')
+    if (hint) hint.style.display = 'none'
+  }
+}
+window._checkRegTermsScroll = _checkRegTermsScroll
+
 // ── Session restore (called from index.html on page load) ─────────
 async function restoreSession() {
   const loadingEl  = document.getElementById('loading-screen')
@@ -338,13 +465,17 @@ function showRegister() {
   document.getElementById('register-screen').style.display = 'flex'
   ;['reg-first','reg-last','reg-dob','reg-address','reg-contact','reg-email','reg-password','reg-confirm']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
-  document.getElementById('reg-gender').value = ''
-  document.getElementById('reg-blood').value  = ''
+  const genderEl = document.getElementById('reg-gender'); if (genderEl) genderEl.value = ''
+  const bloodEl  = document.getElementById('reg-blood');  if (bloodEl)  bloodEl.value  = ''
   document.getElementById('reg-error').style.display = 'none'
   const termsCb = document.getElementById('reg-terms-agree')
   if (termsCb) { termsCb.checked = false; termsCb.disabled = true }
   const termsHint = document.getElementById('reg-terms-hint')
   if (termsHint) termsHint.style.display = 'flex'
+  const termsBox = document.getElementById('reg-terms-box')
+  if (termsBox) termsBox.scrollTop = 0
+  window._regStep = 0
+  _regGoToStep(1)
 }
 
 function showLogin() {
@@ -360,10 +491,10 @@ function showForgotPassword() {
   document.getElementById('login-screen').style.display  = 'none'
   document.getElementById('forgot-screen').style.display = 'flex'
   fpUpdateDots(1)
-  document.querySelectorAll('.fp-step').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; s.style.opacity = '0' })
+  document.querySelectorAll('.fp-step').forEach(s => { s.classList.remove('active', 'reg-slide-in-right', 'reg-slide-in-left'); s.style.display = 'none'; s.style.opacity = '' })
   const s1 = document.getElementById('fp-step-1')
   s1.style.display = 'block'
-  requestAnimationFrame(() => requestAnimationFrame(() => { s1.style.transition = 'opacity 0.3s ease'; s1.style.opacity = '1'; s1.classList.add('active') }))
+  s1.classList.add('active')
   const emailEl = document.getElementById('fp-s1-email')
   if (emailEl) { emailEl.value = ''; emailEl.classList.remove('error') }
   document.getElementById('fp-s1-error').classList.remove('show')
@@ -383,24 +514,37 @@ window._fpResendCooldownInterval = null
 window._fpResendCooldownLeft = 0
 
 function fpGoToStep(step) {
-  const curId = window._fpStep === 3.5 ? 'fp-step-3b' : 'fp-step-' + window._fpStep
-  const cur = document.getElementById(curId)
-  if (cur) { cur.style.opacity = '0'; cur.style.transition = 'opacity 0.3s ease' }
-  setTimeout(() => {
-    if (cur) { cur.classList.remove('active'); cur.style.display = 'none' }
-    const nextId = step === 3.5 ? 'fp-step-3b' : 'fp-step-' + step
-    const next = document.getElementById(nextId)
-    if (!next) return
-    next.style.opacity = '0'; next.style.display = 'block'
-    window._fpStep = step
-    if (step === 5) {
-      const c = document.getElementById('fp-success-circle')
-      if (c) { c.classList.remove('fp-success-anim'); void c.offsetWidth; c.classList.add('fp-success-anim') }
-    }
-    if (step === 3) fpStartTimer()
-    fpUpdateDots(step)
-    requestAnimationFrame(() => requestAnimationFrame(() => { next.style.transition = 'opacity 0.3s ease'; next.style.opacity = '1'; next.classList.add('active') }))
-  }, 300)
+  const prev  = window._fpStep
+  const dir   = (step > prev) ? 1 : -1
+  const curId = prev === 3.5 ? 'fp-step-3b' : 'fp-step-' + prev
+  const cur   = document.getElementById(curId)
+  if (cur) { cur.classList.remove('active'); cur.style.display = 'none'; cur.style.opacity = '' }
+
+  const nextId = step === 3.5 ? 'fp-step-3b' : 'fp-step-' + step
+  const next   = document.getElementById(nextId)
+  if (!next) return
+  next.style.display = 'block'
+  next.style.opacity = ''
+  window._fpStep = step
+
+  if (step === 4) {
+    const h = document.getElementById('fp-s4-hidden-email')
+    if (h) h.value = window._fpEmail || ''
+  }
+  if (step === 5) {
+    const c = document.getElementById('fp-success-circle')
+    if (c) { c.classList.remove('fp-success-anim'); void c.offsetWidth; c.classList.add('fp-success-anim') }
+  }
+  if (step === 3) fpStartTimer()
+  fpUpdateDots(step)
+
+  const card = document.querySelector('#forgot-screen .auth-split-card')
+  if (card) {
+    card.classList.remove('auth-card-step-in')
+    void card.offsetWidth
+    card.classList.add('auth-card-step-in')
+  }
+  next.classList.add('active')
 }
 
 function fpUpdateDots(step) {
@@ -935,6 +1079,18 @@ window.evResendCode = evResendCode
   else setupFpOTP()
 })()
 
+;(function() {
+  function setupRegInputClear() {
+    const screen = document.getElementById('register-screen')
+    if (!screen) return
+    screen.addEventListener('input', function(e) {
+      if (e.target.classList.contains('reg-input')) e.target.classList.remove('error')
+    })
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupRegInputClear)
+  else setupRegInputClear()
+})()
+
 function fpTogglePw(inputId, iconId) {
   const EYE_OPEN   = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
   const EYE_CLOSED = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
@@ -1019,7 +1175,6 @@ async function _syncPatients() {
     if (p === 'admin-dashboard' && window.updateAdminDashboard) window.updateAdminDashboard()
     if (p === 'staff-dashboard' && window.updateStaffDashboard) window.updateStaffDashboard()
     if (p === 'admin-users' && window.renderPage) window.renderPage()
-    if (p === 'activity-log' && window.renderPage) window.renderPage()
   } catch (_) {}
 }
 window._syncPatients = _syncPatients
@@ -1078,7 +1233,6 @@ async function _syncDoctors() {
     if (_dp === 'schedule' && window.renderPage) window.renderPage()
     if (_dp === 'admin-users' && window.renderPage) window.renderPage()
     if (['doctor-availability', 'patient-appts', 'patient-dashboard'].includes(_dp) && window.renderPage) window.renderPage()
-    if (_dp === 'activity-log' && window.renderPage) window.renderPage()
   } catch (_) { /* keep mock data on network failure */ }
 }
 window._syncDoctors = _syncDoctors
@@ -1094,7 +1248,6 @@ async function _syncStaff() {
     if (Array.isArray(d.admins)) admins.splice(0, admins.length, ...d.admins)
     // Re-render user management page if currently open so photos appear
     if (window.state?.page === 'admin-users' && window.renderPage) window.renderPage()
-    if (window.state?.page === 'activity-log' && window.renderPage) window.renderPage()
   } catch (_) {}
 }
 window._syncStaff = _syncStaff
@@ -1142,9 +1295,12 @@ async function _syncClinicSettings() {
     if (!d.success || !d.settings) return
     const s = d.settings
     Object.assign(clinicInfo, {
-      name: s.name, tagline: s.tagline, address: s.address, phone: s.phone,
+      name: s.name, logoName: s.logoName, tagline: s.tagline, address: s.address, phone: s.phone,
       mobile: s.mobile, email: s.email, hours: s.hours, tinNo: s.tinNo, phicNo: s.phicNo,
-      logoUrl: s.logoUrl
+      foundedYear: s.foundedYear ?? null,
+      logoUrl: s.logoUrl, heroUrl: s.heroUrl ?? null,
+      mapLat: s.mapLat ?? null, mapLng: s.mapLng ?? null, mapEmbedUrl: s.mapEmbedUrl ?? null,
+      galleryMaxPhotos: s.galleryMaxPhotos ?? null
     })
     Object.assign(consultationSettings, {
       defaultDuration: s.defaultDuration, maxAdvanceBooking: s.maxAdvanceBooking,
@@ -1153,10 +1309,24 @@ async function _syncClinicSettings() {
       afternoonStart: s.afternoonStart, afternoonEnd: s.afternoonEnd,
       lunchBreak: s.lunchBreak, clinicDays: s.clinicDays
     })
+    window._clinicName     = clinicInfo.name     || 'Cana Optical Clinic'
+    window._clinicAddress  = clinicInfo.address  || ''
+    try {
+      if (clinicInfo.logoName) localStorage.setItem('_opticana_logoName', clinicInfo.logoName)
+      if (clinicInfo.name)     localStorage.setItem('_opticana_clinicName', clinicInfo.name)
+    } catch(_) {}
+    const _lsBrand = document.getElementById('ls-brand-name')
+    if (_lsBrand && clinicInfo.logoName) _lsBrand.textContent = clinicInfo.logoName
+    if (clinicInfo.logoName) document.querySelectorAll('.brand-logo-name').forEach(el => { el.textContent = clinicInfo.logoName })
+    document.querySelectorAll('.brand-clinic-name').forEach(el => { el.textContent = window._clinicName })
     if (s.logoUrl) {
       window._clinicLogoUrl = s.logoUrl
       if (window.syncLogoImages) window.syncLogoImages(s.logoUrl)
     }
+    document.querySelectorAll('.topbar-clinic-name').forEach(el => { el.textContent = window._clinicName })
+    const _addrParts = (window._clinicAddress || '').split(',').map(s=>s.trim()).filter(Boolean)
+    const _clinicCity = _addrParts.length >= 2 ? _addrParts.slice(-2).join(', ') : (window._clinicAddress || 'Carmona, Cavite')
+    document.querySelectorAll('.topbar-clinic-sub').forEach(el => { el.textContent = _clinicCity })
     if (window.renderSidebar) window.renderSidebar()
     if (window.renderTopbar) window.renderTopbar()
     if (_CLINIC_SETTINGS_PAGES.has(window.state?.page) && window.renderPage) window.renderPage()

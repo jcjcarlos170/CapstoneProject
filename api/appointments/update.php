@@ -63,11 +63,12 @@ try {
     // ── Status change (approve / cancel / disapprove / completed) ──
     if ($action === 'status') {
         $newStatus = trim($b['status'] ?? '');
-        $allowed   = ['pending', 'approved', 'cancelled', 'disapproved', 'completed'];
+        $allowed   = ['pending', 'approved', 'cancelled', 'disapproved', 'completed', 'no-show'];
         if (!in_array($newStatus, $allowed, true)) {
             jsonResponse(['success' => false, 'message' => 'Invalid status.']);
         }
-        $cancelReason = trim($b['cancellationReason'] ?? '');
+        $cancelReason      = trim($b['cancellationReason'] ?? '');
+        $disapprovalReason = trim($b['disapprovalReason'] ?? '');
 
         // Patients may only cancel their own
         if ($role === 'patient' && !in_array($newStatus, ['cancelled'], true)) {
@@ -89,8 +90,8 @@ try {
         // "Reschedule Req." flag keeps showing after the appointment has already
         // moved on, even though nobody addressed the patient's actual ask.
         $pdo->prepare(
-            'UPDATE appointments SET status = ?, cancellation_reason = ?, reschedule_request = NULL WHERE id = ?'
-        )->execute([$newStatus, $cancelReason ?: null, $id]);
+            'UPDATE appointments SET status = ?, cancellation_reason = ?, disapproval_reason = ?, reschedule_request = NULL WHERE id = ?'
+        )->execute([$newStatus, $cancelReason ?: null, $newStatus === 'disapproved' ? ($disapprovalReason ?: null) : null, $id]);
 
         // Update last_visit on patient if completed
         if ($newStatus === 'completed' && $appt['patient_id']) {
@@ -117,6 +118,7 @@ try {
                 createNotification($pdo, $patientUid, 'disapproved',
                     'Appointment Not Approved',
                     "Your appointment request with {$doctor} on {$fmtDate} could not be approved."
+                    . ($disapprovalReason ? " Reason: {$disapprovalReason}" : '')
                 );
             }
         }
@@ -146,10 +148,9 @@ try {
         $durationMin = isset($dm[1]) ? (int)$dm[1] : 30;
         $conflict = checkApptConflict($pdo, $appt['doctor_id'], $newDate, $newTime, $durationMin, $id);
         if ($conflict !== null) {
-            $totalGap = $durationMin + 15;
             jsonResponse(['success' => false, 'message' =>
                 "This time conflicts with an existing appointment at {$conflict}. "
-              . "Please choose a slot at least {$totalGap} minutes before or after it."]);
+              . "Please choose a different slot."]);
         }
 
         if ($fulfillRequest) {
@@ -191,12 +192,14 @@ try {
         }
         $reason   = trim($b['reason']        ?? '');
         $prefDate = trim($b['preferredDate'] ?? '');
+        $prefTime = trim($b['preferredTime'] ?? '');
         if (!$reason) {
             jsonResponse(['success' => false, 'message' => 'Please provide a reason.']);
         }
         $payload = json_encode([
             'reason'        => $reason,
             'preferredDate' => $prefDate ?: null,
+            'preferredTime' => $prefTime ?: null,
             'requestedAt'   => date('Y-m-d H:i'),
         ]);
         $pdo->prepare('UPDATE appointments SET reschedule_request = ? WHERE id = ?')
@@ -204,10 +207,10 @@ try {
 
         // Notify admin/staff of the reschedule request
         $patName = $appt['patient_name'] ?? 'A patient';
+        $prefSlot = $prefDate ? (" Preferred: {$prefDate}" . ($prefTime ? " at {$prefTime}" : '') . '.') : '';
         notifyAdminStaff($pdo, 'reschedule_request',
             'Reschedule Request',
-            "{$patName} has requested to reschedule appointment #{$id}."
-            . ($prefDate ? " Preferred date: {$prefDate}." : '')
+            "{$patName} has requested to reschedule appointment #{$id}.{$prefSlot}"
         );
 
         jsonResponse(['success' => true]);

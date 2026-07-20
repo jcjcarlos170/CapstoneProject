@@ -37,6 +37,7 @@ function mapRow(array $r): array {
         'status'              => $r['status'],
         'notes'               => $r['notes'] ?? '',
         'cancellationReason'  => $r['cancellation_reason']  ?? null,
+        'disapprovalReason'   => $r['disapproval_reason']   ?? null,
         'rescheduleNote'      => $r['reschedule_note']      ?? null,
         'rescheduleRequest'   => is_array($rr) ? $rr : null,
     ];
@@ -44,6 +45,12 @@ function mapRow(array $r): array {
 
 try {
     $pdo = getDB();
+
+    // Auto-transition approved appointments whose date has passed to 'no-show'
+    $pdo->exec(
+        "UPDATE appointments SET status = 'no-show'
+         WHERE status = 'approved' AND date < CURDATE()"
+    );
 
     if (in_array($role, ['admin', 'staff'], true)) {
         $stmt = $pdo->query('SELECT * FROM appointments ORDER BY date DESC, time ASC');
@@ -55,6 +62,7 @@ try {
         $stmt->execute([$profileId]);
     } else {
         jsonResponse(['success' => false, 'message' => 'Unauthorized.'], 403);
+        return; // unreachable but satisfies static analysis
     }
 
     $rows = $stmt->fetchAll();

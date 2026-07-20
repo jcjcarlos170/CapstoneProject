@@ -47,7 +47,7 @@ try {
     $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $chk->execute([$email]);
     if ($chk->fetch()) {
-        jsonResponse(['success' => false, 'message' => 'This email is already registered. Please sign in.']);
+        jsonResponse(['success' => false, 'message' => 'An account with this email already exists.']);
     }
 
     $hash = password_hash($pass, PASSWORD_DEFAULT);
@@ -121,7 +121,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
 
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);
+          <td style="background:#E8760A;
                      padding:32px 40px 28px;text-align:center;">
             <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:1px;line-height:1;margin-bottom:4px;">
               OPTICANA

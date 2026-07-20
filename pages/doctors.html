@@ -48,11 +48,27 @@
 <section id="content">
   <div class="doctors-wrap">
 
-    <span class="section-eyebrow fade-in">Our Team</span>
-    <h1 class="section-title fade-in">Meet Our Doctors</h1>
+    <div class="section-header">
+      <span class="section-eyebrow fade-in">Our Team</span>
+      <h1 class="section-title fade-in">Meet Our Doctors</h1>
+      <p class="section-desc fade-in">Our team of licensed optometrists is dedicated to providing you with the highest standard of eye care. Each doctor brings years of expertise and a genuine commitment to your vision health.</p>
+    </div>
 
     <div id="doctors-grid" class="doctors-grid">
       <div class="doctors-loading">Loading doctors…</div>
+    </div>
+
+    <div class="doctors-cta fade-in">
+      <div class="doctors-cta-inner">
+        <div class="doctors-cta-text">
+          <div class="doctors-cta-title">Ready to meet your doctor?</div>
+          <div class="doctors-cta-sub">Book an appointment with any of our licensed optometrists today. Same-day slots may be available.</div>
+        </div>
+        <a href="../app.html" class="cta-btn">
+          Book an Appointment
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+      </div>
     </div>
   </div>
 </section>
@@ -70,13 +86,13 @@
       <p class="footer-desc">Professional eye examinations, precision vision testing, and personalized optical care from licensed optometrists in Carmona, Cavite.</p>
     </div>
     <div class="footer-col">
-      <div class="footer-col-title">Our Services</div>
+      <div class="footer-col-title">Quick Links</div>
       <ul class="footer-links">
-        <li>Eye Examination</li>
-        <li>Vision Screening</li>
-        <li>Refraction Testing</li>
-        <li>Contact Lens Fitting</li>
-        <li>Frame Selection</li>
+        <li><a href="../index.html">Home</a></li>
+        <li><a href="services.html">Services</a></li>
+        <li><a href="doctors.html">Doctors</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="../app.html" class="footer-booknow">Book Now</a></li>
       </ul>
     </div>
     <div class="footer-col">
@@ -162,14 +178,14 @@
         const photo  = doc.photoUrl
           ? `<img src="../${doc.photoUrl}" alt="${doc.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
           : '';
-        const fallback = `<div class="doctor-initials" style="background:linear-gradient(135deg,${color},${color}cc);${doc.photoUrl ? 'display:none' : 'display:flex'}">${initials(doc.name)}</div>`;
+        const fallback = `<div class="doctor-initials" style="background:${color};${doc.photoUrl ? 'display:none' : 'display:flex'}">${initials(doc.name)}</div>`;
         return `
         <div class="col">
           <div class="doctor-card fade-in">
             <div class="doctor-photo-wrap">${photo}${fallback}</div>
             <div class="doctor-name">${doc.name}</div>
             <div class="doctor-role">${doc.specialization}</div>
-            <div class="doctor-degree">OD</div>
+            ${doc.degree ? `<div class="doctor-degree">${doc.degree}</div>` : ''}
             <div class="doctor-schedule">${calIcon()} ${formatDays(doc.days)}</div>
           </div>
         </div>`;

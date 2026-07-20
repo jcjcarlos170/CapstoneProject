@@ -31,6 +31,8 @@ $status        = trim($b['status']        ?? '');
 // Doctor-only fields — patients/staff/admin profiles don't have these
 $specialization = trim($b['specialization'] ?? '');
 $prcLicense      = trim($b['prcLicense']     ?? '');
+$degree          = trim($b['degree']          ?? '');
+$sortOrder       = isset($b['sortOrder']) ? max(0, (int)$b['sortOrder']) : null;
 
 if (!$profileId || !$role || !$fn || !$ln) {
     jsonResponse(['success' => false, 'message' => 'profileId, role, firstName and lastName are required.']);
@@ -75,13 +77,37 @@ try {
         : [$fn, $ln, $contact, $profileId]
     );
 
-    // Doctor-only: specialization and PRC license are locked on the doctor's
-    // own Settings page (shown read-only with "Contact admin to update") —
-    // this is the only place those fields can actually be changed.
-    if ($role === 'Doctor' && ($specialization !== '' || $prcLicense !== '')) {
-        $pdo->prepare(
-            "UPDATE doctors SET specialization = COALESCE(NULLIF(?, ''), specialization), prc_license = ? WHERE id = ?"
-        )->execute([$specialization, $prcLicense !== '' ? $prcLicense : null, $profileId]);
+    // Doctor-only: specialization, degree, PRC license, and display order are locked
+    // on the doctor's own Settings page — this is the only place they can be changed.
+    $swappedWith = null;
+    if ($role === 'Doctor') {
+        $sets = [];
+        $vals = [];
+        if ($specialization !== '') { $sets[] = "specialization = COALESCE(NULLIF(?, ''), specialization)"; $vals[] = $specialization; }
+        if ($prcLicense     !== '') { $sets[] = 'prc_license = ?';  $vals[] = $prcLicense; }
+        if ($degree         !== '') { $sets[] = 'degree = ?';       $vals[] = $degree; }
+        if ($sortOrder !== null) {
+            // Fetch current sort_order of this doctor before overwriting
+            $curStmt = $pdo->prepare("SELECT sort_order FROM doctors WHERE id = ? LIMIT 1");
+            $curStmt->execute([$profileId]);
+            $currentOrder = (int)($curStmt->fetchColumn() ?? 0);
+
+            // If another doctor already holds the requested sort_order, swap them
+            $conflictStmt = $pdo->prepare("SELECT id FROM doctors WHERE sort_order = ? AND id != ? LIMIT 1");
+            $conflictStmt->execute([$sortOrder, $profileId]);
+            $conflictId = $conflictStmt->fetchColumn();
+            if ($conflictId) {
+                $pdo->prepare("UPDATE doctors SET sort_order = ? WHERE id = ?")->execute([$currentOrder, $conflictId]);
+                $swappedWith = ['id' => $conflictId, 'sortOrder' => $currentOrder];
+            }
+
+            $sets[] = 'sort_order = ?';
+            $vals[] = $sortOrder;
+        }
+        if ($sets) {
+            $vals[] = $profileId;
+            $pdo->prepare("UPDATE doctors SET " . implode(', ', $sets) . " WHERE id = ?")->execute($vals);
+        }
     }
 
     // Sync is_active on users table when status changes
@@ -100,12 +126,12 @@ try {
         $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');
         $chk->execute([$email, $userId]);
         if ($chk->fetch()) {
-            jsonResponse(['success' => false, 'message' => 'That email is already registered to another account.']);
+            jsonResponse(['success' => false, 'message' => 'An account with this email already exists.']);
         }
         $pdo->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $userId]);
     }
 
-    jsonResponse(['success' => true]);
+    jsonResponse(['success' => true, 'swappedWith' => $swappedWith]);
 
 } catch (PDOException $e) {
     jsonResponse(['success' => false, 'message' => 'Database error. Please try again.'], 500);

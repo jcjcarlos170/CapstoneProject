@@ -49,7 +49,7 @@ try {
         $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
         $chk->execute([$email]);
         if ($chk->fetch()) {
-            jsonResponse(['success' => false, 'message' => 'This email is already registered.']);
+            jsonResponse(['success' => false, 'message' => 'An account with this email already exists.']);
         }
     }
 

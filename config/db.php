@@ -1,7 +1,7 @@
 <?php
 
 // Database configuration from Railway environment variables
-define('DB_NAME', getenv('MYSQLDATABASE') ?: 'opticana_db');
+define('DB_NAME', getenv('MYSQLDATABASE') ?: getenv('MYSQL_DATABASE') ?: 'opticana_db');
 define('DB_HOST', getenv('MYSQLHOST') ?: 'localhost');
 define('DB_USER', getenv('MYSQLUSER') ?: 'root');
 define('DB_PASS', getenv('MYSQLPASSWORD') ?: '');

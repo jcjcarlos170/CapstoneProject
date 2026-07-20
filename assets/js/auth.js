@@ -561,10 +561,9 @@ function fpGoToStep(step) {
 function fpUpdateDots(step) {
   const wrap = document.getElementById('fp-progress-dots')
   if (!wrap) return
-  // hide dots on terminal/error steps
-  wrap.style.display = (step === 5 || step === 3.5) ? 'none' : 'flex'
-  // step → which dot is active (1-based)
-  const active = { 1:1, 2:2, 3:2, 4:3, 5:4 }[step] || 1
+  wrap.style.display = step === 5 ? 'none' : 'flex'
+  // step 1=email, 2=OTP sent, 3/3.5=enter OTP (wrong), 4=new password
+  const active = { 1:1, 2:2, 3:3, 3.5:3, 4:4, 5:4 }[step] || 1
   for (let i = 1; i <= 4; i++) {
     const d = document.getElementById('fp-dot-' + i)
     if (!d) continue

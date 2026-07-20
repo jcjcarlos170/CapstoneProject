@@ -83,7 +83,7 @@ button { border-radius: unset; }
    AUTH SCREENS — split card layout (login + register)
 ════════════════════════════════════════════════════════════════ */
 #login-screen {
-  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -94,6 +94,7 @@ button { border-radius: unset; }
     radial-gradient(ellipse 50% 60% at 95% 90%, rgba(196,98,10,.05) 0%, transparent 65%);
   padding: 24px 16px;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 @keyframes card-in {
@@ -223,11 +224,26 @@ button { border-radius: unset; }
   .auth-bp-text-block { align-items: center; flex-direction: row; gap: 0; }
   .auth-bp-brand-name { font-size: 1rem; margin-bottom: 0; line-height: 1.15; }
   .auth-form-panel { padding: 20px; justify-content: flex-start; }
-  .auth-form-panel--register { padding-top: 18px; padding-bottom: 18px; }
+  .auth-form-panel--register { padding-top: 16px; padding-bottom: 16px; }
   .auth-back-link { margin-bottom: 12px; }
   .login-title { font-size: 1.2rem; margin-bottom: 4px; }
   .login-desc { margin-bottom: 18px; }
   .lf-group { margin-bottom: 12px; }
+
+  /* Compact registration form — fit all 3 steps without page scroll */
+  .reg-stepper { margin: 12px auto 16px; }
+  .reg-step-dot { width: 32px; height: 32px; font-size: 0.76rem; }
+  .reg-step-line { margin: 14px 4px 0; }
+  .reg-step-lbl { font-size: 0.62rem; }
+  .reg-title { font-size: 1.05rem; }
+  .reg-desc { margin-bottom: 10px; font-size: 0.78rem; }
+  .reg-input { padding: 8px 12px; font-size: 0.83rem; }
+  .reg-form-grid { gap: 8px; }
+  .reg-row-2 { gap: 8px; }
+  .reg-hint { font-size: 0.65rem; margin-top: 2px; }
+  .reg-terms { margin: 10px 0 10px; font-size: 0.75rem; }
+  .reg-terms-hint { font-size: 0.62rem; }
+  .qr-notice { margin: 4px 0 8px; padding: 8px 12px; font-size: 0.72rem; }
 }
 
 /* Field groups */
@@ -394,7 +410,7 @@ button { border-radius: unset; }
 ════════════════════════════════════════════════════════════════ */
 #forgot-screen,
 #verify-screen {
-  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -405,9 +421,10 @@ button { border-radius: unset; }
     radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),
     radial-gradient(ellipse 50% 60% at 95% 90%, rgba(196,98,10,.05) 0%, transparent 65%);
   padding: 24px 16px;
+  box-sizing: border-box;
 }
 @media (max-width: 768px) {
-  #forgot-screen, #verify-screen { padding: 24px 16px; align-items: center; }
+  #forgot-screen, #verify-screen { padding: 16px; }
 }
 .fp-card {
   /* now used as the inner form content — no card shadow/radius of its own */
@@ -554,10 +571,10 @@ button { border-radius: unset; }
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
-  appearance: none;
-  -webkit-appearance: none;
 }
 select.reg-input {
+  appearance: none;
+  -webkit-appearance: none;
   padding-right: 38px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -571,12 +588,7 @@ select.reg-input:focus {
 select.reg-input option[value=""] { color: #9CA3AF; }
 select.reg-input option { color: #1C1C1C; }
 input[type="date"].reg-input {
-  appearance: auto;
-  -webkit-appearance: auto;
-  background-image: none;
-  padding-right: 8px;
   cursor: pointer;
-  color: #1C1C1C;
 }
 .reg-input:focus {
   border-color: #E8891C;
@@ -625,7 +637,7 @@ input[type="date"].reg-input {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  margin: 4px 0 16px;
+  margin: 14px 0 16px;
   font-size: 0.78rem;
   color: #6b7280;
   line-height: 1.55;
@@ -3049,11 +3061,24 @@ input[type="date"].reg-input {
   #sidebar {
     width: 236px;
     top: 58px;
-    height: calc(100vh - 58px);
+    height: calc(100svh - 58px);
     transform: translateX(-100%);
+    overflow: hidden;
   }
   #sidebar.mobile-open { transform: translateX(0); }
   #main-area { margin-left: 0 !important; }
+
+  /* ── Compact sidebar content so everything fits without scrolling ── */
+  .sidebar-profile-wrap { padding: 10px 12px 8px; gap: 9px; }
+  .sidebar-profile-avatar { width: 34px !important; height: 34px !important; font-size: 0.78rem !important; }
+  .sidebar-profile-name { font-size: 0.8rem; }
+  .sidebar-profile-role { font-size: 0.65rem; }
+  .sidebar-nav { padding: 4px 0; }
+  .nav-section-label { padding: 8px 14px 2px; }
+  .nav-item { padding: 6px 12px; margin: 1px 5px; font-size: 0.8rem; }
+  .nav-sub-item { padding: 5px 12px 5px 38px; margin: 1px 7px; font-size: 0.76rem; }
+  .sidebar-foot { padding: 8px 6px; }
+  .sidebar-logout, .sidebar-view-link { padding: 7px 10px; font-size: 0.8rem; }
 
   .grid-2, .grid-3, .grid-sidebar { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }

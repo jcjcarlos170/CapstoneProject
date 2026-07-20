@@ -85,6 +85,7 @@ button { border-radius: unset; }
 #login-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: #EDE9E0;
@@ -92,6 +93,7 @@ button { border-radius: unset; }
     radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),
     radial-gradient(ellipse 50% 60% at 95% 90%, rgba(196,98,10,.05) 0%, transparent 65%);
   padding: 24px 16px;
+  gap: 16px;
 }
 
 @keyframes card-in {
@@ -374,10 +376,6 @@ button { border-radius: unset; }
 
 /* Footer below card */
 .login-footer {
-  position: fixed;
-  bottom: 20px;
-  left: 0;
-  right: 0;
   font-size: 0.72rem;
   color: #9ca3af;
   text-align: center;
@@ -392,8 +390,10 @@ button { border-radius: unset; }
 #verify-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   background: #EDE9E0;
   background-image:
     radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),
@@ -490,8 +490,10 @@ button { border-radius: unset; }
 #register-screen {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   background: #EDE9E0;
   background-image:
     radial-gradient(ellipse 60% 50% at 5% 10%, rgba(232,118,10,.08) 0%, transparent 70%),

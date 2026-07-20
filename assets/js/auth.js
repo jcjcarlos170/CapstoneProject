@@ -161,7 +161,7 @@ async function handleRegister() {
 // rubber-stamp checkbox.
 const TERMS_AND_PRIVACY_HTML = `
   <h4>1. Acceptance of Terms</h4>
-  <p>By creating a patient account with Cana Optical Clinic ("the Clinic") through Opticana, you agree to be bound by these Terms &amp; Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.</p>
+  <p>By creating a patient account with Cana Optical Clinic ("the Clinic"), you agree to be bound by these Terms &amp; Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.</p>
 
   <h4>2. Account Registration</h4>
   <p>You must provide accurate, current, and complete information during registration. You are responsible for keeping your password confidential and for all activity under your account. Notify the Clinic immediately if you suspect unauthorized use.</p>
@@ -326,7 +326,6 @@ function _regGoToStep(n) {
   if (nextBtn)   nextBtn.style.display   = n < 3 ? '' : 'none'
   if (submitBtn) submitBtn.style.display = n === 3 ? '' : 'none'
   window._regStep = n
-  if (n === 3) setTimeout(() => window._checkRegTermsScroll(), 80)
 }
 
 function regNextStep() {
@@ -352,6 +351,14 @@ function regNextStep() {
     if (!gender) markError('reg-gender')
     if (!first || !last || !dob || !gender) {
       if (errMsg) errMsg.textContent = 'Please fill in all required fields.'
+      if (errEl)  errEl.style.display = 'flex'; return
+    }
+    const dobDate = new Date(dob + 'T00:00:00')
+    const today   = new Date()
+    const minDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+    if (dobDate > minDate) {
+      markError('reg-dob')
+      if (errMsg) errMsg.textContent = 'You must be at least 18 years old to create an account. Patients under 18 may be registered by a parent or guardian at the clinic.'
       if (errEl)  errEl.style.display = 'flex'; return
     }
   } else if (step === 2) {
@@ -465,6 +472,12 @@ function showRegister() {
   document.getElementById('register-screen').style.display = 'flex'
   ;['reg-first','reg-last','reg-dob','reg-address','reg-contact','reg-email','reg-password','reg-confirm']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
+  const dobEl = document.getElementById('reg-dob')
+  if (dobEl) {
+    const t = new Date()
+    const maxDob = new Date(t.getFullYear() - 18, t.getMonth(), t.getDate())
+    dobEl.max = maxDob.toISOString().slice(0, 10)
+  }
   const genderEl = document.getElementById('reg-gender'); if (genderEl) genderEl.value = ''
   const bloodEl  = document.getElementById('reg-blood');  if (bloodEl)  bloodEl.value  = ''
   document.getElementById('reg-error').style.display = 'none'
@@ -472,8 +485,6 @@ function showRegister() {
   if (termsCb) { termsCb.checked = false; termsCb.disabled = true }
   const termsHint = document.getElementById('reg-terms-hint')
   if (termsHint) termsHint.style.display = 'flex'
-  const termsBox = document.getElementById('reg-terms-box')
-  if (termsBox) termsBox.scrollTop = 0
   window._regStep = 0
   _regGoToStep(1)
 }
@@ -1295,7 +1306,7 @@ async function _syncClinicSettings() {
     if (!d.success || !d.settings) return
     const s = d.settings
     Object.assign(clinicInfo, {
-      name: s.name, logoName: s.logoName, tagline: s.tagline, address: s.address, phone: s.phone,
+      name: s.name, tagline: s.tagline, address: s.address, phone: s.phone,
       mobile: s.mobile, email: s.email, hours: s.hours, tinNo: s.tinNo, phicNo: s.phicNo,
       foundedYear: s.foundedYear ?? null,
       logoUrl: s.logoUrl, heroUrl: s.heroUrl ?? null,
@@ -1312,12 +1323,11 @@ async function _syncClinicSettings() {
     window._clinicName     = clinicInfo.name     || 'Cana Optical Clinic'
     window._clinicAddress  = clinicInfo.address  || ''
     try {
-      if (clinicInfo.logoName) localStorage.setItem('_opticana_logoName', clinicInfo.logoName)
-      if (clinicInfo.name)     localStorage.setItem('_opticana_clinicName', clinicInfo.name)
+      if (clinicInfo.name) localStorage.setItem('_opticana_clinicName', clinicInfo.name)
     } catch(_) {}
     const _lsBrand = document.getElementById('ls-brand-name')
-    if (_lsBrand && clinicInfo.logoName) _lsBrand.textContent = clinicInfo.logoName
-    if (clinicInfo.logoName) document.querySelectorAll('.brand-logo-name').forEach(el => { el.textContent = clinicInfo.logoName })
+    if (_lsBrand && clinicInfo.name) _lsBrand.textContent = clinicInfo.name
+    if (clinicInfo.name) document.querySelectorAll('.brand-logo-name').forEach(el => { el.textContent = clinicInfo.name })
     document.querySelectorAll('.brand-clinic-name').forEach(el => { el.textContent = window._clinicName })
     if (s.logoUrl) {
       window._clinicLogoUrl = s.logoUrl

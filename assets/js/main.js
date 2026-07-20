@@ -3787,7 +3787,6 @@ window.viewArchivedRecord = viewArchivedRecord
 // ════════════════════════════════════════════════════════════════
 function saveClinicInfo() {
   const gv = id => (document.getElementById(id)?.value || '').trim()
-  const logoName = gv('ci-logo-name')
   const name    = gv('ci-name')
   const phone   = gv('ci-phone')
   const address = gv('ci-address')
@@ -3802,8 +3801,7 @@ function saveClinicInfo() {
   if (!name)    { toast('Clinic name is required.', 'error'); return }
   if (!email)   { toast('Email address is required.', 'error'); return }
 
-  clinicInfo.logoName = logoName
-  clinicInfo.name    = name
+  clinicInfo.name = name
   clinicInfo.phone   = phone
   clinicInfo.mobile  = phone
   clinicInfo.address     = address
@@ -3812,7 +3810,7 @@ function saveClinicInfo() {
   clinicInfo.mapEmbedUrl = mapEmbedUrl
   if (foundedYear) clinicInfo.foundedYear = foundedYear
 
-  const body = { logoName, name, phone, address, email, hours }
+  const body = { name, phone, address, email, hours }
   if (mapEmbedUrl !== null) body.mapEmbedUrl = mapEmbedUrl
   if (foundedYear) body.foundedYear = foundedYear
 
@@ -3827,13 +3825,13 @@ function saveClinicInfo() {
 
   // Sync globals and DOM immediately so topbar/sidebar reflect changes without a reload
   try {
-    if (logoName) localStorage.setItem('_opticana_logoName', logoName)
     localStorage.setItem('_opticana_clinicName', name || 'Cana Optical Clinic')
   } catch(_) {}
   window._clinicName    = name    || 'Cana Optical Clinic'
   window._clinicAddress = address || ''
-  if (logoName) document.querySelectorAll('.brand-logo-name').forEach(el => { el.textContent = logoName })
-  document.querySelectorAll('.brand-clinic-name').forEach(el => { el.textContent = window._clinicName })
+  document.querySelectorAll('.brand-logo-name').forEach(el => { el.textContent = window._clinicName })
+  const lsBrand = document.getElementById('ls-brand-name')
+  if (lsBrand) lsBrand.textContent = window._clinicName
   document.querySelectorAll('.topbar-clinic-name').forEach(el => { el.textContent = window._clinicName })
   const _parts = window._clinicAddress.split(',').map(s => s.trim()).filter(Boolean)
   const _city  = _parts.length >= 2 ? _parts.slice(-2).join(', ') : (window._clinicAddress || 'Carmona, Cavite')
@@ -5179,7 +5177,7 @@ function generateClearance(patientId, examId) {
       <div class="clearance-document" style="padding:48px 56px;background:#fff;flex:1;font-family:Georgia,'Times New Roman',serif;color:#111;font-size:.95rem;line-height:1.7;">
 
         <!-- LETTERHEAD -->
-        <div style="border:1.5px solid #222;padding:18px 24px;margin-bottom:36px;text-align:center;">
+        <div style="border:1.5px solid #222;padding:18px 24px;margin-bottom:24px;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:10px;">
             <img src="${window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png'}" alt="Cana Optical" style="height:64px;flex-shrink:0;">
             <div style="text-align:left;line-height:1;">
@@ -5191,7 +5189,7 @@ function generateClearance(patientId, examId) {
         </div>
 
         <!-- TITLE -->
-        <div style="text-align:center;margin:32px 0;font-family:Arial,sans-serif;font-size:1.5rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#111;">
+        <div style="text-align:center;margin:20px 0;font-family:Arial,sans-serif;font-size:1.5rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#111;">
           CERTIFICATION
         </div>
 
@@ -5201,7 +5199,7 @@ function generateClearance(patientId, examId) {
         </p>
 
         <!-- DATA SECTION: NVA / NNVA / RX / FVA -->
-        <div style="margin:28px 0 24px;font-family:'Courier New',Courier,monospace;">
+        <div style="margin:18px 0 14px;font-family:'Courier New',Courier,monospace;">
           <!-- Column headers -->
           <div style="display:grid;grid-template-columns:17% 17% 44% 22%;font-family:Arial,sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#111;padding-bottom:6px;">
             <span>NVA</span>
@@ -5227,7 +5225,7 @@ function generateClearance(patientId, examId) {
         </div>
 
         <!-- DIAGNOSIS -->
-        <div style="margin:20px 0;font-size:.9rem;color:#111;display:flex;gap:14px;align-items:baseline;">
+        <div style="margin:12px 0;font-size:.9rem;color:#111;display:flex;gap:14px;align-items:baseline;">
           <span style="font-family:Arial,sans-serif;font-weight:700;text-transform:uppercase;white-space:nowrap;flex-shrink:0;">DIAGNOSIS :</span>
           <span style="font-family:Arial,sans-serif;font-weight:700;text-transform:uppercase;">${(e.diagnosis || '\u2014').toUpperCase()}</span>
         </div>
@@ -5247,8 +5245,8 @@ function generateClearance(patientId, examId) {
         >${remarks2}</textarea>
 
         <!-- SIGNATURE — right-aligned -->
-        <div style="margin-top:48px;text-align:right;">
-          <div style="font-family:Arial,sans-serif;font-size:.88rem;font-weight:700;text-transform:uppercase;color:#111;margin-bottom:52px;">SIGNED :</div>
+        <div style="margin-top:28px;text-align:right;">
+          <div style="font-family:Arial,sans-serif;font-size:.88rem;font-weight:700;text-transform:uppercase;color:#111;margin-bottom:36px;">SIGNED :</div>
           <div style="display:inline-block;text-align:center;min-width:260px;">
             <div style="border-bottom:1px solid #111;margin-bottom:8px;"></div>
             <div style="font-family:Arial,sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;color:#111;">${doc.name}</div>
@@ -5263,15 +5261,21 @@ function generateClearance(patientId, examId) {
       <!-- Action footer — hidden on print via .clearance-actions -->
       <div class="clearance-actions" style="display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid #e5e7eb;flex-shrink:0;background:#f9fafb;">
         <button onclick="document.getElementById('clearance-overlay').remove()"
-                style="display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:1px solid #D1D5DB;background:#fff;color:#374151;font-size:.85rem;font-weight:500;cursor:pointer;">
+                onmouseenter="this.style.background='#F3F4F6';this.style.borderColor='#9CA3AF'"
+                onmouseleave="this.style.background='#fff';this.style.borderColor='#D1D5DB'"
+                style="display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:1px solid #D1D5DB;background:#fff;color:#374151;font-size:.85rem;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s">
           ${icon('x','icon-sm')} Close
         </button>
         <button id="clearance-dl-btn" onclick="window.downloadClearancePDF('${p.name.replace(/'/g,"\\'")}','${e.id}')"
-                style="display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:1px solid #0891b2;background:#fff;color:#0891b2;font-size:.85rem;font-weight:500;cursor:pointer;">
+                onmouseenter="this.style.background='#ecfeff';this.style.borderColor='#0891b2'"
+                onmouseleave="this.style.background='#fff';this.style.borderColor='#0891b2'"
+                style="display:flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;border:1px solid #0891b2;background:#fff;color:#0891b2;font-size:.85rem;font-weight:500;cursor:pointer;transition:background .15s">
           ${icon('download','icon-sm')} Download PDF
         </button>
         <button onclick="window.print()"
-                style="display:flex;align-items:center;gap:6px;padding:8px 20px;border-radius:6px;border:none;background:#0891b2;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;">
+                onmouseenter="this.style.background='#0e7490'"
+                onmouseleave="this.style.background='#0891b2'"
+                style="display:flex;align-items:center;gap:6px;padding:8px 20px;border-radius:6px;border:none;background:#0891b2;color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s">
           ${icon('printer','icon-sm')} Print Document
         </button>
       </div>
@@ -5304,16 +5308,15 @@ function downloadClearancePDF(patientName, examId) {
     div.style.whiteSpace = 'pre-wrap'
     ta.replaceWith(div)
   })
-  const cloneWidth = src.offsetWidth
-  clone.style.width      = cloneWidth + 'px'
+  // Letter page at 96 dpi = 816px. With 12mm margins each side (≈46px),
+  // the content area is ~724px — use this as the render width so the
+  // canvas exactly fills the PDF page and centres cleanly.
+  const pdfMarginMm   = 12
+  const contentWidthPx = Math.round((215.9 - pdfMarginMm * 2) * (96 / 25.4))
+  clone.style.width      = contentWidthPx + 'px'
+  clone.style.boxSizing  = 'border-box'
   clone.style.background = '#fff'
 
-  // Render at a real (0,0) position rather than far off-screen (e.g.
-  // left:-9999px) — html2canvas's capture box math gets unreliable at
-  // extreme offsets, which is what was shifting the rasterized content to
-  // one side of the page. Keeping it on-screen but invisible via a
-  // visibility:hidden ancestor (overridden by visibility:visible on the
-  // clone itself) captures cleanly without ever showing it to the user.
   const wrap = document.createElement('div')
   wrap.style.cssText = 'position:absolute;top:0;left:0;visibility:hidden;'
   clone.style.visibility = 'visible'
@@ -5325,10 +5328,10 @@ function downloadClearancePDF(patientName, examId) {
 
   window.html2pdf()
     .set({
-      margin:      [15, 18],
+      margin:      [pdfMarginMm, pdfMarginMm],
       filename,
       image:       { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: cloneWidth, width: cloneWidth, x: 0, y: 0 },
+      html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: contentWidthPx, width: contentWidthPx, x: 0, y: 0 },
       jsPDF:       { unit: 'mm', format: 'letter', orientation: 'portrait' },
     })
     .from(clone)
@@ -5350,12 +5353,12 @@ function _openExamPrintWindow(p, e) {
   const _fmtDt  = d => d ? new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'}) : '—'
   const eyeRow  = (lbl, od, os) => `
     <tr>
-      <td style="padding:8px 12px;font-size:12px;color:#555;font-weight:600;border-bottom:1px solid #eee">${lbl}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:800;color:#1D4ED8;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
-      <td style="padding:8px 12px;font-size:13px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
+      <td style="padding:6px 10px;font-size:11px;color:#555;font-weight:600;border-bottom:1px solid #eee">${lbl}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#1D4ED8;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
     </tr>`
   const pill    = txt => `<span style="display:inline-block;background:#E8760A;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin:2px 3px 2px 0">${txt}</span>`
-  const secLbl  = txt => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin:14px 0 6px">${txt}</div>`
+  const secLbl  = txt => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin:10px 0 4px">${txt}</div>`
   const noteBox = txt => `<div style="background:#fffbf0;border:1px solid #fde68a;border-radius:6px;padding:9px 12px;font-size:11px;color:#444;line-height:1.6;margin-bottom:12px">${txt}</div>`
 
   const showAdd = e.od?.add && e.od.add !== '0.00'
@@ -5369,43 +5372,43 @@ function _openExamPrintWindow(p, e) {
   <meta charset="UTF-8">
   <title>Optical Examination — ${p.name}</title>
   <style>
-    @page { size: A4; margin: 15mm 18mm 15mm 18mm; }
+    @page { size: A4; margin: 12mm 16mm 12mm 16mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12px; line-height: 1.5; background: #fff; }
     table { width: 100%; border-collapse: collapse; }
-    .clinic-hdr  { text-align: center; border-bottom: 2.5px solid #E8760A; padding-bottom: 12px; margin-bottom: 18px; }
-    .clinic-name { font-size: 22px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
-    .clinic-sub  { font-size: 11px; color: #888; margin-top: 3px; }
-    .clinic-doc  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 5px; }
-    .patient-block { display: flex; gap: 16px; align-items: flex-start; padding: 14px 16px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; margin-bottom: 16px; }
-    .avatar { width: 56px; height: 56px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 900; flex-shrink: 0; }
-    .pt-name   { font-size: 17px; font-weight: 800; color: #111; margin-bottom: 1px; }
-    .pt-id     { font-size: 11px; font-family: monospace; color: #aaa; margin-bottom: 5px; }
-    .pt-meta   { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-    .pt-meta span { font-size: 11px; color: #555; }
-    .pt-addr   { font-size: 10.5px; color: #999; margin-top: 3px; }
-    .issuer    { text-align: right; flex-shrink: 0; min-width: 160px; }
-    .iss-lbl   { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 3px; }
-    .iss-name  { font-size: 14px; font-weight: 700; color: #111; }
-    .iss-date  { font-size: 11px; color: #888; }
-    .iss-id    { font-size: 10px; font-family: monospace; color: #bbb; margin-top: 3px; }
-    .tbl-hdr th { background: #f5f5f5; padding: 9px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-    .tbl-border { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-    .info-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 9px 12px; }
-    .ib-lbl    { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 3px; }
-    .ib-val    { font-size: 14px; font-weight: 800; color: #111; }
-    .ib-unit   { font-size: 10px; color: #aaa; font-weight: 400; }
-    .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; }
-    .db-lbl    { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 4px; }
-    .db-val    { font-size: 14px; font-weight: 800; color: #111; margin-bottom: 3px; }
-    .db-sub    { font-size: 11px; color: #555; }
-    .remarks-block { border-top: 1px solid #eee; padding-top: 10px; margin-top: 4px; font-style: italic; font-size: 11px; color: #555; }
-    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px; padding-top: 16px; border-top: 1px dashed #ccc; }
-    .sig-line  { border-top: 1px solid #111; padding-top: 6px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .sig-sub   { font-size: 10px; color: #888; margin-top: 2px; text-align: center; }
-    .stamp     { font-size: 9.5px; color: #ccc; text-align: right; font-family: monospace; margin-top: 18px; }
+    .clinic-hdr  { text-align: center; border-bottom: 2.5px solid #E8760A; padding-bottom: 10px; margin-bottom: 14px; }
+    .clinic-name { font-size: 20px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
+    .clinic-sub  { font-size: 10px; color: #888; margin-top: 2px; }
+    .clinic-doc  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 4px; }
+    .patient-block { display: flex; gap: 14px; align-items: flex-start; padding: 10px 14px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; margin-bottom: 12px; }
+    .avatar { width: 50px; height: 50px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 900; flex-shrink: 0; }
+    .pt-name   { font-size: 15px; font-weight: 800; color: #111; margin-bottom: 1px; }
+    .pt-id     { font-size: 10px; font-family: monospace; color: #aaa; margin-bottom: 4px; }
+    .pt-meta   { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+    .pt-meta span { font-size: 10px; color: #555; }
+    .pt-addr   { font-size: 10px; color: #999; margin-top: 2px; }
+    .issuer    { text-align: right; flex-shrink: 0; min-width: 150px; }
+    .iss-lbl   { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 2px; }
+    .iss-name  { font-size: 13px; font-weight: 700; color: #111; }
+    .iss-date  { font-size: 10px; color: #888; }
+    .iss-id    { font-size: 9px; font-family: monospace; color: #bbb; margin-top: 2px; }
+    .tbl-hdr th { background: #f5f5f5; padding: 7px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .tbl-border { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+    .info-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 7px 10px; }
+    .ib-lbl    { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 2px; }
+    .ib-val    { font-size: 13px; font-weight: 800; color: #111; }
+    .ib-unit   { font-size: 9px; color: #aaa; font-weight: 400; }
+    .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 8px 12px; }
+    .db-lbl    { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 3px; }
+    .db-val    { font-size: 13px; font-weight: 800; color: #111; margin-bottom: 2px; }
+    .db-sub    { font-size: 10px; color: #555; }
+    .remarks-block { border-top: 1px solid #eee; padding-top: 8px; margin-top: 4px; font-style: italic; font-size: 11px; color: #555; }
+    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 18px; padding-top: 12px; border-top: 1px dashed #ccc; page-break-before: avoid; }
+    .sig-line  { border-top: 1px solid #111; padding-top: 5px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .sig-sub   { font-size: 9px; color: #888; margin-top: 2px; text-align: center; }
+    .stamp     { font-size: 9px; color: #ccc; text-align: right; font-family: monospace; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -5506,12 +5509,12 @@ function _openExamPrintWindow(p, e) {
   <!-- SIGNATURES -->
   <div class="sig-grid">
     <div>
-      <div style="height:44px"></div>
+      <div style="height:32px"></div>
       <div class="sig-line">${e.doctor||'Examining Doctor'}</div>
       <div class="sig-sub">Optometrist / Examining Doctor</div>
     </div>
     <div>
-      <div style="height:44px"></div>
+      <div style="height:32px"></div>
       <div class="sig-line">${p.name}</div>
       <div class="sig-sub">Patient Signature &amp; Date</div>
     </div>

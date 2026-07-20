@@ -20,7 +20,7 @@ define('SMTP_PORT',      (int)(getenv('SMTP_PORT') ?: 587));
 define('SMTP_USERNAME',  getenv('SMTP_USERNAME')   ?: 'jcjcarlos892@gmail.com');
 define('SMTP_PASSWORD',  getenv('SMTP_PASSWORD')   ?: 'ncpyohmvfhnnskiq');
 define('SMTP_FROM',      getenv('SMTP_FROM')       ?: 'jcjcarlos892@gmail.com');
-define('SMTP_FROM_NAME', getenv('SMTP_FROM_NAME')  ?: 'Opticana - Cana Optical Clinic');
+define('SMTP_FROM_NAME', getenv('SMTP_FROM_NAME')  ?: 'Cana Optical Clinic');
 define('BREVO_API_KEY',  getenv('BREVO_API_KEY')   ?: '');
 
 // ================================================================
@@ -61,7 +61,6 @@ function _brevoSend(string $to, string $toName, string $subject, string $html, s
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlErr  = curl_error($ch);
-    curl_close($ch);
 
     if ($curlErr) {
         throw new \RuntimeException("Email delivery error: $curlErr");

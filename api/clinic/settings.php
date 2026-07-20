@@ -19,7 +19,6 @@ if (!isset($_SESSION['user_id'])) {
 // Maps camelCase request/response keys to snake_case DB columns
 const FIELD_MAP = [
     'name'                     => 'name',
-    'logoName'                 => 'logo_name',
     'tagline'                  => 'tagline',
     'address'                  => 'address',
     'phone'                    => 'phone',
@@ -48,7 +47,6 @@ const FIELD_MAP = [
 function rowToResponse(array $r): array {
     return [
         'name'                     => $r['name'],
-        'logoName'                 => $r['logo_name'],
         'tagline'                  => $r['tagline'],
         'address'                  => $r['address'],
         'phone'                    => $r['phone'],

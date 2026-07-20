@@ -50,7 +50,7 @@ function buildDayRanges(array $openDays): string {
 try {
     $pdo = getDB();
     $r = $pdo->query(
-        'SELECT name, logo_name, tagline, address, phone, email, hours, logo_url, hero_url, map_lat, map_lng, map_embed_url,
+        'SELECT name, tagline, address, phone, email, hours, logo_url, hero_url, map_lat, map_lng, map_embed_url,
                 clinic_days, morning_start, morning_end, afternoon_start, afternoon_end, founded_year
          FROM clinic_settings WHERE id = 1 LIMIT 1'
     )->fetch();
@@ -81,7 +81,6 @@ try {
     header('Cache-Control: no-store, no-cache, must-revalidate');
     jsonResponse(['success' => true, 'clinic' => [
         'name'     => $r['name'],
-        'logoName' => $r['logo_name'],
         'tagline'  => $r['tagline'],
         'address'  => $r['address'],
         'phone'    => $r['phone'],

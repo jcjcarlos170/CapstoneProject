@@ -18,7 +18,7 @@
 .nav-logo.navbar-brand { margin-right: 0; padding: 0; font-size: 1rem; }
 .nav-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .nav-logo img { height: 34px; width: 34px; object-fit: contain; }
-.nav-logo-name { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1; letter-spacing: -0.01em; transition: color 0.3s ease; }
+.nav-logo-name { font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1; letter-spacing: -0.01em; transition: color 0.3s ease; }
 .nav-logo-sub  { font-size: 0.58rem; font-weight: 500; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 1px; transition: color 0.3s ease; }
 
 .navbar-nav.nav-links { display: flex; align-items: center; gap: 4px; list-style: none; }

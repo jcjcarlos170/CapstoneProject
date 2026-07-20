@@ -1796,19 +1796,14 @@ function pageAdminSettings() {
         <div style="display:flex;flex-direction:column;gap:16px">
           <div class="form-row-2">
             <div class="form-group">
-              <label class="form-label">Brand Name</label>
-              <input class="form-input" id="ci-logo-name" value="${(clinicInfo.logoName||'OPTICANA').replace(/"/g,'&quot;')}" placeholder="e.g. OPTICANA">
-              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Shown in bold above the clinic name in the website logo.</div>
-            </div>
-            <div class="form-group">
               <label class="form-label">Clinic Name <span class="req">*</span></label>
               <input class="form-input" id="ci-name" value="${clinicInfo.name.replace(/"/g,'&quot;')}">
-              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Shown below the brand name in the website logo.</div>
+              <div style="font-size:.72rem;color:#9CA3AF;margin-top:5px">Displayed as the logo name across all pages, the loader, and auth screens.</div>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Contact Number</label>
-            <input class="form-input" id="ci-phone" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${clinicInfo.phone.replace(/"/g,'&quot;')}">
+            <div class="form-group">
+              <label class="form-label">Contact Number</label>
+              <input class="form-input" id="ci-phone" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'')" value="${clinicInfo.phone.replace(/"/g,'&quot;')}">
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Clinic Address</label>

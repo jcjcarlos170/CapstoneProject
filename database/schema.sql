@@ -43,8 +43,7 @@
 --    ALTER TABLE `contact_messages` ADD COLUMN `replied_at` DATETIME NULL DEFAULT NULL;
 --    ALTER TABLE `contact_messages` ADD INDEX `idx_email` (`email`);
 --    ALTER TABLE `contact_messages` ADD COLUMN `archived_at` DATETIME NULL DEFAULT NULL;
---    ALTER TABLE `clinic_settings` ADD COLUMN `logo_name` VARCHAR(100) NULL DEFAULT NULL AFTER `name`;
---    UPDATE `clinic_settings` SET `logo_name` = 'OPTICANA' WHERE id = 1 AND (logo_name IS NULL OR logo_name = '');
+--    ALTER TABLE `clinic_settings` DROP COLUMN IF EXISTS `logo_name`;
 --    ALTER TABLE `clinic_settings` ADD COLUMN `logo_url` VARCHAR(255) NULL DEFAULT NULL AFTER `phic_no`;
 --    ALTER TABLE `clinic_settings` ADD COLUMN `hero_url` VARCHAR(255) NULL DEFAULT NULL AFTER `logo_url`;
 --    ALTER TABLE `clinic_settings` ADD COLUMN `map_lat` DECIMAL(10,7) NULL DEFAULT NULL AFTER `hero_url`;

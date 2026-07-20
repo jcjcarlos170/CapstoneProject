@@ -41,6 +41,17 @@
     })
     .catch(function () { /* not logged in, or PHP unavailable — leave the default Login UI */ })
 
+  // Pre-sync from localStorage so name shows immediately before the API responds
+  try {
+    var _pn = localStorage.getItem('_opticana_clinicName')
+    var _pl = localStorage.getItem('_opticana_logo_url')
+    if (_pn) document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = _pn })
+    if (_pl) {
+      document.querySelectorAll('#site-logo-img, .footer-logo-img').forEach(function (img) { img.src = _pl })
+      document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = _pl })
+    }
+  } catch (e) {}
+
   fetch(base + 'api/clinic/public.php')
     .then(function (r) { return r.json() })
     .then(function (d) {
@@ -167,14 +178,11 @@
       document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = base + clinic.logoUrl })
     }
 
-    if (clinic.logoName) {
-      document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = clinic.logoName })
-    }
-
-    if (clinic.name) {
-      document.querySelectorAll('.nav-logo-sub, .footer-logo-sub').forEach(function (el) { el.textContent = clinic.name })
+    var displayName = clinic.name
+    if (displayName) {
+      document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = displayName })
       var footerLine = document.querySelector('.footer-line')
-      if (footerLine) footerLine.textContent = '© ' + new Date().getFullYear() + ' ' + clinic.name + '. All rights reserved.'
+      if (footerLine) footerLine.textContent = '© ' + new Date().getFullYear() + ' ' + displayName + '. All rights reserved.'
     }
 
     // Contact page info card (phone/email stay clickable there)
@@ -262,13 +270,17 @@
     scrollBtn.style.pointerEvents = show ? '' : 'none'
   }, { passive: true })
 
-  // Real-time logo sync: when the admin uploads a new logo in another tab,
-  // update all logo images on this page without a reload.
+  // Real-time branding sync: when admin saves clinic settings in another tab
   window.addEventListener('storage', function (e) {
     if (e.key === '_opticana_logo_url' && e.newValue) {
       var url = e.newValue
       document.querySelectorAll('#site-logo-img, .footer-logo-img').forEach(function (img) { img.src = url })
       document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = url })
+    }
+    if (e.key === '_opticana_clinicName' && e.newValue) {
+      document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = e.newValue })
+      var footerLine = document.querySelector('.footer-line')
+      if (footerLine) footerLine.textContent = '© ' + new Date().getFullYear() + ' ' + e.newValue + '. All rights reserved.'
     }
   })
 })()

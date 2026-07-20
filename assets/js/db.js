@@ -71,7 +71,6 @@ var _svcNextId = 9
 
 var clinicInfo = {
   name: 'Cana Optical Clinic',
-  logoName: 'OPTICANA',
   tagline: 'Clear Vision. Compassionate Care.',
   address: 'Unit 3 Paseo de Carmona, Brgy. Maduya, Carmona, Cavite',
   phone: '0929 663 6080',

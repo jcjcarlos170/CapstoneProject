@@ -154,8 +154,8 @@ button { border-radius: unset; }
   align-items: center;
 }
 .auth-bp-brand-name {
-  font-size: 2.8rem; font-weight: 800;
-  color: #fff; letter-spacing: -0.04em; line-height: 1;
+  font-size: 2.4rem; font-weight: 800;
+  color: #fff; letter-spacing: -0.03em; line-height: 1.2;
   margin-bottom: 10px;
 }
 .auth-bp-clinic-name {
@@ -201,27 +201,33 @@ button { border-radius: unset; }
 /* ── Responsive: mobile stacks vertically ── */
 @media (max-width: 768px) {
   #login-screen {
-    padding: 24px 16px;
+    min-height: 100svh;
+    padding: 16px;
     align-items: center;
+    box-sizing: border-box;
   }
   .auth-split-card {
     flex-direction: column;
     max-width: 420px;
-    border-radius: 12px;
+    width: 100%;
+    border-radius: 16px;
   }
   .auth-brand-panel {
     flex: none;
-    padding: 16px 20px;
-    border-radius: 12px 12px 0 0;
+    padding: 12px 16px;
+    border-radius: 16px 16px 0 0;
   }
-  .auth-bp-inner { flex-direction: row; align-items: center; gap: 12px; text-align: left; }
-  .auth-bp-logo-wrap { width: 40px; height: 40px; border-radius: 10px; margin-bottom: 0; }
-  .auth-bp-logo { width: 26px; height: 26px; }
-  .auth-bp-text-block { align-items: flex-start; flex-direction: row; align-items: center; gap: 8px; }
-  .auth-bp-brand-name { font-size: 1.1rem; margin-bottom: 0; }
-  .auth-form-panel { padding: 32px 24px; max-height: none; justify-content: flex-start; }
-  .auth-form-panel--register { max-height: none; }
-  .auth-back-link { margin-bottom: 16px; }
+  .auth-bp-inner { flex-direction: row; align-items: center; gap: 10px; text-align: left; }
+  .auth-bp-logo-wrap { width: 36px; height: 36px; border-radius: 10px; margin-bottom: 0; }
+  .auth-bp-logo { width: 24px; height: 24px; }
+  .auth-bp-text-block { align-items: center; flex-direction: row; gap: 0; }
+  .auth-bp-brand-name { font-size: 1rem; margin-bottom: 0; line-height: 1.15; }
+  .auth-form-panel { padding: 20px; justify-content: flex-start; }
+  .auth-form-panel--register { padding-top: 18px; padding-bottom: 18px; }
+  .auth-back-link { margin-bottom: 12px; }
+  .login-title { font-size: 1.2rem; margin-bottom: 4px; }
+  .login-desc { margin-bottom: 18px; }
+  .lf-group { margin-bottom: 12px; }
 }
 
 /* Field groups */
@@ -521,6 +527,10 @@ button { border-radius: unset; }
   color: #6b7280;
   margin-bottom: 18px;
 }
+.reg-desc a, .reg-terms-link {
+  color: #E8891C; font-weight: 600; text-decoration: underline; cursor: pointer;
+}
+.reg-desc a:hover, .reg-terms-link:hover { color: #C4620A; }
 
 /* Field groups */
 .reg-group { margin-bottom: 0; }
@@ -563,6 +573,10 @@ select.reg-input option { color: #1C1C1C; }
 input[type="date"].reg-input {
   appearance: auto;
   -webkit-appearance: auto;
+  background-image: none;
+  padding-right: 8px;
+  cursor: pointer;
+  color: #1C1C1C;
 }
 .reg-input:focus {
   border-color: #E8891C;
@@ -810,6 +824,16 @@ input[type="date"].reg-input {
   box-shadow: 0 1px 6px rgba(232,137,28,.25);
 }
 .reg-step-done .reg-step-lbl { color: #B45309; font-weight: 600; }
+
+/* T&C open button (Step 3) */
+.reg-terms-open-btn {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 11px 16px; margin: 18px 0 10px;
+  background: #fff; border: 1.5px solid #E8760A; border-radius: 8px;
+  color: #E8760A; font-size: 0.84rem; font-weight: 600; cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.reg-terms-open-btn:hover { background: #fff7ed; border-color: #C4620A; color: #C4620A; }
 
 /* Inline T&C scrollable box (Step 3) */
 .reg-terms-box {
@@ -3065,7 +3089,7 @@ input[type="date"].reg-input {
   .page-header { padding: 16px; }
   .page-body { padding: 16px; }
   .topbar { padding: 0 14px; z-index: 1041; }
-  #login-screen { padding: 24px 16px; }
+  #login-screen { padding: 16px; min-height: 100svh; box-sizing: border-box; }
   .register-bg { padding: 24px 16px; }
   .login-card, .register-card { width: 100%; max-width: 420px; padding: 32px 24px; }
   /* Hint: slightly larger than base so it's legible on mobile, but still subtle */

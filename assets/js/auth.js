@@ -1180,7 +1180,7 @@ async function _syncPatients() {
     // Re-render page if it shows patients list
     const p = window.state?.page
     if (p === 'patient-list') { window.renderPage(); return }
-    if (p === 'new-examination' && window.state?.params?.patientId) { window.renderPage(); return }
+    if (p === 'new-examination' && !window.state?.params?.patientId) { window.renderPage(); return }
     // Update dashboard stat without full re-render
     if (p === 'admin-dashboard' && window.updateAdminDashboard) window.updateAdminDashboard()
     if (p === 'staff-dashboard' && window.updateStaffDashboard) window.updateStaffDashboard()

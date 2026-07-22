@@ -131,6 +131,7 @@ try {
         'registeredDate' => $today,
         'lastVisit'      => '—',
         'status'         => 'active',
+        'photoUrl'       => null,
         'consultations'  => [],
         'examinations'   => [],
         'prescriptions'  => [],

@@ -201,8 +201,8 @@ function navigate(page, params = {}) {
   if (state.role === 'doctor' && (page === 'doctor-dashboard' || page === 'doctor-appointments')) {
     if (window._syncAppointments) window._syncAppointments(true)
   }
-  // Ensure patient data is loaded before opening the examination form
-  if (page === 'new-examination' && window._syncPatients && !patients.length) {
+  // Always refresh patient data (incl. profile photos) when opening the examination form
+  if (page === 'new-examination' && window._syncPatients) {
     window._syncPatients()
   }
   // Refresh archived records when visiting the Archives section
@@ -667,17 +667,6 @@ function closeMobileSidebar() {
 }
 window.closeMobileSidebar = closeMobileSidebar
 
-// Close sidebar when user scrolls the page on mobile.
-// The overlay covers the whole screen when the drawer is open, so touchmove
-// on it reliably means "user is trying to scroll the page" → dismiss drawer.
-document.addEventListener('DOMContentLoaded', function() {
-  var overlay = document.getElementById('sidebar-overlay')
-  if (overlay) {
-    overlay.addEventListener('touchmove', function() {
-      closeMobileSidebar()
-    }, { passive: true })
-  }
-})
 
 // ── Responsive default: pick a sidebar mode when the viewport crosses
 //    into a new size bucket, without fighting a manual toggle made by

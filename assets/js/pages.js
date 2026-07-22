@@ -3278,15 +3278,9 @@ function pageNewExamination() {
 
     // Initials helper
     const initials = name => name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase()
-    const avatarColors = ['#E8891C','#3B82F6','#10B981','#8B5CF6','#EF4444','#F59E0B','#06B6D4']
-    const avatarColor  = name => avatarColors[name.charCodeAt(0) % avatarColors.length]
-    // Shows the patient's real profile photo when they have one (synced via
-    // patients[].photoUrl), falling back to the initials circle otherwise —
-    // both the "Today's Appointments" and "Walk-in" cards below were always
-    // showing initials only, never the actual uploaded photo.
     const miniAvatar = (name, photoUrl, size) => photoUrl
       ? `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${photoUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`
-      : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${avatarColor(name)};color:white;display:flex;align-items:center;justify-content:center;font-size:${size>=38?'.75rem':'.65rem'};font-weight:700;flex-shrink:0">${initials(name)}</div>`
+      : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;font-size:${size>=38?'.75rem':'.65rem'};font-weight:700;flex-shrink:0">${initials(name)}</div>`
 
     state.afterRender = () => {
       const inp = document.getElementById('walkin-search-input')
@@ -3345,7 +3339,7 @@ function pageNewExamination() {
           </div>
           <div style="font-size:.9rem;font-weight:600;color:#374151;margin-bottom:6px">No scheduled consultations for today.</div>
           <div style="font-size:.8rem;color:#9ca3af;margin-bottom:18px;line-height:1.6">Examination records are created from confirmed appointments.</div>
-          <button class="btn-secondary" style="font-size:.82rem" onclick="window.navigate('appointments')">
+          <button class="btn-secondary" style="font-size:.82rem" onclick="window.navigate('doctor-schedule')">
             ${ic('calendar','icon-sm')} View My Schedule
           </button>
         </div>`
@@ -3408,11 +3402,11 @@ function pageNewExamination() {
 
       <!-- Walk-in section — collapsed by default -->
       <div style="background:white;border:1px solid #e5e7eb;border-radius:14px;padding:14px 24px">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <span style="font-size:.82rem;color:#6b7280">Need to examine a walk-in patient?</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font-size:.82rem;color:#6b7280;flex:1;min-width:0">Need to examine a walk-in patient?</span>
           <button onclick="window.toggleWalkinSearch()"
                   id="walkin-toggle-btn"
-                  style="font-size:.8rem;color:#E8891C;background:none;border:none;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;padding:0">
+                  style="font-size:.8rem;color:#E8891C;background:none;border:none;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;padding:0;flex-shrink:0;white-space:nowrap">
             ${ic('search','icon-sm')}
             <span id="walkin-toggle-label">Search Other Patients ›</span>
           </button>
@@ -4563,7 +4557,7 @@ function pagePatientAppts() {
             <td style="font-size:.82rem">${a.type}</td>
             <td>${badge(a.status)}</td>
             <td>
-              <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+              <div class="pt-appt-act">
                 <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
                 ${(a.status==='pending'||a.status==='approved') ? `
                   ${a.status==='approved' ? (a.rescheduleRequest ? `<span title="Reschedule request pending" style="display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:999px;padding:1px 7px;white-space:nowrap">${ic('refresh-cw','icon-xs')} Requested</span>` : `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`) : ''}

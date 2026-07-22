@@ -5,12 +5,22 @@ html { scroll-behavior: smooth; }
 body { overflow-x: hidden; }
 
 /* Transparent navbar that becomes white on scroll */
-#navbar { background: transparent; border-bottom-color: transparent; box-shadow: none; }
+#navbar {
+  background: transparent;
+  border-bottom-color: transparent;
+  box-shadow: none;
+  /* Safari/WebKit: backdrop-filter on a transparent fixed element causes the
+     navbar to appear faded or invisible. Disable it until the bar is scrolled
+     (solid background), where it renders correctly on all browsers. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 #navbar.scrolled {
   background: rgba(255,255,255,0.97);
   box-shadow: 0 1px 12px rgba(0,0,0,0.08);
   border-bottom-color: rgba(229,231,235,0.7);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .nav-logo-name { color: #fff; }
 .nav-logo-sub  { color: rgba(255,255,255,0.65); }

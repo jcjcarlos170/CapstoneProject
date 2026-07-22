@@ -83,7 +83,8 @@ button { border-radius: unset; }
    AUTH SCREENS — split card layout (login + register)
 ════════════════════════════════════════════════════════════════ */
 #login-screen {
-  min-height: 100svh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -104,6 +105,7 @@ button { border-radius: unset; }
   display: flex;
   width: 100%;
   max-width: 780px;
+  min-height: 640px; /* tallest screen: registration step 3 (~616px) — keeps all auth cards the same height */
   background: #fff;
   border-radius: 24px;
   box-shadow:
@@ -199,7 +201,8 @@ button { border-radius: unset; }
 /* ── Responsive: mobile stacks vertically ── */
 @media (max-width: 768px) {
   #login-screen {
-    min-height: 100svh;
+    min-height: 100vh;
+    min-height: 100dvh;
     padding: 16px;
     align-items: center;
     box-sizing: border-box;
@@ -208,6 +211,7 @@ button { border-radius: unset; }
     flex-direction: column;
     max-width: 420px;
     width: 100%;
+    min-height: auto;
     border-radius: 16px;
   }
   .auth-brand-panel {
@@ -407,7 +411,8 @@ button { border-radius: unset; }
 ════════════════════════════════════════════════════════════════ */
 #forgot-screen,
 #verify-screen {
-  min-height: 100svh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -506,6 +511,7 @@ button { border-radius: unset; }
 ════════════════════════════════════════════════════════════════ */
 #register-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -580,6 +586,23 @@ select.reg-input option[value=""] { color: #9CA3AF; }
 select.reg-input option { color: #1C1C1C; }
 input[type="date"].reg-input {
   cursor: pointer;
+  /* Force light-mode rendering so the browser's native date-field text
+     (mm/dd/yyyy hint + edit fields) uses dark-on-light colours regardless
+     of the OS dark-mode setting. Without this, Chrome Android/Safari render
+     those internal fields with light (nearly invisible) text against the
+     white background set by .reg-input. */
+  color-scheme: light;
+}
+/* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
+   remain visible even when the system prefers dark mode. */
+input[type="date"].reg-input::-webkit-datetime-edit,
+input[type="date"].reg-input::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].reg-input::-webkit-datetime-edit-text,
+input[type="date"].reg-input::-webkit-datetime-edit-month-field,
+input[type="date"].reg-input::-webkit-datetime-edit-day-field,
+input[type="date"].reg-input::-webkit-datetime-edit-year-field {
+  color: #1C1C1C;
+  -webkit-text-fill-color: #1C1C1C;
 }
 .reg-input:focus {
   border-color: #E8891C;
@@ -860,6 +883,7 @@ input[type="date"].reg-input {
 #sidebar {
   width: 236px;
   height: 100vh;
+  height: 100dvh;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   position: fixed;
@@ -995,6 +1019,7 @@ input[type="date"].reg-input {
   padding: 8px 0;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Nav section label */
@@ -1551,6 +1576,7 @@ input[type="date"].reg-input {
   overflow-x: hidden;
   background: #f5f6fa;
   scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Page header */
@@ -1743,6 +1769,14 @@ input[type="date"].reg-input {
 .tbl tbody tr:last-child td { border-bottom: none; }
 .tbl tbody tr { transition: background 0.15s; }
 .tbl tbody tr:hover td { background: #FFFBF5; }
+
+/* Patient appointments — action buttons: always one row, smaller on mobile */
+.pt-appt-act { display: flex; gap: 4px; align-items: center; }
+@media (max-width: 767px) {
+  .pt-appt-act { gap: 2px; }
+  .pt-appt-act .btn-icon { width: 26px; height: 26px; }
+  .pt-appt-act .btn-icon .icon-sm { width: 12px; height: 12px; }
+}
 
 /* Patient name cell — allow wrap for two-line name+ID layout */
 .patient-name-cell { display: flex; align-items: center; gap: 10px; min-width: 0; overflow: visible; }

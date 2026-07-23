@@ -105,7 +105,7 @@ button { border-radius: unset; }
   display: flex;
   width: 100%;
   max-width: 780px;
-  min-height: 640px; /* tallest screen: registration step 3 (~616px) — keeps all auth cards the same height */
+  min-height: 640px; /* tallest screen: registration step 3 — inner content trimmed to fit 640px - 72px padding = 568px */
   background: #fff;
   border-radius: 24px;
   box-shadow:
@@ -171,7 +171,7 @@ button { border-radius: unset; }
   display: flex; flex-direction: column; justify-content: center;
 }
 .auth-form-panel--register {
-  justify-content: flex-start;
+  justify-content: center;
   overflow-y: auto;
   padding-top: 36px; padding-bottom: 36px;
 }
@@ -593,6 +593,9 @@ input[type="date"].reg-input {
      white background set by .reg-input. */
   color-scheme: light;
 }
+input[type="date"].reg-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
 /* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
    remain visible even when the system prefers dark mode. */
 input[type="date"].reg-input::-webkit-datetime-edit,
@@ -638,8 +641,8 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   background: #FFF7ED;
   border-left: 3px solid #E8891C;
   border-radius: 8px;
-  padding: 10px 14px;
-  margin: 8px 0 16px;
+  padding: 7px 12px;
+  margin: 6px 0 0;
   font-size: 0.75rem;
   color: #92400e;
   line-height: 1.5;
@@ -651,10 +654,10 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   display: flex;
   align-items: flex-start;
   gap: 9px;
-  margin: 14px 0 16px;
+  margin: 8px 0 8px;
   font-size: 0.78rem;
   color: #6b7280;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 .reg-terms .chk { flex-shrink: 0; margin-top: 1px; }
 .reg-terms a { color: #E8891C; font-weight: 600; text-decoration: underline; cursor: pointer; }
@@ -713,8 +716,8 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid #F3F4F6;
 }
 
@@ -729,6 +732,10 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
 }
 .reg-slide-in-right { animation: reg-slide-right 0.32s cubic-bezier(.22,1,.36,1) both; }
 .reg-slide-in-left  { animation: reg-slide-left  0.32s cubic-bezier(.22,1,.36,1) both; }
+
+/* Step 3 compact overrides — keeps total content within 640px card */
+#reg-panel-3 .reg-desc { margin-bottom: 10px; }
+#reg-panel-3 .reg-form-grid { gap: 8px; }
 
 @keyframes card-step-in {
   from { opacity: 0; transform: translateY(12px); }
@@ -892,7 +899,9 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   flex-direction: column;
   z-index: 1045;
   transition: width 0.28s cubic-bezier(.4,0,.2,1), transform 0.28s cubic-bezier(.4,0,.2,1);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 #sidebar.collapsed { width: 60px; }
 
@@ -1015,11 +1024,9 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
 
 /* Sidebar nav */
 .sidebar-nav {
-  flex: 1;
+  flex: 0 0 auto;
   padding: 8px 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 /* Nav section label */
@@ -1136,6 +1143,7 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   padding: 12px 8px;
   overflow: hidden;
   flex-shrink: 0;
+  margin-top: auto;
 }
 .sidebar-user {
   display: flex;

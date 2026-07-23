@@ -412,30 +412,48 @@
       </div>
       <h2 class="fp-title">Verify Your Email</h2>
       <p class="fp-desc">We've sent a 6-digit code to <strong id="ev-email-display"></strong>. Enter it below to activate your account.</p>
-
-      <div class="otp-row" id="ev-otp-row">
-        <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
-        <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
-        <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
-        <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
-        <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
-        <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      <div style="text-align:center;margin-bottom:16px" id="ev-edit-email-trigger-row">
+        <button class="fp-resend-link" id="ev-edit-email-btn" onclick="evStartEditEmail()">Wrong email? Edit it</button>
       </div>
 
-      <div class="fp-timer" id="ev-timer">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Expires in <span id="ev-timer-display">5:00</span>
+      <div id="ev-otp-group">
+        <div class="otp-row" id="ev-otp-row">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+          <input class="otp-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        </div>
+
+        <div class="fp-timer" id="ev-timer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Expires in <span id="ev-timer-display">5:00</span>
+        </div>
+
+        <div class="fp-field-error" id="ev-error" style="text-align:center;margin-bottom:8px"></div>
+
+        <div class="fp-resend-row">
+          Didn't receive a code? <button class="fp-resend-link" id="ev-resend-btn" onclick="evResendCode()">Resend Code</button>
+        </div>
+
+        <button class="fp-btn-primary full" id="ev-submit-btn" onclick="evSubmitOTP()" style="margin-bottom:14px">
+          Verify &amp; Activate Account
+        </button>
       </div>
 
-      <div class="fp-field-error" id="ev-error" style="text-align:center;margin-bottom:8px"></div>
-
-      <div class="fp-resend-row">
-        Didn't receive a code? <button class="fp-resend-link" id="ev-resend-btn" onclick="evResendCode()">Resend Code</button>
+      <!-- Inline "edit email" form — swapped in over the OTP entry above -->
+      <div id="ev-edit-email-group" style="display:none">
+        <div class="reg-group" style="margin-bottom:14px">
+          <label class="reg-label" for="ev-new-email-input">New Email Address</label>
+          <input type="email" id="ev-new-email-input" class="fp-input" placeholder="you@email.com" autocomplete="email">
+          <div class="fp-field-error" id="ev-edit-email-error"></div>
+        </div>
+        <div class="fp-btn-row" style="margin-bottom:14px">
+          <button class="fp-back-link" onclick="evCancelEditEmail()">Cancel</button>
+          <button class="fp-btn-primary" id="ev-save-email-btn" onclick="evSaveEditEmail()">Save &amp; Resend Code</button>
+        </div>
       </div>
-
-      <button class="fp-btn-primary full" id="ev-submit-btn" onclick="evSubmitOTP()" style="margin-bottom:14px">
-        Verify &amp; Activate Account
-      </button>
 
       <div style="text-align:center">
         <button class="fp-back-link" onclick="showLogin()">
@@ -569,13 +587,14 @@
         <p class="reg-desc">How can we reach you?</p>
         <div class="reg-form-grid">
 
-          <div class="reg-group">
-            <label class="reg-label">Contact Number <span class="reg-req">*</span></label>
-            <input type="text" id="reg-contact" class="reg-input" placeholder="09XXXXXXXXX" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')">
-          </div>
-          <div class="reg-group">
+          <div class="reg-group reg-full">
             <label class="reg-label">Email Address <span class="reg-req">*</span></label>
             <input type="email" id="reg-email" class="reg-input" placeholder="juan@email.com">
+          </div>
+
+          <div class="reg-group reg-full">
+            <label class="reg-label">Contact Number <span class="reg-req">*</span></label>
+            <input type="text" id="reg-contact" class="reg-input" placeholder="09XXXXXXXXX" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')">
           </div>
 
           <div class="reg-group reg-full">
@@ -630,7 +649,7 @@
         </div>
 
         <!-- QR notice -->
-        <div class="qr-notice" style="margin-top:14px;margin-bottom:0">
+        <div class="qr-notice">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="color:#E8760A;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h3v3h-3v-3h-3z"/></svg>
           <p>A unique QR code will be generated for quick clinic check-in.</p>
         </div>
@@ -673,7 +692,7 @@
 <div id="app-shell" style="display:none">
 
   <!-- Mobile sidebar backdrop -->
-  <div id="sidebar-overlay"></div>
+  <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
 
   <!-- Sidebar -->
   <aside id="sidebar">

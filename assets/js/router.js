@@ -87,11 +87,11 @@ const SIDEBAR_CONFIG = {
     { section: 'Overview' },
     { key: 'doctor-dashboard',     label: 'Dashboard',        icon: 'home' },
     { section: 'Clinic' },
-    { key: 'doctor-appointments',  label: 'My Appointments',  icon: 'calendar',
+    { key: 'doctor-appointments',  label: 'My Appointments',  icon: 'calendar', badgeKey: '_doctorApptAlertCount',
       children: [
         { key: 'doctor-appointments', filter: 'all',       label: 'All Appointments' },
-        { key: 'doctor-appointments', filter: 'today',     label: 'Today' },
-        { key: 'doctor-appointments', filter: 'upcoming',  label: 'Upcoming' },
+        { key: 'doctor-appointments', filter: 'today',     label: 'Today',    badgeKey: '_doctorTodayCount' },
+        { key: 'doctor-appointments', filter: 'upcoming',  label: 'Upcoming', badgeKey: '_doctorUpcomingCount' },
         { key: 'doctor-appointments', filter: 'completed', label: 'Completed' }
       ]
     },

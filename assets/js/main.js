@@ -2374,6 +2374,16 @@ async function saveExamination(patientId) {
       prescription: `OD: ${newExam.od.sph} ${newExam.od.cyl} x${newExam.od.axis} / OS: ${newExam.os.sph} ${newExam.os.cyl} x${newExam.os.axis}`,
       remarks: newExam.remarks
     })
+    if (!p.prescriptions) p.prescriptions = []
+    p.prescriptions.unshift({
+      id:       d.rxId || ('RX-' + newExam.id),
+      date:     newExam.date,
+      doctor:   newExam.doctor,
+      od:       { sph: newExam.od.sph, cyl: newExam.od.cyl, axis: newExam.od.axis },
+      os:       { sph: newExam.os.sph, cyl: newExam.os.cyl, axis: newExam.os.axis },
+      lensType: newExam.lensType && newExam.lensType !== '—' ? newExam.lensType : '',
+      remarks:  newExam.remarks || ''
+    })
     p.lastVisit = newExam.date
 
     toast('Examination record saved successfully. The prescription summary is now available for printing.')
@@ -4667,6 +4677,16 @@ async function saveNewExam(patientId) {
       prescription: `OD: ${newExam.od.sph} ${newExam.od.cyl} x${newExam.od.axis} / OS: ${newExam.os.sph} ${newExam.os.cyl} x${newExam.os.axis}`,
       remarks: newExam.remarks
     })
+    if (!p.prescriptions) p.prescriptions = []
+    p.prescriptions.unshift({
+      id:       d.rxId || ('RX-' + newExam.id),
+      date:     newExam.date,
+      doctor:   (window._examApptDoctor && state.role === 'admin') ? window._examApptDoctor : state.user.name,
+      od:       { sph: newExam.od.sph, cyl: newExam.od.cyl, axis: newExam.od.axis },
+      os:       { sph: newExam.os.sph, cyl: newExam.os.cyl, axis: newExam.os.axis },
+      lensType: newExam.lensType && newExam.lensType !== '—' ? newExam.lensType : '',
+      remarks:  newExam.remarks || ''
+    })
     p.lastVisit = newExam.date
 
     if (apptId) {
@@ -4853,115 +4873,180 @@ function viewExamDetail(patientId, examId) {
   if (!e) return
 
   const statusColor = { completed:'#059669', pending:'#D97706', cancelled:'#DC2626' }
-  const sc = statusColor[e.status] || '#6B7280'
+  const sc = statusColor[e.status] || '#059669'
+  const statusLabel = (e.status || 'completed').charAt(0).toUpperCase() + (e.status || 'completed').slice(1)
 
-  const eyeRow = (lbl, odVal, osVal) => `
-    <tr>
-      <td style="padding:8px 12px;font-size:.8rem;color:#6B7280;font-weight:600;border-bottom:1px solid #F3F4F6">${lbl}</td>
-      <td style="padding:8px 12px;font-size:.85rem;font-weight:700;color:#1D4ED8;border-bottom:1px solid #F3F4F6;text-align:center">${odVal || '—'}</td>
-      <td style="padding:8px 12px;font-size:.85rem;font-weight:700;color:#059669;border-bottom:1px solid #F3F4F6;text-align:center">${osVal || '—'}</td>
-    </tr>`
+  const examDate = new Date(e.date.includes('T') ? e.date : e.date + 'T00:00:00')
+  const examDateStr = examDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const expiryDate = new Date(examDate)
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+  const expiryStr = expiryDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+
+  const eyeField = (label, val, isLast) => `
+    <div style="padding:10px 6px;${isLast ? '' : 'border-right:1px solid #F3F4F6;'}text-align:center;flex:1;min-width:0">
+      <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:4px">${label}</div>
+      <div style="font-size:.9rem;font-weight:800;font-family:monospace;color:#1C1C1C">${val || '—'}</div>
+    </div>`
 
   showModal(`
     <div class="modal-header">
-      <div class="modal-title">Examination Detail — ${p.name}</div>
+      <div class="modal-title">Examination Results</div>
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body" style="padding:0">
 
-      <!-- Header strip -->
-      <div style="background:#1C1C1C;color:#fff;padding:18px 22px;display:flex;align-items:center;justify-content:space-between">
+      <!-- Branded clinic header -->
+      <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2A2A2A 100%);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
         <div>
-          <div style="font-size:.72rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em">Exam ID</div>
-          <div style="font-size:1rem;font-weight:700;font-family:monospace">${e.id}</div>
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:#E8760A;font-weight:800;margin-bottom:3px">Optical Examination Results</div>
+          <div style="font-size:1.1rem;font-weight:900;color:#fff;letter-spacing:-.01em">Cana Optical Clinic</div>
+          <div style="font-size:.73rem;color:rgba(255,255,255,.5);margin-top:4px">${examDateStr} &bull; ${e.doctor}</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:.72rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em">Date &amp; Doctor</div>
-          <div style="font-size:.88rem;font-weight:600">${new Date(e.date).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})}</div>
-          <div style="font-size:.78rem;color:rgba(255,255,255,.65)">${e.doctor}</div>
-        </div>
-        <div style="background:${sc};color:#fff;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700;text-transform:capitalize">
-          ${e.status || 'completed'}
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:.6rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Exam ID</div>
+          <div style="font-size:.72rem;font-family:monospace;color:rgba(255,255,255,.55);margin-bottom:8px">${e.id}</div>
+          <span style="background:${sc};color:#fff;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:700">${statusLabel}</span>
         </div>
       </div>
 
-      <div style="padding:18px 22px;display:flex;flex-direction:column;gap:18px">
-        <!-- Visual Acuity Table -->
+      <!-- Patient strip -->
+      <div style="background:#FFF8F0;border-bottom:1px solid #FDE68A;padding:11px 24px;display:flex;align-items:center;gap:12px">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;color:#fff;flex-shrink:0">
+          ${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${p.name}</div>
+          <div style="font-size:.7rem;color:#9CA3AF;margin-top:1px">${p.id}${p.gender ? ' &bull; ' + p.gender : ''}${p.age ? ' &bull; ' + p.age + ' yrs' : ''}</div>
+        </div>
+      </div>
+
+      <div style="padding:18px 24px;display:flex;flex-direction:column;gap:18px">
+
+        <!-- Visual Acuity & Refraction -->
         <div>
-          <div style="font-size:.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Visual Acuity</div>
-          <table style="width:100%;border-collapse:collapse;border:1px solid #F3F4F6;border-radius:8px;overflow:hidden">
-            <thead>
-              <tr style="background:#F9FAFB">
-                <th style="padding:8px 12px;font-size:.7rem;color:#9CA3AF;text-align:left;font-weight:600;text-transform:uppercase">Measure</th>
-                <th style="padding:8px 12px;font-size:.7rem;color:#1D4ED8;text-align:center;font-weight:700;text-transform:uppercase">OD (Right)</th>
-                <th style="padding:8px 12px;font-size:.7rem;color:#059669;text-align:center;font-weight:700;text-transform:uppercase">OS (Left)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${eyeRow('Sphere',       e.od?.sph, e.os?.sph)}
-              ${eyeRow('Cylinder',     e.od?.cyl, e.os?.cyl)}
-              ${eyeRow('Axis',         e.od?.axis, e.os?.axis)}
-              ${eyeRow('Visual Acuity',e.od?.va,  e.os?.va)}
-              ${eyeRow('Add Power',    e.od?.add, e.os?.add)}
-            </tbody>
-          </table>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:10px">Visual Acuity &amp; Refraction</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+            <!-- OD Card -->
+            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+              </div>
+              <div style="display:flex;background:#fff">
+                ${eyeField('SPH', e.od?.sph, false)}
+                ${eyeField('CYL', e.od?.cyl, false)}
+                ${eyeField('AXIS', e.od?.axis, false)}
+                ${eyeField('VA', e.od?.va, true)}
+              </div>
+              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Add Power</span>
+                <span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.od.add}</span>
+              </div>` : ''}
+            </div>
+
+            <!-- OS Card -->
+            <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
+              <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+              </div>
+              <div style="display:flex;background:#fff">
+                ${eyeField('SPH', e.os?.sph, false)}
+                ${eyeField('CYL', e.os?.cyl, false)}
+                ${eyeField('AXIS', e.os?.axis, false)}
+                ${eyeField('VA', e.os?.va, true)}
+              </div>
+              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #DBEAFE;background:#EFF6FF;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Add Power</span>
+                <span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#3B82F6">${e.os.add}</span>
+              </div>` : ''}
+            </div>
+          </div>
         </div>
 
         <!-- IOP + PD -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px">
-            <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">IOP — OD</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#1C1C1C;margin-top:2px">${e.iop?.od || '—'} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
+        ${(e.iop?.od || e.iop?.os || e.pd) ? `
+        <div style="display:grid;grid-template-columns:${[e.iop?.od||e.iop?.os ? '1fr 1fr' : '', e.pd ? '1fr' : ''].filter(Boolean).join(' ')};gap:8px">
+          ${e.iop?.od || e.iop?.os ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px">
+            <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:3px">IOP — Right Eye</div>
+            <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;font-family:monospace">${e.iop?.od || '—'} <span style="font-size:.67rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
           </div>
-          <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px">
-            <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">IOP — OS</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#1C1C1C;margin-top:2px">${e.iop?.os || '—'} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
-          </div>
-          <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px">
-            <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">PD</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#1C1C1C;margin-top:2px">${e.pd || '—'} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mm</span></div>
-          </div>
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px">
+            <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:3px">IOP — Left Eye</div>
+            <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;font-family:monospace">${e.iop?.os || '—'} <span style="font-size:.67rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
+          </div>` : ''}
+          ${e.pd ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px">
+            <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:3px">Pupillary Distance</div>
+            <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;font-family:monospace">${e.pd} <span style="font-size:.67rem;font-weight:400;color:#9CA3AF">mm</span></div>
+          </div>` : ''}
+        </div>` : ''}
+
+        <!-- Clinical Assessment -->
+        <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:10px;padding:14px 16px">
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:8px">Clinical Assessment</div>
+          <div style="font-size:1rem;font-weight:800;color:#1C1C1C;${e.recommendation ? 'margin-bottom:6px' : ''}">${e.diagnosis || '—'}</div>
+          ${e.recommendation ? `<div style="font-size:.8rem;color:#374151;line-height:1.65">${e.recommendation}</div>` : ''}
         </div>
 
-        <!-- Diagnosis + Test Results -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <div style="font-size:.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Diagnosis</div>
-            <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${e.diagnosis || '—'}</div>
-            ${e.recommendation ? `<div style="font-size:.78rem;color:#6B7280;margin-top:4px">${e.recommendation}</div>` : ''}
+        <!-- Lens Prescription -->
+        ${(e.lensType || e.lensMaterial || (e.lensCoating && e.lensCoating.length) || e.frameSelection) ? `
+        <div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:8px">Lens Prescription</div>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:${(e.lensCoating && e.lensCoating.length) || e.frameSelection ? '7px' : '0'}">
+            ${e.lensType ? `<span style="font-size:.88rem;font-weight:700;color:#1C1C1C">${e.lensType}</span>` : ''}
+            ${e.lensMaterial && e.lensMaterial !== 'N/A' ? `<span style="color:#D1D5DB;font-size:.85rem">/</span><span style="font-size:.82rem;color:#6B7280">${e.lensMaterial}</span>` : ''}
           </div>
-          <div>
-            <div style="font-size:.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Lens Prescription</div>
-            <div style="font-size:.82rem;color:#1C1C1C">${e.lensType || '—'} / ${e.lensMaterial || '—'}</div>
-            ${e.lensCoating?.length ? `<div style="font-size:.75rem;color:#6B7280;margin-top:2px">${e.lensCoating.join(', ')}</div>` : ''}
-            ${e.frameSelection ? `<div style="font-size:.75rem;color:#6B7280;margin-top:2px">Frame: ${e.frameSelection}</div>` : ''}
-          </div>
-        </div>
+          ${e.lensCoating && e.lensCoating.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px">${e.lensCoating.map(c=>`<span style="background:#FFF7ED;color:#C2410C;font-size:.7rem;font-weight:600;padding:2px 9px;border-radius:20px;border:1px solid #FDE68A">${c}</span>`).join('')}</div>` : ''}
+          ${e.frameSelection && e.frameSelection !== 'N/A — monitoring only' ? `<div style="font-size:.77rem;color:#6B7280">Frame: ${e.frameSelection}</div>` : ''}
+        </div>` : ''}
 
+        <!-- Prescription Notes -->
+        ${e.prescriptionDetails ? `
+        <div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:6px">Prescription Notes</div>
+          <div style="background:#FFFBF5;border:1px solid #FDE68A;border-radius:8px;padding:11px 13px;font-size:.8rem;color:#374151;line-height:1.65">${e.prescriptionDetails}</div>
+        </div>` : ''}
+
+        <!-- Test Results -->
         ${e.testResults ? `
         <div>
-          <div style="font-size:.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Test Results</div>
-          <div style="font-size:.82rem;color:#374151;background:#F9FAFB;border-radius:6px;padding:10px 12px;line-height:1.6">${e.testResults}</div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:6px">Test Results</div>
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px;font-size:.8rem;color:#374151;line-height:1.65">${e.testResults}</div>
         </div>` : ''}
 
+        <!-- Doctor's Remarks -->
         ${e.remarks ? `
-        <div>
-          <div style="font-size:.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Doctor's Remarks</div>
-          <div style="font-size:.82rem;color:#374151;font-style:italic">"${e.remarks}"</div>
+        <div style="border-top:1px solid #F3F4F6;padding-top:16px">
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:6px">Doctor's Remarks</div>
+          <div style="font-size:.83rem;color:#374151;line-height:1.7;font-style:italic;padding-left:12px;border-left:3px solid #E8760A">"${e.remarks}"</div>
+          <div style="font-size:.7rem;color:#9CA3AF;margin-top:4px;padding-left:15px">— ${e.doctor}</div>
         </div>` : ''}
+
+        <!-- Validity notice -->
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 13px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px">
+          ${icon('check-circle','icon-sm')}
+          <span style="font-size:.77rem;color:#059669;font-weight:500">Prescription valid until <strong>${expiryStr}</strong></span>
+        </div>
+
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Close</button>
       <button class="btn-ghost" onclick="window.viewPrescriptionModal('${patientId}','${examId}')">
-        ${icon('file-text','icon-sm')} View Prescription
+        ${icon('file-text','icon-sm')} Prescription
       </button>
       ${state.role !== 'patient' ? `<button class="btn-ghost" style="color:#0891b2;border-color:#0891b2" onclick="window.closeModal();window.generateClearance('${patientId}','${examId}')">
-        ${icon('award','icon-sm')} Generate Ophthalmic Clearance
+        ${icon('award','icon-sm')} Generate Clearance
       </button>
       <button class="btn-primary" onclick="window.printPrescription('${patientId}','${examId}')">
         ${icon('printer','icon-sm')} Print
-      </button>` : ''}
+      </button>` : `
+      <button class="btn-primary" onclick="window.printPrescription('${patientId}','${examId}')">
+        ${icon('printer','icon-sm')} Print Results
+      </button>`}
     </div>`, 'modal-lg')
 }
 window.viewExamDetail = viewExamDetail
@@ -4971,80 +5056,125 @@ function viewExamRecord(examId) {
   const e = getExamRecords().find(r => r.id === examId)
   if (!e) { toast('Record not found.', 'error'); return }
 
-  const eyeRow = (lbl, odVal, osVal) => `
-    <tr>
-      <td style="padding:8px 12px;font-size:.8rem;color:#6B7280;font-weight:600;border-bottom:1px solid #F3F4F6">${lbl}</td>
-      <td style="padding:8px 12px;font-size:.85rem;font-weight:700;color:#1D4ED8;border-bottom:1px solid #F3F4F6;text-align:center">${odVal || '—'}</td>
-      <td style="padding:8px 12px;font-size:.85rem;font-weight:700;color:#059669;border-bottom:1px solid #F3F4F6;text-align:center">${osVal || '—'}</td>
-    </tr>`
+  const examDate = new Date(e.date.includes('T') ? e.date : e.date + 'T00:00:00')
+  const examDateStr = examDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const expiryDate = new Date(examDate)
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+  const expiryStr = expiryDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+
+  const eyeField = (label, val, isLast) => `
+    <div style="padding:10px 6px;${isLast ? '' : 'border-right:1px solid #F3F4F6;'}text-align:center;flex:1;min-width:0">
+      <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:4px">${label}</div>
+      <div style="font-size:.9rem;font-weight:800;font-family:monospace;color:#1C1C1C">${val || '—'}</div>
+    </div>`
 
   showModal(`
     <div class="modal-header">
-      <div class="modal-title">Examination Record — ${e.id}</div>
+      <div class="modal-title">Examination Record — ${e.patientName}</div>
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body" style="padding:0">
-      <div style="background:#1C1C1C;color:#fff;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2A2A2A 100%);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
-          <div style="font-size:.72rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em">Patient</div>
-          <div style="font-size:1rem;font-weight:700">${e.patientName}</div>
-          <div style="font-size:.75rem;color:rgba(255,255,255,.55)">${e.patientId}</div>
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:#E8760A;font-weight:800;margin-bottom:3px">Patient Examination Record</div>
+          <div style="font-size:1rem;font-weight:900;color:#fff">${e.patientName}</div>
+          <div style="font-size:.7rem;font-family:monospace;color:rgba(255,255,255,.4);margin-top:1px">${e.patientId}</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:.72rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em">Date &amp; Doctor</div>
-          <div style="font-size:.88rem;font-weight:600">${fmtDate(e.date)}</div>
-          <div style="font-size:.78rem;color:rgba(255,255,255,.65)">${e.doctor}</div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:.6rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px">Doctor</div>
+          <div style="font-size:.82rem;font-weight:600;color:#fff">${e.doctor}</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:1px">${examDateStr}</div>
+          <div style="font-size:.65rem;font-family:monospace;color:rgba(255,255,255,.28);margin-top:5px">${e.id}</div>
         </div>
-        <div style="background:#10B981;color:#fff;border-radius:20px;padding:4px 12px;font-size:.75rem;font-weight:700">Completed</div>
       </div>
-      <div style="padding:18px 22px;display:flex;flex-direction:column;gap:16px">
+
+      <div style="padding:18px 24px;display:flex;flex-direction:column;gap:16px">
+
+        <!-- OD/OS Cards -->
         <div>
-          <div style="font-size:.72rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Refraction</div>
-          <table style="width:100%;border-collapse:collapse;border:1px solid #F3F4F6;border-radius:8px;overflow:hidden">
-            <thead>
-              <tr style="background:#F9FAFB">
-                <th style="padding:8px 12px;font-size:.7rem;color:#9CA3AF;text-align:left;font-weight:600;text-transform:uppercase">Measure</th>
-                <th style="padding:8px 12px;font-size:.7rem;color:#1D4ED8;text-align:center;font-weight:700;text-transform:uppercase">OD (Right)</th>
-                <th style="padding:8px 12px;font-size:.7rem;color:#059669;text-align:center;font-weight:700;text-transform:uppercase">OS (Left)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${eyeRow('Sphere',        e.od?.sph,  e.os?.sph)}
-              ${eyeRow('Cylinder',      e.od?.cyl,  e.os?.cyl)}
-              ${eyeRow('Axis',          e.od?.axis, e.os?.axis)}
-              ${eyeRow('Visual Acuity', e.od?.va,   e.os?.va)}
-              ${eyeRow('Add Power',     e.od?.add,  e.os?.add)}
-            </tbody>
-          </table>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px">
-            <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">IOP — OD</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#1C1C1C;margin-top:2px">${e.iop?.od || '—'} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
-          </div>
-          <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px">
-            <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">IOP — OS</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#1C1C1C;margin-top:2px">${e.iop?.os || '—'} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
-          </div>
-          <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px">
-            <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">PD</div>
-            <div style="font-size:1.1rem;font-weight:800;color:#1C1C1C;margin-top:2px">${e.pd || '—'} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mm</span></div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:8px">Refraction &amp; Visual Acuity</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+              </div>
+              <div style="display:flex;background:#fff">
+                ${eyeField('SPH', e.od?.sph, false)}
+                ${eyeField('CYL', e.od?.cyl, false)}
+                ${eyeField('AXIS', e.od?.axis, false)}
+                ${eyeField('VA', e.od?.va, true)}
+              </div>
+              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.od.add}</span></div>` : ''}
+            </div>
+            <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
+              <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+              </div>
+              <div style="display:flex;background:#fff">
+                ${eyeField('SPH', e.os?.sph, false)}
+                ${eyeField('CYL', e.os?.cyl, false)}
+                ${eyeField('AXIS', e.os?.axis, false)}
+                ${eyeField('VA', e.os?.va, true)}
+              </div>
+              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #DBEAFE;background:#EFF6FF;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#3B82F6">${e.os.add}</span></div>` : ''}
+            </div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <div style="font-size:.7rem;color:#9CA3AF;text-transform:uppercase;font-weight:700;letter-spacing:.05em;margin-bottom:4px">Diagnosis</div>
-            <div style="font-size:.88rem;font-weight:600;color:#1C1C1C">${e.diagnosis}</div>
+
+        <!-- IOP + PD -->
+        ${(e.iop?.od || e.iop?.os || e.pd) ? `
+        <div style="display:grid;grid-template-columns:${[e.iop?.od||e.iop?.os ? '1fr 1fr' : '', e.pd ? '1fr' : ''].filter(Boolean).join(' ')};gap:8px">
+          ${e.iop?.od || e.iop?.os ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px">
+            <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:3px">IOP — OD</div>
+            <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;font-family:monospace">${e.iop?.od || '—'} <span style="font-size:.67rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
           </div>
-          <div>
-            <div style="font-size:.7rem;color:#9CA3AF;text-transform:uppercase;font-weight:700;letter-spacing:.05em;margin-bottom:4px">Lens Type</div>
-            <div style="font-size:.88rem;font-weight:600;color:#1C1C1C">${e.lensType || '—'}</div>
-          </div>
-        </div>
-        ${e.recommendation ? `<div>
-          <div style="font-size:.7rem;color:#9CA3AF;text-transform:uppercase;font-weight:700;letter-spacing:.05em;margin-bottom:4px">Recommendation</div>
-          <div style="font-size:.82rem;color:#374151;line-height:1.6">${e.recommendation}</div>
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px">
+            <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:3px">IOP — OS</div>
+            <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;font-family:monospace">${e.iop?.os || '—'} <span style="font-size:.67rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
+          </div>` : ''}
+          ${e.pd ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px">
+            <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:3px">PD</div>
+            <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;font-family:monospace">${e.pd} <span style="font-size:.67rem;font-weight:400;color:#9CA3AF">mm</span></div>
+          </div>` : ''}
         </div>` : ''}
+
+        <!-- Diagnosis + Lens -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:12px 14px">
+            <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:5px">Diagnosis</div>
+            <div style="font-size:.9rem;font-weight:700;color:#1C1C1C">${e.diagnosis || '—'}</div>
+            ${e.recommendation ? `<div style="font-size:.78rem;color:#6B7280;margin-top:4px;line-height:1.5">${e.recommendation}</div>` : ''}
+          </div>
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:12px 14px">
+            <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:5px">Lens Prescription</div>
+            <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${e.lensType || '—'}</div>
+            ${e.lensMaterial && e.lensMaterial !== 'N/A' ? `<div style="font-size:.78rem;color:#6B7280;margin-top:2px">${e.lensMaterial}</div>` : ''}
+            ${e.lensCoating && e.lensCoating.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px">${e.lensCoating.map(c=>`<span style="background:#FFF7ED;color:#C2410C;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:20px;border:1px solid #FDE68A">${c}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+
+        ${e.testResults ? `
+        <div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:5px">Test Results</div>
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:11px 13px;font-size:.8rem;color:#374151;line-height:1.65">${e.testResults}</div>
+        </div>` : ''}
+
+        ${e.remarks ? `
+        <div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:5px">Doctor's Remarks</div>
+          <div style="font-size:.83rem;color:#374151;font-style:italic;padding-left:12px;border-left:3px solid #E8760A">"${e.remarks}"</div>
+        </div>` : ''}
+
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 13px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px">
+          ${icon('check-circle','icon-sm')}
+          <span style="font-size:.77rem;color:#059669;font-weight:500">Prescription valid until <strong>${expiryStr}</strong></span>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -5471,7 +5601,8 @@ function _openExamPrintWindow(p, e) {
   </div>
 
   <!-- IOP / PD -->
-  <div class="info-grid">
+  ${(e.iop?.od || e.iop?.os || e.pd) ? `<div class="info-grid">
+    ${e.iop?.od || e.iop?.os ? `
     <div class="info-box">
       <div class="ib-lbl">IOP — OD</div>
       <div class="ib-val">${e.iop?.od||'—'} <span class="ib-unit">mmHg</span></div>
@@ -5479,12 +5610,13 @@ function _openExamPrintWindow(p, e) {
     <div class="info-box">
       <div class="ib-lbl">IOP — OS</div>
       <div class="ib-val">${e.iop?.os||'—'} <span class="ib-unit">mmHg</span></div>
-    </div>
+    </div>` : ''}
+    ${e.pd ? `
     <div class="info-box">
       <div class="ib-lbl">PD (Pupillary Distance)</div>
-      <div class="ib-val">${e.pd||'—'} <span class="ib-unit">mm</span></div>
-    </div>
-  </div>
+      <div class="ib-val">${e.pd} <span class="ib-unit">mm</span></div>
+    </div>` : ''}
+  </div>` : ''}
 
   <!-- DIAGNOSIS & LENS -->
   ${secLbl('Clinical Assessment')}
@@ -5536,118 +5668,163 @@ function viewPrescriptionModal(patientId, examId) {
   const e = p.examinations.find(e => e.id === examId)
   if (!e) return
 
-  const eyeRow = (lbl, odVal, osVal) => `
-    <tr>
-      <td style="padding:9px 14px;font-size:.82rem;color:#6B7280;font-weight:600;border-bottom:1px solid #F3F4F6">${lbl}</td>
-      <td style="padding:9px 14px;font-size:.88rem;font-weight:800;color:#1D4ED8;border-bottom:1px solid #F3F4F6;text-align:center">${odVal || '—'}</td>
-      <td style="padding:9px 14px;font-size:.88rem;font-weight:800;color:#059669;border-bottom:1px solid #F3F4F6;text-align:center">${osVal || '—'}</td>
-    </tr>`
+  const rxDate = new Date(e.date.includes('T') ? e.date : e.date + 'T00:00:00')
+  const rxDateStr = rxDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const expiryDate = new Date(rxDate)
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+  const expiryStr = expiryDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const isExpired = expiryDate < new Date()
+
+  const eyeField = (label, val, isLast) => `
+    <div style="padding:11px 8px;${isLast ? '' : 'border-right:1px solid #F3F4F6;'}text-align:center;flex:1;min-width:0">
+      <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:5px">${label}</div>
+      <div style="font-size:.95rem;font-weight:800;font-family:monospace;color:#1C1C1C">${val || '—'}</div>
+    </div>`
 
   showModal(`
     <div class="modal-header">
-      <div class="modal-title">Prescription — ${p.name}</div>
+      <div class="modal-title">Optical Prescription — ${p.name}</div>
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
-    <div class="modal-body" id="print-rx-area" style="padding:24px 28px">
+    <div class="modal-body" id="print-rx-area" style="padding:0">
 
       <!-- Clinic header -->
-      <div style="text-align:center;border-bottom:2px solid #E8760A;padding-bottom:14px;margin-bottom:18px">
-        <div style="font-size:1.3rem;font-weight:900;color:#E8760A;letter-spacing:-.02em">CANA OPTICAL CLINIC</div>
-        <div style="font-size:.78rem;color:#6B7280;margin-top:2px">Optical Prescription Record</div>
-      </div>
-
-      <!-- Patient profile card -->
-      <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#F9FAFB;border-radius:10px;border:1px solid #F3F4F6;margin-bottom:16px">
-        <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 3px 10px rgba(232,118,10,.25)">${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:1.05rem;font-weight:800;color:#111;margin-bottom:1px">${p.name}</div>
-          <div style="font-size:.72rem;font-family:monospace;color:#9CA3AF;margin-bottom:5px">${p.id}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px 12px">
-            <span style="font-size:.75rem;color:#555">${p.gender||'—'}, ${p.age||'—'} yrs</span>
-            ${p.contact ? `<span style="font-size:.75rem;color:#555">${p.contact}</span>` : ''}
-            ${p.bloodType ? `<span style="font-size:.75rem;font-weight:700;color:#DC2626">BT ${p.bloodType}</span>` : ''}
-          </div>
-          ${p.address ? `<div style="font-size:.71rem;color:#9CA3AF;margin-top:3px">${p.address}</div>` : ''}
+      <div style="background:linear-gradient(135deg,#1C1C1C,#2A2A2A);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:#E8760A;font-weight:800;margin-bottom:2px">Official Optical Prescription</div>
+          <div style="font-size:1rem;font-weight:900;color:#fff;letter-spacing:-.01em">Cana Optical Clinic</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Issued By</div>
-          <div style="font-size:.88rem;font-weight:700;color:#111">${e.doctor}</div>
-          <div style="font-size:.75rem;color:#6B7280">${new Date(e.date.includes('T')?e.date:e.date+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'})}</div>
-          <div style="font-size:.68rem;font-family:monospace;color:#9CA3AF;margin-top:3px">${e.id}</div>
+          <div style="font-size:.65rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Rx ID</div>
+          <div style="font-size:.72rem;font-family:monospace;color:rgba(255,255,255,.55)">${e.id}</div>
         </div>
       </div>
 
-      <!-- Vision Rx table -->
-      <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;margin-bottom:14px">
-        <thead>
-          <tr style="background:#F9FAFB">
-            <th style="padding:10px 14px;font-size:.72rem;color:#9CA3AF;text-align:left;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Measurement</th>
-            <th style="padding:10px 14px;font-size:.75rem;color:#1D4ED8;text-align:center;font-weight:800;text-transform:uppercase;letter-spacing:.04em">OD (Right Eye)</th>
-            <th style="padding:10px 14px;font-size:.75rem;color:#059669;text-align:center;font-weight:800;text-transform:uppercase;letter-spacing:.04em">OS (Left Eye)</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${eyeRow('Sphere (SPH)',   e.od?.sph, e.os?.sph)}
-          ${eyeRow('Cylinder (CYL)', e.od?.cyl, e.os?.cyl)}
-          ${eyeRow('Axis',           e.od?.axis, e.os?.axis)}
-          ${eyeRow('Visual Acuity',  e.od?.va,  e.os?.va)}
-          ${e.od?.add ? eyeRow('Add Power', e.od?.add, e.os?.add) : ''}
-        </tbody>
-      </table>
+      <div style="padding:20px 24px;display:flex;flex-direction:column;gap:16px">
 
-      <!-- Details row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
-        <div style="background:#F9FAFB;border-radius:6px;padding:9px 12px">
-          <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em">IOP</div>
-          <div style="font-size:.85rem;font-weight:700;color:#1C1C1C;margin-top:2px">OD ${e.iop?.od || '—'} / OS ${e.iop?.os || '—'} mmHg</div>
+        <!-- Patient + Doctor block -->
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 16px;background:#F9FAFB;border:1px solid #F3F4F6;border-radius:10px">
+          <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:800;color:#fff;flex-shrink:0">${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.97rem;font-weight:800;color:#111;margin-bottom:2px">${p.name}</div>
+            <div style="font-size:.7rem;font-family:monospace;color:#9CA3AF;margin-bottom:5px">${p.id}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px 12px">
+              ${p.gender || p.age ? `<span style="font-size:.73rem;color:#555">${[p.gender, p.age ? p.age + ' yrs' : ''].filter(Boolean).join(', ')}</span>` : ''}
+              ${p.contact ? `<span style="font-size:.73rem;color:#555">${p.contact}</span>` : ''}
+              ${p.bloodType ? `<span style="font-size:.73rem;font-weight:700;color:#DC2626">BT ${p.bloodType}</span>` : ''}
+            </div>
+            ${p.address ? `<div style="font-size:.68rem;color:#9CA3AF;margin-top:3px">${p.address}</div>` : ''}
+          </div>
+          <div style="text-align:right;flex-shrink:0;min-width:120px">
+            <div style="font-size:.62rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">Issued By</div>
+            <div style="font-size:.85rem;font-weight:700;color:#111">${e.doctor}</div>
+            <div style="font-size:.72rem;color:#6B7280;margin-top:2px">${rxDateStr}</div>
+            <div style="margin-top:8px">
+              <span style="font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:20px;${isExpired ? 'background:#FEE2E2;color:#DC2626' : 'background:#ECFDF5;color:#059669'}">
+                ${isExpired ? 'Expired' : 'Valid until ' + expiryStr}
+              </span>
+            </div>
+          </div>
         </div>
-        <div style="background:#F9FAFB;border-radius:6px;padding:9px 12px">
-          <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em">PD</div>
-          <div style="font-size:.85rem;font-weight:700;color:#1C1C1C;margin-top:2px">${e.pd || '—'} mm</div>
-        </div>
-        <div style="background:#F9FAFB;border-radius:6px;padding:9px 12px">
-          <div style="font-size:.65rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em">Lens</div>
-          <div style="font-size:.85rem;font-weight:700;color:#1C1C1C;margin-top:2px">${e.lensType || '—'}</div>
-        </div>
-      </div>
 
-      ${e.prescriptionDetails ? `
-      <div style="margin-bottom:12px">
-        <div style="font-size:.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Prescription Notes</div>
-        <div style="font-size:.82rem;color:#374151;background:#FFFBF5;border:1px solid #FDE68A;border-radius:6px;padding:9px 12px;line-height:1.6">${e.prescriptionDetails}</div>
-      </div>` : ''}
-
-      ${e.lensCoating?.length ? `
-      <div style="margin-bottom:12px">
-        <div style="font-size:.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Lens Coatings</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${e.lensCoating.map(c=>`<span style="background:linear-gradient(135deg,#FAA84F 0%,#E8760A 60%,#C4620A 100%);color:#fff;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px">${c}</span>`).join('')}
+        <!-- OD/OS Rx values -->
+        <div>
+          <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:8px">Refraction Prescription</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+              </div>
+              <div style="display:flex;background:#fff">
+                ${eyeField('SPH', e.od?.sph, false)}
+                ${eyeField('CYL', e.od?.cyl, false)}
+                ${eyeField('AXIS', e.od?.axis, false)}
+                ${eyeField('VA', e.od?.va, true)}
+              </div>
+              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.od.add}</span></div>` : ''}
+            </div>
+            <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
+              <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+              </div>
+              <div style="display:flex;background:#fff">
+                ${eyeField('SPH', e.os?.sph, false)}
+                ${eyeField('CYL', e.os?.cyl, false)}
+                ${eyeField('AXIS', e.os?.axis, false)}
+                ${eyeField('VA', e.os?.va, true)}
+              </div>
+              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #DBEAFE;background:#EFF6FF;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#3B82F6">${e.os.add}</span></div>` : ''}
+            </div>
+          </div>
         </div>
-      </div>` : ''}
 
-      ${e.remarks ? `
-      <div style="border-top:1px solid #F3F4F6;padding-top:12px;margin-top:4px">
-        <div style="font-size:.7rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Doctor's Remarks</div>
-        <div style="font-size:.82rem;color:#374151;font-style:italic">"${e.remarks}"</div>
-      </div>` : ''}
+        <!-- IOP + PD + Lens row -->
+        ${(e.iop?.od || e.iop?.os || e.pd || e.lensType) ? `
+        <div style="display:grid;grid-template-columns:${[e.iop?.od||e.iop?.os?'1fr':'',e.pd?'1fr':'',e.lensType?'1fr':''].filter(Boolean).join(' ')};gap:8px">
+          ${e.iop?.od || e.iop?.os ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:9px 12px">
+            <div style="font-size:.58rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">IOP (OD / OS)</div>
+            <div style="font-size:.85rem;font-weight:700;color:#1C1C1C;font-family:monospace">${e.iop?.od||'—'} / ${e.iop?.os||'—'} <span style="font-size:.65rem;font-weight:400;color:#9CA3AF">mmHg</span></div>
+          </div>` : ''}
+          ${e.pd ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:9px 12px">
+            <div style="font-size:.58rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">PD</div>
+            <div style="font-size:.85rem;font-weight:700;color:#1C1C1C;font-family:monospace">${e.pd} <span style="font-size:.65rem;font-weight:400;color:#9CA3AF">mm</span></div>
+          </div>` : ''}
+          ${e.lensType ? `
+          <div style="background:#F9FAFB;border:1px solid #F3F4F6;border-radius:8px;padding:9px 12px">
+            <div style="font-size:.58rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Lens Type</div>
+            <div style="font-size:.82rem;font-weight:700;color:#1C1C1C">${e.lensType}</div>
+          </div>` : ''}
+        </div>` : ''}
+        </div>
 
-      <!-- Signature line -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:28px;padding-top:18px;border-top:1px dashed #E5E7EB">
-        <div style="text-align:center">
-          <div style="border-top:1px solid #1C1C1C;padding-top:6px;font-size:.78rem;color:#374151;font-weight:600">${e.doctor}</div>
-          <div style="font-size:.7rem;color:#9CA3AF">Optometrist</div>
+        ${e.prescriptionDetails ? `
+        <div>
+          <div style="font-size:.63rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Prescription Notes</div>
+          <div style="font-size:.8rem;color:#374151;background:#FFFBF5;border:1px solid #FDE68A;border-radius:8px;padding:10px 13px;line-height:1.65">${e.prescriptionDetails}</div>
+        </div>` : ''}
+
+        ${e.lensCoating && e.lensCoating.length ? `
+        <div>
+          <div style="font-size:.63rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Lens Coatings</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${e.lensCoating.map(c=>`<span style="background:#FFF7ED;color:#C2410C;font-size:.72rem;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #FDE68A">${c}</span>`).join('')}
+          </div>
+        </div>` : ''}
+
+        ${e.remarks ? `
+        <div style="border-top:1px solid #F3F4F6;padding-top:14px">
+          <div style="font-size:.63rem;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">Doctor's Remarks</div>
+          <div style="font-size:.82rem;color:#374151;font-style:italic;padding-left:12px;border-left:3px solid #E8760A">"${e.remarks}"</div>
+        </div>` : ''}
+
+        <!-- Signature lines -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;padding-top:16px;border-top:1px dashed #E5E7EB">
+          <div style="text-align:center">
+            <div style="height:28px"></div>
+            <div style="border-top:1px solid #374151;padding-top:5px;font-size:.77rem;color:#374151;font-weight:600">${e.doctor}</div>
+            <div style="font-size:.67rem;color:#9CA3AF;margin-top:2px">Optometrist / Examining Doctor</div>
+          </div>
+          <div style="text-align:center">
+            <div style="height:28px"></div>
+            <div style="border-top:1px solid #374151;padding-top:5px;font-size:.77rem;color:#374151;font-weight:600">${p.name}</div>
+            <div style="font-size:.67rem;color:#9CA3AF;margin-top:2px">Patient Signature &amp; Date</div>
+          </div>
         </div>
-        <div style="text-align:center">
-          <div style="border-top:1px solid #1C1C1C;padding-top:6px;font-size:.78rem;color:#374151;font-weight:600">${p.name}</div>
-          <div style="font-size:.7rem;color:#9CA3AF">Patient Signature</div>
-        </div>
+
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Close</button>
-      ${state.role !== 'patient' ? `<button class="btn-primary" onclick="window.printPrescription('${patientId}','${examId}')">
+      <button class="btn-ghost" onclick="window.viewExamDetail('${patientId}','${examId}')">
+        ${icon('eye','icon-sm')} Full Results
+      </button>
+      <button class="btn-primary" onclick="window.printPrescription('${patientId}','${examId}')">
         ${icon('printer','icon-sm')} Print Prescription
-      </button>` : ''}
+      </button>
     </div>`, 'modal-lg')
 }
 window.viewPrescriptionModal = viewPrescriptionModal

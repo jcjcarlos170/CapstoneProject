@@ -144,6 +144,14 @@ function getTodayAppts() {
   return appointments.filter(a => a.date === today)
 }
 
+function _recomputeApptCounts() {
+  const todayStr = localDateStr()
+  window._apptPendingCount      = appointments.filter(x => x.status === 'pending').length
+  window._doctorTodayCount      = appointments.filter(a => a.date === todayStr && !['cancelled','disapproved'].includes(a.status)).length
+  window._doctorUpcomingCount   = appointments.filter(a => a.date > todayStr && ['approved','pending'].includes(a.status)).length
+  window._doctorApptAlertCount  = window._doctorTodayCount + window._doctorUpcomingCount
+}
+
 function updateAppointmentStatus(id, status) {
   const a = appointments.find(a => a.id === id)
   if (a) {
@@ -151,13 +159,15 @@ function updateAppointmentStatus(id, status) {
     // Deciding the appointment's status supersedes any reschedule request
     // still attached to it (mirrors the server-side clear in update.php)
     delete a.rescheduleRequest
-    window._apptPendingCount = appointments.filter(x => x.status === 'pending').length
+    _recomputeApptCounts()
     if (window._updateSidebarBadges) window._updateSidebarBadges()
   }
 }
 
 function addAppointment(appt) {
   appointments.push(appt)
+  _recomputeApptCounts()
+  if (window._updateSidebarBadges) window._updateSidebarBadges()
 }
 
 // Local (not UTC) "YYYY-MM-DD HH:MM:SS" wall-clock timestamp. Date#toISOString()

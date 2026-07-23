@@ -813,6 +813,13 @@ function showEmailVerify(email, fromRegistration = false) {
 
   // Reset to step 1
   evShowStep(1)
+  evCancelEditEmail()
+
+  // Editing only makes sense for a pending registration (there's a row in
+  // pending_registrations to update) — the login "needsVerification" path
+  // isn't backed by one, so hide the trigger there.
+  const editRow = document.getElementById('ev-edit-email-trigger-row')
+  if (editRow) editRow.style.display = fromRegistration ? '' : 'none'
 
   // Clear OTP inputs
   document.querySelectorAll('#ev-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
@@ -1040,6 +1047,100 @@ async function evResendCode() {
 }
 window.evResendCode = evResendCode
 
+// ── Edit pending email (fix a typo without restarting registration) ────
+function evStartEditEmail() {
+  // Deliberately leave the countdown running in the background — the
+  // original OTP is still the one that's valid until Save actually
+  // sends a new one, so the displayed timer should keep reflecting that.
+  document.getElementById('ev-otp-group').style.display = 'none'
+  document.getElementById('ev-edit-email-group').style.display = 'block'
+  document.getElementById('ev-edit-email-trigger-row').style.display = 'none'
+
+  const input = document.getElementById('ev-new-email-input')
+  const errEl = document.getElementById('ev-edit-email-error')
+  input.value = _evEmail
+  errEl.textContent = ''
+  errEl.classList.remove('show')
+  setTimeout(() => { input.focus(); input.select() }, 50)
+}
+window.evStartEditEmail = evStartEditEmail
+
+function evCancelEditEmail() {
+  const editGroup = document.getElementById('ev-edit-email-group')
+  const otpGroup  = document.getElementById('ev-otp-group')
+  if (!editGroup || !otpGroup) return
+
+  editGroup.style.display = 'none'
+  otpGroup.style.display  = ''
+  if (_evFromReg) document.getElementById('ev-edit-email-trigger-row').style.display = ''
+}
+window.evCancelEditEmail = evCancelEditEmail
+
+async function evSaveEditEmail() {
+  const input    = document.getElementById('ev-new-email-input')
+  const errEl    = document.getElementById('ev-edit-email-error')
+  const saveBtn  = document.getElementById('ev-save-email-btn')
+  const newEmail = input.value.trim().toLowerCase()
+
+  errEl.textContent = ''
+  errEl.classList.remove('show')
+
+  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    errEl.textContent = 'Please enter a valid email address.'
+    errEl.classList.add('show')
+    input.focus()
+    return
+  }
+
+  if (newEmail === _evEmail.toLowerCase()) {
+    // Nothing changed — just go back to the OTP step as-is.
+    evCancelEditEmail()
+    return
+  }
+
+  saveBtn.disabled = true
+  saveBtn.textContent = 'Saving…'
+
+  try {
+    const res  = await fetch('api/auth/update-pending-email.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: _evEmail, newEmail }),
+    })
+    const data = await res.json()
+
+    if (!data.success) {
+      errEl.textContent = data.message || 'Could not update your email. Please try again.'
+      errEl.classList.add('show')
+      return
+    }
+
+    _evEmail = data.email
+    document.getElementById('ev-email-display').textContent = data.email
+
+    // Fresh OTP was sent to the new address — reset the entry UI same as a resend.
+    document.querySelectorAll('#ev-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
+    document.getElementById('ev-error').style.display = 'none'
+    clearInterval(_evResendCooldownInterval)
+    _evResendCooldownInterval = null
+    _evResendCooldownLeft = 0
+    const resendBtn = document.getElementById('ev-resend-btn')
+    if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = 'Resend Code' }
+    _evStartTimer(300)
+
+    evCancelEditEmail()
+    setTimeout(() => document.querySelector('#ev-otp-row .otp-input')?.focus(), 50)
+
+  } catch (_) {
+    errEl.textContent = 'Network error. Please try again.'
+    errEl.classList.add('show')
+  } finally {
+    saveBtn.disabled = false
+    saveBtn.textContent = 'Save & Resend Code'
+  }
+}
+window.evSaveEditEmail = evSaveEditEmail
+
 // Init OTP inputs for email verify screen
 ;(function() {
   function setupEvOTP() {
@@ -1146,7 +1247,10 @@ const _APPT_PAGES = new Set([
   'appointments','patient-appts','doctor-appointments'
 ])
 
-window._apptPendingCount = 0
+window._apptPendingCount     = 0
+window._doctorTodayCount     = 0
+window._doctorUpcomingCount  = 0
+window._doctorApptAlertCount = 0
 
 async function _syncAppointments(rerender = true) {
   try {
@@ -1156,7 +1260,7 @@ async function _syncAppointments(rerender = true) {
     if (!d.success || !Array.isArray(d.appointments)) return
     // Replace the mock array in-place so all existing references stay valid
     appointments.splice(0, appointments.length, ...d.appointments)
-    window._apptPendingCount = d.appointments.filter(a => a.status === 'pending').length
+    _recomputeApptCounts()
     if (window._updateSidebarBadges) window._updateSidebarBadges()
     const page = window.state?.page
     if (rerender && _APPT_PAGES.has(page)) { window.renderPage(); return }

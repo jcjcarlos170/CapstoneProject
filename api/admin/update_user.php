@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/admin/update_user.php
+//  CANAOPTICALCLINIC — api/admin/update_user.php
 //  Admin-only endpoint to update any user's profile.
 //
 //  POST { profileId, role, firstName, lastName, email, contact, status }

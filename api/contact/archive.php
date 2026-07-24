@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/contact/archive.php
+//  CANAOPTICALCLINIC — api/contact/archive.php
 //  POST { id: N, archived: true|false } → archive/unarchive a message.
 //  admin/staff only.
 // ================================================================

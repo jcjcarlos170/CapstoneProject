@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/notifications/mark_read.php
+//  CANAOPTICALCLINIC — api/notifications/mark_read.php
 //  POST { id: N }       → mark single notification as read
 //  POST { all: true }   → mark all notifications as read
 // ================================================================

@@ -16,7 +16,7 @@ $result = [
 try {
     sendEmail(
         SMTP_FROM, SMTP_FROM_NAME,
-        'Opticana Email Test',
+        'CanaOpticalClinic Email Test',
         '<p>Email delivery is working correctly.</p>',
         'Email delivery is working correctly.'
     );

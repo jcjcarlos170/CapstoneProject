@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/update_history.php
+//  CANAOPTICALCLINIC — api/patients/update_history.php
 //  Admin, Staff, and Doctor can update a patient's medical/optical
 //  history (e.g. after an examination reveals new information).
 //  POST { patientId, medicalHistory?, opticalHistory? }

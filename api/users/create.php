@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/users/create.php
+//  CANAOPTICALCLINIC — api/users/create.php
 //  Admin-only. Creates an Admin, Staff, or Doctor account.
 //  POST { role, firstName, lastName, email, password, contact?,
 //         specialization?, prcLicense? }

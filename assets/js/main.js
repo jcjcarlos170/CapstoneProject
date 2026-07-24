@@ -1,5 +1,5 @@
 ﻿// ================================================================
-//  OPTICANA — main.js
+//  CANAOPTICALCLINIC — main.js
 //  App entry point. Imports all modules, attaches globals,
 //  handles modals, QR, toasts, and action handlers.
 // ================================================================
@@ -105,7 +105,7 @@ window.handleRegister        = handleRegister
 window.showRegister          = showRegister
 window.showLogin             = showLogin
 window._charts               = { initAppointmentsChart, initPatientGrowthChart, initReportStatusChart, initReportMonthlyChart, updateAppointmentsChart, updatePatientGrowthChart, initAnalyticsDoughnut, initAnalyticsStacked, initGenderChart, initAgeChart, initDoctorUtilChart, updateAnalyticsCharts, initStaffOverviewChart, updateStaffOverviewChart }
-window._pages                = { pageAdminDashboard, pageAdminUsers, pageAppointments, pagePatientList, pagePatientView, pageContactMessages, pageQRScanner, pageSchedule, pageAdminReports, pageAdminSettings, pageActivityLog, pageStaffDashboard, pageStaffSettings, pageDoctorDashboard, pageDoctorAppointments, pageDoctorSchedule, pageDoctorSettings, pageExamination, pageExamRecords, pageNewExamination, pagePatientExamHistory, pagePatientDashboard, pagePatientAppts, pagePatientRecords, pagePatientQR, pagePatientPrescriptions, pagePatientNotifications, pagePatientSettings, pageComingSoon, pagePatientDoctorAvail, pageScanQR }
+window._pages                = { pageAdminDashboard, pageAdminUsers, pageAppointments, pagePatientList, pagePatientView, pageContactMessages, pageQRScanner, pageSchedule, pageAdminReports, pageAdminSettings, pageActivityLog, pageStaffDashboard, pageStaffSettings, pageDoctorDashboard, pageDoctorAppointments, pageDoctorSchedule, pageDoctorSettings, pageExamination, pageExamRecords, pageNewExamination, pagePatientExamHistory, pagePatientDashboard, pagePatientAppts, pagePatientConsultations, pagePatientQR, pagePatientPrescriptions, pagePatientNotifications, pagePatientSettings, pageComingSoon, pagePatientDoctorAvail, pageScanQR }
 window.toggleNotifyDropdown  = toggleNotifyDropdown
 window.toggleUserDropdown    = toggleUserDropdown
 window.closeAllDropdowns     = closeAllDropdowns
@@ -217,7 +217,7 @@ let _qrIdCounter = 0
 
 function mockQRSvg(data, size = 120) {
   const uid  = `_qr${++_qrIdCounter}`
-  const safe = (data || 'OPTICANA').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+  const safe = (data || 'CANA').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
 
   function _tryGen(retries) {
     const container = document.getElementById(uid)
@@ -229,7 +229,7 @@ function mockQRSvg(data, size = 120) {
     try {
       container.innerHTML = ''
       new window.QRCode(container, {
-        text:         data || 'OPTICANA',
+        text:         data || 'CANA',
         width:        size,
         height:       size,
         colorDark:    '#1C1C1C',
@@ -299,12 +299,34 @@ function _getQRDataUrl(rootEl) {
   return null
 }
 
+// Synchronous QR data URL for embedding into generated print documents
+// (exam records, prescriptions) — unlike mockQRSvg, this doesn't wait on a
+// DOM element already being mounted since it builds its own offscreen one.
+function _makeQRDataUrl(text, size = 90) {
+  if (!window.QRCode || !text) return null
+  const tmp = document.createElement('div')
+  tmp.style.cssText = 'position:fixed;left:-9999px;top:-9999px'
+  document.body.appendChild(tmp)
+  try {
+    new window.QRCode(tmp, {
+      text, width: size, height: size,
+      colorDark: '#1C1C1C', colorLight: '#ffffff',
+      correctLevel: window.QRCode.CorrectLevel.M
+    })
+    return _getQRDataUrl(tmp)
+  } catch (_) {
+    return null
+  } finally {
+    tmp.remove()
+  }
+}
+
 function downloadQR(wrapperId, filename) {
   const root    = wrapperId ? document.getElementById(wrapperId) : document.body
   const dataUrl = _getQRDataUrl(root || document.body)
   if (!dataUrl) { toast('QR code is still loading — please wait a moment.', 'error'); return }
   const a    = document.createElement('a')
-  a.download = `OPTICANA-QR-${filename || 'patient'}.png`
+  a.download = `CANA-QR-${filename || 'patient'}.png`
   a.href     = dataUrl
   a.click()
   toast('QR code downloaded.', 'success')
@@ -1222,21 +1244,6 @@ async function deleteAllNotifs() {
   } catch (_) {}
 }
 window.deleteAllNotifs = deleteAllNotifs
-
-// Print a single prescription card
-function printPrescriptionCard(cardId) {
-  const el = document.getElementById(cardId)
-  if (!el) { window.print(); return }
-  _printHtmlDocument(`<!DOCTYPE html><html><head><title>Prescription</title>
-    <style>body{font-family:Arial,sans-serif;padding:24px;font-size:14px}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-    .box{border:1px solid #ddd;border-radius:6px;padding:12px}
-    .label{font-size:11px;color:#999;margin-bottom:8px;font-weight:bold;text-transform:uppercase}
-    .val{font-family:monospace;font-size:16px;font-weight:bold;color:#111}
-    .sub{font-size:11px;color:#888}
-    </style></head><body>${el.innerHTML}</body></html>`)
-}
-window.printPrescriptionCard = printPrescriptionCard
 
 // Toggle password field visibility (show/hide eye button)
 function togglePwVisibility(inputId, btn) {
@@ -2582,7 +2589,7 @@ async function doAddUser() {
     let endpoint, body
 
     if (role === 'Patient') {
-      endpoint = '/opticana/api/patients/create.php'
+      endpoint = '/canaopticalclinic/api/patients/create.php'
       body = {
         firstName: first, lastName: last, email, contact,
         dob: gv('nu-dob'), gender: gv('nu-gender'),
@@ -2592,7 +2599,7 @@ async function doAddUser() {
         opticalHistory: gv('nu-optical'),
       }
     } else {
-      endpoint = '/opticana/api/users/create.php'
+      endpoint = '/canaopticalclinic/api/users/create.php'
       body = { role, firstName: first, lastName: last, email, password: pass, contact }
       if (role === 'Doctor') {
         body.specialization = gv('nu-specialization') || 'Optometrist'
@@ -3835,7 +3842,7 @@ function saveClinicInfo() {
 
   // Sync globals and DOM immediately so topbar/sidebar reflect changes without a reload
   try {
-    localStorage.setItem('_opticana_clinicName', name || 'Cana Optical Clinic')
+    localStorage.setItem('_canaopticalclinic_clinicName', name || 'Cana Optical Clinic')
   } catch(_) {}
   window._clinicName    = name    || 'Cana Optical Clinic'
   window._clinicAddress = address || ''
@@ -4134,7 +4141,7 @@ function openQRScanner() {
         </button>
       </div>
       <div style="font-size:.8rem;color:#9CA3AF;margin-bottom:16px">— or enter QR code manually —</div>
-      <input id="qr-manual" class="form-input" placeholder="e.g. OPTICANA-P001-MARIASANTOS" style="text-align:center;font-family:monospace">
+      <input id="qr-manual" class="form-input" placeholder="e.g. CANA-P001-JUANDELACRUZ" style="text-align:center;font-family:monospace">
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
@@ -4286,7 +4293,7 @@ function liveSearchPatient(query) {
 
   const q = query.toLowerCase()
   const matches = patients.filter(p =>
-    p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
+    p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || (p.qrData || '').toLowerCase().includes(q)
   ).slice(0, 6)
   if (!matches.length) { res.style.display = 'none'; return }
   res.innerHTML = matches.map(_renderPatientResult).join('')
@@ -4304,20 +4311,8 @@ function selectPatientResult(id) {
   showQRResult(p)
 }
 
-function searchPatientManual() {
-  const raw = (document.getElementById('qr-search-input') || {}).value?.trim()
-  if (!raw) { toast('Enter a patient ID or name.', 'error'); return }
-
-  const q = raw.toLowerCase()
-  const p = patients.find(p => p.id.toLowerCase() === q || p.name.toLowerCase().includes(q))
-  if (!p) { toast('No patient found.', 'error'); return }
-  showQRResult(p)
-  toast(`Patient found: ${p.name}`)
-}
-
 window.liveSearchPatient   = liveSearchPatient
 window.selectPatientResult = selectPatientResult
-window.searchPatientManual = searchPatientManual
 
 // ════════════════════════════════════════════════════════════════
 //  DOCTOR SCHEDULE MODAL
@@ -4778,7 +4773,7 @@ function updateRxPreview(patientId) {
     <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid #e5e7eb">
       <img src="${window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png'}" style="width:40px;height:40px;border-radius:50%;object-fit:contain;border:1px solid #e5e7eb;padding:2px;flex-shrink:0" onerror="this.style.display='none'">
       <div>
-        <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;line-height:1.2">OPTICANA — Cana Optical Clinic</div>
+        <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;line-height:1.2">Cana Optical Clinic</div>
         <div style="font-size:.68rem;color:#6B7280;margin-top:2px">Unit 3 Paseo de Carmona, Brgy. Maduya, Carmona, Cavite</div>
       </div>
     </div>
@@ -4911,9 +4906,10 @@ function viewExamDetail(patientId, examId) {
 
       <!-- Patient strip -->
       <div style="background:#FFF8F0;border-bottom:1px solid #FDE68A;padding:11px 24px;display:flex;align-items:center;gap:12px">
-        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;color:#fff;flex-shrink:0">
-          ${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}
-        </div>
+        ${p.photoUrl
+          ? `<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;color:#fff;flex-shrink:0">${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}</div>`
+        }
         <div style="flex:1;min-width:0">
           <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${p.name}</div>
           <div style="font-size:.7rem;color:#9CA3AF;margin-top:1px">${p.id}${p.gender ? ' &bull; ' + p.gender : ''}${p.age ? ' &bull; ' + p.age + ' yrs' : ''}</div>
@@ -5050,6 +5046,83 @@ function viewExamDetail(patientId, examId) {
     </div>`, 'modal-lg')
 }
 window.viewExamDetail = viewExamDetail
+
+// Consultation.prescription is a single free-text field (unlike the
+// structured od/os objects on examinations & prescriptions), typically
+// "OD: ... / OS: ..." — either typed by staff or auto-summarized from an
+// exam. Split it so it can render in the same OD/OS box layout as those.
+function _splitRxSummary(text) {
+  if (!text) return { od: '', os: '' }
+  const m = text.match(/OD:\s*(.*?)\s*\/\s*OS:\s*(.*)/i)
+  if (m) return { od: m[1].trim(), os: m[2].trim() }
+  return { od: text.trim(), os: '' }
+}
+window._splitRxSummary = _splitRxSummary
+
+// ════════════════════════════════════════════════════════════════
+//  PATIENT — VIEW CONSULTATION DETAIL (from the compact Consultations list)
+// ════════════════════════════════════════════════════════════════
+function viewConsultationDetail(patientId, consultationId) {
+  const p = patients.find(p => p.id === patientId)
+  if (!p) return
+  const c = (p.consultations || []).find(c => c.id === consultationId)
+  if (!c) return
+
+  const cDate    = new Date(c.date.includes('T') ? c.date : c.date + 'T00:00:00')
+  const cDateStr = cDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const { od, os } = _splitRxSummary(c.prescription)
+
+  showModal(`
+    <div class="modal-header">
+      <div class="modal-title">Consultation Details</div>
+      <button class="modal-close" onclick="window.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #F3F4F6">
+        <div>
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:2px">Date</div>
+          <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${cDateStr}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:2px">Doctor</div>
+          <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${c.doctor||'—'}</div>
+        </div>
+      </div>
+      ${c.type ? `<div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:4px">Consultation Type</div>
+        <div style="font-size:.85rem;color:#1C1C1C">${c.type}</div>
+      </div>` : ''}
+      <div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:4px">Diagnosis</div>
+        <div style="font-size:.9rem;font-weight:700;color:#1C1C1C">${c.diagnosis || '—'}</div>
+      </div>
+      ${c.prescription ? `<div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:6px">Prescription</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="border:1.5px solid #FDE68A;border-radius:8px;overflow:hidden">
+            <div style="background:#FFF7ED;padding:6px 10px;border-bottom:1px solid #FDE68A">
+              <span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+            </div>
+            <div style="padding:8px 10px;font-family:monospace;font-size:.85rem;color:#1C1C1C;background:#fff">${od || '—'}</div>
+          </div>
+          <div style="border:1.5px solid #BFDBFE;border-radius:8px;overflow:hidden">
+            <div style="background:#EFF6FF;padding:6px 10px;border-bottom:1px solid #BFDBFE">
+              <span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+            </div>
+            <div style="padding:8px 10px;font-family:monospace;font-size:.85rem;color:#1C1C1C;background:#fff">${os || '—'}</div>
+          </div>
+        </div>
+      </div>` : ''}
+      ${c.remarks ? `<div>
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:4px">Remarks</div>
+        <div style="font-size:.85rem;color:#374151;font-style:italic;line-height:1.6">"${c.remarks}"</div>
+      </div>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="window.closeModal()">Close</button>
+    </div>`)
+}
+window.viewConsultationDetail = viewConsultationDetail
 
 // ── View/Print/Clearance from getExamRecords() ───────────────────
 function viewExamRecord(examId) {
@@ -5226,24 +5299,22 @@ function generateClearance(patientId, examId) {
   const e = p?.examinations?.find(ex => ex.id === examId)
   if (!p || !e) { toast('Examination record not found.', 'error'); return }
 
-  // Doctor credential lookup
+  // Doctor credential lookup — name/title formatting only; the PRC license
+  // itself is never hardcoded here (this prints on an official document,
+  // so it must always come from the doctor's real profile or say so).
   const DOCTOR_INFO = {
-    'Dr. Lalaine Cana':         { name: 'DR. MARIA LALAINE A. CANA, OD', prc: 'PRC LICENSE NO. 0005787', title: 'CEO - PRESIDENT' },
-    'Dr. Ruziel Palaje':        { name: 'DR. RUZIEL PALAJE, OD',         prc: 'PRC LICENSE NO. XXXXX',   title: 'OPTOMETRIST' },
-    'Dr. Christian Garabiles':  { name: 'DR. CHRISTIAN GARABILES, OD',   prc: 'PRC LICENSE NO. XXXXX',   title: 'OPTOMETRIST' },
-    'Dr. Carmen Sumaya':        { name: 'DR. CARMEN SUMAYA, OD',         prc: 'PRC LICENSE NO. XXXXX',   title: 'OPTOMETRIST' },
-    'Dr. Julianne Rosche Cana': { name: 'DR. JULIANNE ROSCHE CANA, OD',  prc: 'PRC LICENSE NO. XXXXX',   title: 'OPTOMETRIST' },
+    'Dr. Lalaine Cana':         { name: 'DR. MARIA LALAINE A. CANA, OD', title: 'CEO - PRESIDENT' },
+    'Dr. Ruziel Palaje':        { name: 'DR. RUZIEL PALAJE, OD',         title: 'OPTOMETRIST' },
+    'Dr. Christian Garabiles':  { name: 'DR. CHRISTIAN GARABILES, OD',   title: 'OPTOMETRIST' },
+    'Dr. Carmen Sumaya':        { name: 'DR. CARMEN SUMAYA, OD',         title: 'OPTOMETRIST' },
+    'Dr. Julianne Rosche Cana': { name: 'DR. JULIANNE ROSCHE CANA, OD',  title: 'OPTOMETRIST' },
   }
   const doc = DOCTOR_INFO[e.doctor] || {
     name:  (e.doctor || 'DOCTOR').toUpperCase() + ', OD',
-    prc:   'PRC LICENSE NO. XXXXX',
     title: 'OPTOMETRIST'
   }
-  // Prefer the real PRC license now stored in the doctors table (set via
-  // admin's Edit User modal) over the hardcoded map above, most of which
-  // were "XXXXX" placeholder stubs.
   const realDoc = doctors.find(d => d.name === e.doctor)
-  if (realDoc?.prcLicense) doc.prc = `PRC LICENSE NO. ${realDoc.prcLicense}`
+  doc.prc = realDoc?.prcLicense ? `PRC LICENSE NO. ${realDoc.prcLicense}` : 'PRC LICENSE NO. — NOT ON FILE'
 
   // Date formatter: "2025-12-10" → "December 10, 2025"
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -5438,11 +5509,11 @@ function downloadClearancePDF(patientName, examId) {
     div.style.whiteSpace = 'pre-wrap'
     ta.replaceWith(div)
   })
-  // Letter page at 96 dpi = 816px. With 12mm margins each side (≈46px),
-  // the content area is ~724px — use this as the render width so the
+  // A4 page at 96 dpi = 794px. With 12mm margins each side (≈46px),
+  // the content area is ~702px — use this as the render width so the
   // canvas exactly fills the PDF page and centres cleanly.
   const pdfMarginMm   = 12
-  const contentWidthPx = Math.round((215.9 - pdfMarginMm * 2) * (96 / 25.4))
+  const contentWidthPx = Math.round((210 - pdfMarginMm * 2) * (96 / 25.4))
   clone.style.width      = contentWidthPx + 'px'
   clone.style.boxSizing  = 'border-box'
   clone.style.background = '#fff'
@@ -5462,7 +5533,7 @@ function downloadClearancePDF(patientName, examId) {
       filename,
       image:       { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: contentWidthPx, width: contentWidthPx, x: 0, y: 0 },
-      jsPDF:       { unit: 'mm', format: 'letter', orientation: 'portrait' },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
     })
     .from(clone)
     .save()
@@ -5495,6 +5566,11 @@ function _openExamPrintWindow(p, e) {
   const examDate = _fmtDt(e.date)
   const dob      = _fmtDt(p.dob)
   const generated = new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+  // Resolve to an absolute URL — this document is written into a blank
+  // iframe via document.write(), where relative paths can't be trusted
+  // to resolve against the app's own origin.
+  const logoAbsUrl = new URL(window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png', document.baseURI).href
+  const qrDataUrl = _makeQRDataUrl(p.qrData, 90)
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -5507,6 +5583,7 @@ function _openExamPrintWindow(p, e) {
     body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12px; line-height: 1.5; background: #fff; }
     table { width: 100%; border-collapse: collapse; }
     .clinic-hdr  { text-align: center; border-bottom: 2.5px solid #E8760A; padding-bottom: 10px; margin-bottom: 14px; }
+    .clinic-logo { height: 40px; margin-bottom: 6px; }
     .clinic-name { font-size: 20px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
     .clinic-sub  { font-size: 10px; color: #888; margin-top: 2px; }
     .clinic-doc  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 4px; }
@@ -5545,6 +5622,7 @@ function _openExamPrintWindow(p, e) {
 
   <!-- CLINIC HEADER -->
   <div class="clinic-hdr">
+    <img src="${logoAbsUrl}" alt="Cana Optical Clinic" class="clinic-logo" onerror="this.style.display='none'">
     <div class="clinic-name">CANA OPTICAL CLINIC</div>
     <div class="clinic-sub">Optical Examination Record</div>
     <div class="clinic-doc">Confidential Medical Document</div>
@@ -5652,12 +5730,199 @@ function _openExamPrintWindow(p, e) {
     </div>
   </div>
 
-  <div class="stamp">Exam ID: ${e.id} &bull; Printed: ${generated}</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+    ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:42px;height:42px">` : '<div></div>'}
+    <div class="stamp" style="margin-top:0">Exam ID: ${e.id} &bull; Printed: ${generated}</div>
+  </div>
 
 </body></html>`
 
   _printHtmlDocument(html)
 }
+
+// ════════════════════════════════════════════════════════════════
+//  PRESCRIPTION — CLEAN PRINT WINDOW (A4 document, same letterhead
+//  language as _openExamPrintWindow, scoped to just the Rx fields)
+// ════════════════════════════════════════════════════════════════
+function _openRxPrintWindow(p, rx) {
+  const _inits = name => (name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()
+  const _fmtDt = d => d ? new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'}) : '—'
+  const eyeRow = (lbl, od, os) => `
+    <tr>
+      <td style="padding:6px 10px;font-size:11px;color:#555;font-weight:600;border-bottom:1px solid #eee">${lbl}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#1D4ED8;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
+    </tr>`
+  const secLbl = txt => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin:10px 0 4px">${txt}</div>`
+
+  const rxDate    = _fmtDt(rx.date)
+  const dob       = _fmtDt(p.dob)
+  const expiry    = new Date(rx.date.includes('T') ? rx.date : rx.date+'T00:00:00')
+  expiry.setFullYear(expiry.getFullYear() + 1)
+  const isExpired = expiry < new Date()
+  const expiryStr = _fmtDt(expiry.toISOString().slice(0,10))
+  const generated = new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})
+  const logoAbsUrl = new URL(window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png', document.baseURI).href
+  const qrDataUrl = _makeQRDataUrl(p.qrData, 90)
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Prescription — ${p.name}</title>
+  <style>
+    @page { size: A4; margin: 12mm 16mm 12mm 16mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12px; line-height: 1.5; background: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    .clinic-hdr  { text-align: center; border-bottom: 2.5px solid #E8760A; padding-bottom: 10px; margin-bottom: 14px; }
+    .clinic-logo { height: 40px; margin-bottom: 6px; }
+    .clinic-name { font-size: 20px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
+    .clinic-sub  { font-size: 10px; color: #888; margin-top: 2px; }
+    .clinic-doc  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 4px; }
+    .patient-block { display: flex; gap: 14px; align-items: flex-start; padding: 10px 14px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; margin-bottom: 12px; }
+    .avatar { width: 50px; height: 50px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 900; flex-shrink: 0; }
+    .pt-name   { font-size: 15px; font-weight: 800; color: #111; margin-bottom: 1px; }
+    .pt-id     { font-size: 10px; font-family: monospace; color: #aaa; margin-bottom: 4px; }
+    .pt-meta   { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+    .pt-meta span { font-size: 10px; color: #555; }
+    .issuer    { text-align: right; flex-shrink: 0; min-width: 150px; }
+    .iss-lbl   { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 2px; }
+    .iss-name  { font-size: 13px; font-weight: 700; color: #111; }
+    .iss-date  { font-size: 10px; color: #888; }
+    .iss-id    { font-size: 9px; font-family: monospace; color: #bbb; margin-top: 2px; }
+    .tbl-hdr th { background: #f5f5f5; padding: 7px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .tbl-border { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; }
+    .db-lbl    { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 3px; }
+    .db-val    { font-size: 13px; font-weight: 800; color: #111; }
+    .remarks-block { border-top: 1px solid #eee; padding-top: 8px; margin-top: 4px; font-style: italic; font-size: 11px; color: #555; }
+    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 18px; padding-top: 12px; border-top: 1px dashed #ccc; page-break-before: avoid; }
+    .sig-line  { border-top: 1px solid #111; padding-top: 5px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+    .sig-sub   { font-size: 9px; color: #888; margin-top: 2px; text-align: center; }
+    .stamp     { font-size: 9px; color: #ccc; text-align: right; font-family: monospace; margin-top: 12px; }
+    .valid-pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 9px; border-radius: 20px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- CLINIC HEADER -->
+  <div class="clinic-hdr">
+    <img src="${logoAbsUrl}" alt="Cana Optical Clinic" class="clinic-logo" onerror="this.style.display='none'">
+    <div class="clinic-name">CANA OPTICAL CLINIC</div>
+    <div class="clinic-sub">Official Optical Prescription</div>
+    <div class="clinic-doc">Rx No. ${rx.id}</div>
+  </div>
+
+  <!-- PATIENT PROFILE -->
+  ${secLbl('Patient Information')}
+  <div class="patient-block">
+    ${p.photoUrl
+      ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+      : `<div class="avatar">${_inits(p.name)}</div>`}
+    <div style="flex:1;min-width:0">
+      <div class="pt-name">${p.name}</div>
+      <div class="pt-id">${p.id}</div>
+      <div class="pt-meta">
+        <span>${p.gender||'—'}, ${p.age||'—'} yrs</span>
+        ${p.dob ? `<span>DOB: ${dob}</span>` : ''}
+        ${p.bloodType ? `<span style="font-weight:700;color:#DC2626">Blood Type: ${p.bloodType}</span>` : ''}
+      </div>
+      ${(p.contact || p.email) ? `<div class="pt-meta" style="margin-top:3px">
+        ${p.contact ? `<span>${p.contact}</span>` : ''}
+        ${p.email ? `<span>${p.email}</span>` : ''}
+      </div>` : ''}
+    </div>
+    <div class="issuer">
+      <div class="iss-lbl">Issued By</div>
+      <div class="iss-name">${rx.doctor||'—'}</div>
+      <div class="iss-date">${rxDate}</div>
+      <div class="iss-id">${rx.id}</div>
+      <div class="valid-pill" style="${isExpired ? 'background:#FEE2E2;color:#DC2626' : 'background:#ECFDF5;color:#059669'}">
+        ${isExpired ? 'Expired' : 'Valid until ' + expiryStr}
+      </div>
+    </div>
+  </div>
+
+  <!-- REFRACTION -->
+  ${secLbl('Refraction Prescription')}
+  <div class="tbl-border">
+    <table>
+      <thead class="tbl-hdr">
+        <tr>
+          <th style="text-align:left;color:#777;width:35%">Measurement</th>
+          <th style="text-align:center;color:#1D4ED8">OD (Right Eye)</th>
+          <th style="text-align:center;color:#059669">OS (Left Eye)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${eyeRow('Sphere (SPH)', rx.od?.sph, rx.os?.sph)}
+        ${eyeRow('Cylinder (CYL)', rx.od?.cyl, rx.os?.cyl)}
+        ${eyeRow('Axis', rx.od?.axis, rx.os?.axis)}
+      </tbody>
+    </table>
+  </div>
+
+  ${rx.lensType && rx.lensType !== '—' ? `
+  <div class="diag-box">
+    <div class="db-lbl">Lens Type</div>
+    <div class="db-val">${rx.lensType}</div>
+  </div>` : ''}
+
+  ${rx.remarks ? `<div class="remarks-block">"${rx.remarks}"<br><span style="font-size:10px;color:#aaa;font-style:normal">— ${rx.doctor}</span></div>` : ''}
+
+  <!-- SIGNATURES -->
+  <div class="sig-grid">
+    <div>
+      <div style="height:32px"></div>
+      <div class="sig-line">${rx.doctor||'Examining Doctor'}</div>
+      <div class="sig-sub">Optometrist / Examining Doctor</div>
+    </div>
+    <div>
+      <div style="height:32px"></div>
+      <div class="sig-line">${p.name}</div>
+      <div class="sig-sub">Patient Signature &amp; Date</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
+    ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:42px;height:42px">` : '<div></div>'}
+    <div class="stamp" style="margin-top:0">Rx valid for 1 year from date of issue &bull; Printed: ${generated}</div>
+  </div>
+
+</body></html>`
+
+  _printHtmlDocument(html)
+}
+
+function printRxRecord(patientId, rxId) {
+  const p  = patients.find(pt => pt.id === patientId)
+  if (!p) { toast('Patient not found.', 'error'); return }
+  const rx = (p.prescriptions || []).find(r => r.id === rxId)
+  if (!rx) { toast('Prescription not found.', 'error'); return }
+  _openRxPrintWindow(p, rx)
+}
+window.printRxRecord = printRxRecord
+
+// ════════════════════════════════════════════════════════════════
+//  PATIENT — VIEW PRESCRIPTION DETAIL (from the compact Rx list)
+// ════════════════════════════════════════════════════════════════
+function viewPrescriptionDetail(patientId, rxId) {
+  const p  = patients.find(p => p.id === patientId)
+  if (!p) return
+  const rx = (p.prescriptions || []).find(r => r.id === rxId)
+  if (!rx) return
+
+  showModal(`
+    <div class="modal-header">
+      <div class="modal-title">Prescription ${rx.id}</div>
+      <button class="modal-close" onclick="window.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:16px">
+      ${window.renderRxDocumentCard(rx, p, false)}
+    </div>`, 'modal-lg')
+}
+window.viewPrescriptionDetail = viewPrescriptionDetail
 
 // ════════════════════════════════════════════════════════════════
 //  OPTICAL EXAMINATION — VIEW PRESCRIPTION MODAL
@@ -6710,7 +6975,7 @@ async function handleLogoUpload(input, previewId) {
     renderSidebar()
     renderTopbar()
     // Notify other open tabs (index.html, public pages) via storage event
-    localStorage.setItem('_opticana_logo_url', bust)
+    localStorage.setItem('_canaopticalclinic_logo_url', bust)
     toast('Logo updated.', 'success')
   } catch (_) {
     toast('Network error — could not upload logo.', 'error')
@@ -7646,7 +7911,7 @@ function exportLog() {
   const csv = [header, ...rows].map(r => r.join(',')).join('\n')
   const a   = document.createElement('a')
   a.href    = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
-  a.download = `OPTICANA-activity-log-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `cana-activity-log-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   toast('Log exported successfully.', 'success')
 }

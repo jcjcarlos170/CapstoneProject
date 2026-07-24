@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/users/upload_photo.php
+//  CANAOPTICALCLINIC — api/users/upload_photo.php
 //  POST multipart/form-data { photo: File }
 //  Saves to assets/images/profiles/<user_id>.<ext>
 //  Updates users.photo_url and returns the public path.

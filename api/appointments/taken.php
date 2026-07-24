@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/appointments/taken.php
+//  CANAOPTICALCLINIC — api/appointments/taken.php
 //  GET ?doctorId=D001&date=2026-07-15
 //  → { success:true, taken:[{time:"9:00 AM",duration:30},…], defaultDuration:30 }
 //

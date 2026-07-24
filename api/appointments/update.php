@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/appointments/update.php
+//  CANAOPTICALCLINIC — api/appointments/update.php
 //
 //  POST { id, action, ...fields }
 //

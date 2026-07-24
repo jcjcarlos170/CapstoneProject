@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/doctors/index.php
+//  CANAOPTICALCLINIC — api/doctors/index.php
 //  GET — authenticated endpoint (admin/staff/doctor only).
 //  Returns all doctors with schedule, availability, and photo.
 // ================================================================

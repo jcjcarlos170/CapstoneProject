@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/users/change_password.php
+//  CANAOPTICALCLINIC — api/users/change_password.php
 //
 //  POST { currentPassword, newPassword }
 //  Any authenticated user (any role).

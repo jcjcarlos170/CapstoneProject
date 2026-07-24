@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/get_temp_password.php
+//  CANAOPTICALCLINIC — api/patients/get_temp_password.php
 //  Admin/Staff only. Checks whether a patient's password is still
 //  the auto-generated temp (FirstName@Year). Uses password_verify
 //  against the live hash so the result is always accurate.

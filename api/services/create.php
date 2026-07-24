@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/services/create.php
+//  CANAOPTICALCLINIC — api/services/create.php
 //  POST { name, description, duration, status, icon } — admin only.
 // ================================================================
 

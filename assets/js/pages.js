@@ -1,5 +1,5 @@
 ﻿// ================================================================
-//  OPTICANA — pages.js
+//  CANAOPTICALCLINIC — pages.js
 //  All page renderer functions. Each returns an HTML string.
 //  Uses window.icon(), window.state, window.navigate() etc.
 // ================================================================
@@ -537,7 +537,7 @@ function pageAppointments() {
   const title    = role === 'doctor' ? 'My Patient Appointments' : (titleMap[activeFilter] || 'Appointments')
   const subtitle = role === 'doctor' ? 'Appointments assigned to you' : (subtitleMap[activeFilter] || 'Manage and track appointment requests')
 
-  window.state.afterRender = () => { window.initPagination('appt-tbody'); window.initSortable('appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1 }) }
+  window.state.afterRender = () => { window.initPagination('appt-tbody'); window.initSortable('appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1, context: activeFilter }) }
 
   return `
   <div class="page-header">
@@ -667,120 +667,89 @@ function pagePatientView() {
   const pStatus      = p.status || 'active'
 
   window.state.afterRender = () => {
-    ['pv-consult-tbody', 'pv-rx-tbody', 'pv-appt-tbody'].forEach(id => {
-      window.initPagination(id)
-      window.initSortable(id)
-    })
+    window.initPagination('pv-appt-tbody')
+    window.initSortable('pv-appt-tbody')
   }
 
   // ── Tab panel helper ─────────────────────────────────────────
   const panel = (id, content, active = false) =>
     `<div id="ptab-${id}" class="ptab-panel" style="${active ? '' : 'display:none'}">${content}</div>`
 
-  // ── Consultation History panel ───────────────────────────────
-  const consultationsPanel = p.consultations.length ? `
+  // ── Consultation History panel ────────────────────────────────
+  const sortedCons = [...p.consultations].sort((a,b)=>b.date.localeCompare(a.date))
+  const consultationsPanel = sortedCons.length ? `
     <div class="table-wrap" style="box-shadow:none;border:1px solid #f3f4f6">
-    <table class="tbl">
-      <colgroup>
-        <col style="width:12%"><col style="width:16%"><col style="width:12%">
-        <col style="width:18%"><col style="width:24%"><col style="width:18%">
-      </colgroup>
-      <thead><tr>
-        <th data-sort-key="date" data-sort-type="date">Date</th>
-        <th data-sort-key="doctor" data-sort-type="text">Doctor</th>
-        <th>Type</th><th>Diagnosis</th><th>Prescription</th><th>Remarks</th>
-      </tr></thead>
-      <tbody id="pv-consult-tbody">
-        ${p.consultations.map(c => `<tr data-search="${(c.doctor||'').toLowerCase()} ${(c.diagnosis||'').toLowerCase()} ${(c.type||'').toLowerCase()}" data-sort-date="${c.date}" data-sort-doctor="${(c.doctor||'').toLowerCase()}">
-          <td style="font-size:.78rem;white-space:nowrap">${fmtDate(c.date)}</td>
-          <td style="font-size:.78rem">${c.doctor}</td>
-          <td style="font-size:.78rem">${c.type}</td>
-          <td style="font-size:.78rem;font-weight:600">${c.diagnosis}</td>
-          <td style="font-size:.75rem;font-family:monospace">${c.prescription}</td>
-          <td style="font-size:.75rem;color:#6B7280">${c.remarks}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>` : `
-  ${emptyState('message-square', 'No consultation records', 'No consultation records on file.')}`
+      ${sortedCons.map((c,i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;${i!==sortedCons.length-1?'border-bottom:1px solid #F3F4F6;':''}${i===0?'background:#FAFAF8;':''}">
+        <div style="text-align:center;min-width:38px;flex-shrink:0">
+          <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;line-height:1">${new Date(c.date+'T00:00:00').getDate()}</div>
+          <div style="font-size:.58rem;text-transform:uppercase;font-weight:600;color:#9CA3AF;margin-top:1px">${new Date(c.date+'T00:00:00').toLocaleString('en',{month:'short'})}</div>
+          <div style="font-size:.58rem;color:#C4C9D0">${new Date(c.date+'T00:00:00').getFullYear()}</div>
+        </div>
+        <div style="width:1px;height:36px;background:#F3F4F6;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.87rem;font-weight:700;color:#1C1C1C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.diagnosis || 'No diagnosis recorded'}</div>
+          <div style="font-size:.72rem;color:#6B7280;margin-top:2px">${c.doctor}${c.type ? ' &bull; ' + c.type : ''}</div>
+        </div>
+        ${i===0 ? `<span style="background:#FFF7ED;color:#E8760A;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;flex-shrink:0;white-space:nowrap">Latest</span>` : ''}
+        <button class="btn-icon" title="View Details" onclick="window.viewConsultationDetail('${p.id}','${c.id}')">${ic('eye','icon-sm')}</button>
+      </div>`).join('')}
+    </div>` : emptyState('message-square', 'No consultation records', 'No consultation records on file.')
 
-  // ── Prescriptions panel ──────────────────────────────────────
-  const rxList = p.prescriptions || []
-  const prescriptionsPanel = rxList.length ? [...rxList].sort((a,b)=>b.date.localeCompare(a.date)).map((rx,rxIdx) => {
-    const rxDate2    = new Date(rx.date.includes('T') ? rx.date : rx.date + 'T00:00:00')
-    const rxDateStr2 = rxDate2.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-    const exp2       = new Date(rxDate2); exp2.setFullYear(exp2.getFullYear()+1)
-    const expStr2    = exp2.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-    const isExp2     = exp2 < new Date()
-    return `
-    <div style="padding:16px 20px;border-bottom:1px solid #F3F4F6">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
-        <div>
-          <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:#E8760A;margin-bottom:2px">Official Optical Prescription</div>
-          <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">Rx #${rx.id}</div>
-          <div style="font-size:.72rem;color:#9CA3AF;margin-top:2px">${rxDateStr2} &bull; ${rx.doctor}</div>
+  // ── Prescriptions panel ────────────────────────────────────────
+  const rxList   = p.prescriptions || []
+  const sortedRx = [...rxList].sort((a,b)=>b.date.localeCompare(a.date))
+  const latestRx = sortedRx[0] || null
+  const prescriptionsPanel = sortedRx.length ? `
+    ${window.renderRxDocumentCard(latestRx, p, true)}
+    <div class="table-wrap" style="box-shadow:none;border:1px solid #f3f4f6">
+      ${sortedRx.map((rx,i) => {
+        const expDate = new Date(rx.date.includes('T') ? rx.date : rx.date+'T00:00:00')
+        expDate.setFullYear(expDate.getFullYear()+1)
+        const isExpired = expDate < new Date()
+        return `
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;${i!==sortedRx.length-1?'border-bottom:1px solid #F3F4F6;':''}${i===0?'background:#FAFAF8;':''}">
+        <div style="text-align:center;min-width:38px;flex-shrink:0">
+          <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;line-height:1">${new Date(rx.date+'T00:00:00').getDate()}</div>
+          <div style="font-size:.58rem;text-transform:uppercase;font-weight:600;color:#9CA3AF;margin-top:1px">${new Date(rx.date+'T00:00:00').toLocaleString('en',{month:'short'})}</div>
+          <div style="font-size:.58rem;color:#C4C9D0">${new Date(rx.date+'T00:00:00').getFullYear()}</div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-          <span style="font-size:.67rem;font-weight:700;padding:2px 8px;border-radius:20px;${isExp2 ? 'background:#FEE2E2;color:#DC2626' : 'background:#ECFDF5;color:#059669'}">
-            ${isExp2 ? 'Expired' : 'Valid to ' + expStr2}
-          </span>
-          <button class="btn-icon" title="Print Prescription" onclick="window.print()">${ic('printer','icon-sm')}</button>
+        <div style="width:1px;height:36px;background:#F3F4F6;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.87rem;font-weight:700;color:#1C1C1C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${rx.id} &bull; ${rx.doctor}</div>
+          <div style="font-size:.72rem;color:#6B7280;margin-top:2px">${rx.lensType && rx.lensType !== '—' ? rx.lensType : 'No lens type on file'}</div>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div style="border:1.5px solid #FDE68A;border-radius:8px;overflow:hidden">
-          <div style="background:#FFF7ED;padding:5px 10px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:4px">
-            <div style="width:5px;height:5px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
-            <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);background:#fff">
-            ${['sph','cyl','axis'].map((k,i)=>`<div style="padding:8px 4px;${i<2?'border-right:1px solid #F3F4F6;':''}text-align:center"><div style="font-size:.53rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;margin-bottom:3px">${k.toUpperCase()}</div><div style="font-size:.88rem;font-weight:800;font-family:monospace;color:#1C1C1C">${rx.od?.[k]||'—'}</div></div>`).join('')}
-          </div>
+        ${i===0 ? `<span style="background:#FFF7ED;color:#E8760A;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;flex-shrink:0;white-space:nowrap">Latest</span>` : ''}
+        <span style="font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;${isExpired ? 'background:#FEE2E2;color:#DC2626;border:1px solid #FECACA' : 'background:#ECFDF5;color:#059669;border:1px solid #A7F3D0'}">${isExpired ? 'Expired' : 'Valid'}</span>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn-icon" title="View Prescription" onclick="window.viewPrescriptionDetail('${p.id}','${rx.id}')">${ic('eye','icon-sm')}</button>
+          <button class="btn-icon" title="Print" onclick="window.printRxRecord('${p.id}','${rx.id}')">${ic('printer','icon-sm')}</button>
         </div>
-        <div style="border:1.5px solid #BFDBFE;border-radius:8px;overflow:hidden">
-          <div style="background:#EFF6FF;padding:5px 10px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:4px">
-            <div style="width:5px;height:5px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
-            <span style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);background:#fff">
-            ${['sph','cyl','axis'].map((k,i)=>`<div style="padding:8px 4px;${i<2?'border-right:1px solid #F3F4F6;':''}text-align:center"><div style="font-size:.53rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;margin-bottom:3px">${k.toUpperCase()}</div><div style="font-size:.88rem;font-weight:800;font-family:monospace;color:#1C1C1C">${rx.os?.[k]||'—'}</div></div>`).join('')}
-          </div>
-        </div>
-      </div>
-      ${rx.lensType && rx.lensType!=='—' ? `<div style="font-size:.75rem;color:#374151;margin-bottom:4px"><strong style="color:#1C1C1C">Lens:</strong> ${rx.lensType}</div>` : ''}
-      ${rx.remarks ? `<div style="font-size:.73rem;color:#6B7280;font-style:italic;padding-left:8px;border-left:2px solid #E8760A">"${rx.remarks}"</div>` : ''}
-    </div>`
-  }).join('') : emptyState('file-text', 'No prescriptions on file', 'No prescription records on file for this patient.')
+      </div>`}).join('')}
+    </div>` : emptyState('file-text', 'No prescriptions on file', 'No prescription records on file for this patient.')
 
-  // ── Examinations nested in consultations ─────────────────────
-  const examsContent = p.examinations.length ? p.examinations.map(e => `
-    <div style="padding:16px 20px;border-bottom:1px solid #F3F4F6">
-      <div style="display:flex;justify-content:space-between;margin-bottom:12px">
-        <div>
-          <span style="font-size:.82rem;font-weight:700;color:#1C1C1C">${fmtDate(e.date)}</span>
-          <span style="font-size:.75rem;color:#9CA3AF;margin-left:8px">by ${e.doctor}</span>
+  // ── Examinations nested in consultations ───────────────────────
+  const sortedExams = [...p.examinations].sort((a,b)=>b.date.localeCompare(a.date))
+  const examsContent = sortedExams.length ? `
+    <div class="table-wrap" style="box-shadow:none;border:1px solid #f3f4f6">
+      ${sortedExams.map((e,i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;${i!==sortedExams.length-1?'border-bottom:1px solid #F3F4F6;':''}${i===0?'background:#FAFAF8;':''}">
+        <div style="text-align:center;min-width:38px;flex-shrink:0">
+          <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;line-height:1">${new Date(e.date+'T00:00:00').getDate()}</div>
+          <div style="font-size:.58rem;text-transform:uppercase;font-weight:600;color:#9CA3AF;margin-top:1px">${new Date(e.date+'T00:00:00').toLocaleString('en',{month:'short'})}</div>
+          <div style="font-size:.58rem;color:#C4C9D0">${new Date(e.date+'T00:00:00').getFullYear()}</div>
         </div>
+        <div style="width:1px;height:36px;background:#F3F4F6;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.87rem;font-weight:700;color:#1C1C1C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.diagnosis || 'No diagnosis recorded'}</div>
+          <div style="font-size:.72rem;color:#6B7280;margin-top:2px">${e.doctor}</div>
+        </div>
+        ${i===0 ? `<span style="background:#FFF7ED;color:#E8760A;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;flex-shrink:0;white-space:nowrap">Latest</span>` : ''}
+        <button class="btn-icon" title="View Results" onclick="window.viewExamDetail('${p.id}','${e.id}')">${ic('eye','icon-sm')}</button>
         ${role !== 'patient' ? `<button class="btn-ghost" onclick="window.navigate('${role === 'doctor' ? 'new-examination' : 'examination'}',{patientId:'${p.id}',examId:'${e.id}'})"
-          style="font-size:.75rem;padding:4px 10px">${ic('eye','icon-sm')} View Full</button>` : ''}
-      </div>
-      <div class="eye-grid" style="margin-bottom:8px">
-        <div class="eye-header"></div>
-        <div class="eye-header">SPH</div><div class="eye-header">CYL</div>
-        <div class="eye-header">AXIS</div><div class="eye-header">VA</div>
-        <div class="eye-label">OD (Right)</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.od.sph}</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.od.cyl}</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.od.axis}</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.od.va}</div>
-        <div class="eye-label">OS (Left)</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.os.sph}</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.os.cyl}</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.os.axis}</div>
-        <div style="font-family:monospace;font-size:.82rem;text-align:center">${e.os.va}</div>
-      </div>
-      <div style="font-size:.78rem;color:#374151"><strong>Diagnosis:</strong> ${e.diagnosis}</div>
-      <div style="font-size:.78rem;color:#374151"><strong>Recommendation:</strong> ${e.recommendation}</div>
-      <div style="font-size:.78rem;color:#9CA3AF;margin-top:4px">${e.remarks}</div>
-    </div>`).join('') : emptyState('eye', 'No examination records', 'No examination records on file.')
+          style="font-size:.72rem;padding:4px 10px;flex-shrink:0;white-space:nowrap">${ic('edit','icon-sm')} Edit</button>` : ''}
+      </div>`).join('')}
+    </div>` : emptyState('eye', 'No examination records', 'No examination records on file.')
 
   return `
   <div class="page-header">
@@ -1163,16 +1132,13 @@ function pageQRScanner() {
           </div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
             <div class="form-group" style="margin:0">
-              <label class="form-label">Patient ID or Name</label>
+              <label class="form-label">Patient ID, Name, or QR Code</label>
               <div class="search-input-wrap">
                 ${ic('search','icon-sm')}
-                <input id="qr-search-input" class="search-input" placeholder="e.g. P001 or Maria Santos"
+                <input id="qr-search-input" class="search-input" placeholder="e.g. P001, Juan Dela Cruz, or CANA-P001-..."
                        style="width:100%" oninput="window.liveSearchPatient(this.value)">
               </div>
             </div>
-            <button class="btn-primary" onclick="window.searchPatientManual()">
-              ${ic('search','icon-sm')} Search Patient
-            </button>
             <div id="qr-live-results" style="display:none;max-height:200px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:8px"></div>
           </div>
         </div>
@@ -1424,7 +1390,7 @@ function pageAdminReports() {
       a.href = URL.createObjectURL(blob)
       const sel = document.getElementById('rpt-type')
       const label = sel?.selectedOptions[0]?.text || 'report'
-      a.download = 'opticana-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv'
+      a.download = 'canaopticalclinic-' + label.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv'
       a.click()
       window.toast('Report exported as CSV.', 'success')
     }
@@ -2584,7 +2550,7 @@ function pageDoctorAppointments() {
                          .sort((a,b) => b.date.localeCompare(a.date))
   const allList       = [...appointments].sort((a,b) => b.date.localeCompare(a.date) || timeVal(b.time) - timeVal(a.time))
 
-  window.state.afterRender = () => { window.initPagination('doc-appt-tbody'); window.initSortable('doc-appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1 }) }
+  window.state.afterRender = () => { window.initPagination('doc-appt-tbody'); window.initSortable('doc-appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1, context: activeFilter }) }
 
   let list
   if (activeFilter === 'all')           list = allList
@@ -3508,7 +3474,7 @@ function pageNewExamination() {
     </div>
     <div class="form-group" style="margin-bottom:16px">
       ${fl('Patient Name', true)}
-      <input id="ne-patient-name" class="form-input" style="${inp}" value="${p.name}" placeholder="Full name">
+      <input id="ne-patient-name" class="form-input" style="${inp}" value="${p.name}" placeholder="e.g. Juan Dela Cruz">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
       <div class="form-group" style="margin:0">
@@ -3741,7 +3707,7 @@ function pageNewExamination() {
       </div>
       <div class="form-group" style="margin:0">
         ${fl('Received By')}
-        <input id="ne-received-by" class="form-input" style="${inp}" placeholder="Full name">
+        <input id="ne-received-by" class="form-input" style="${inp}" placeholder="e.g. Juan Dela Cruz">
       </div>
     </div>
   </div>`
@@ -4096,6 +4062,8 @@ function pagePatientDashboard() {
   const nextAppt = upcoming[0] || null
   const show3    = upcoming.slice(0, 3)
 
+  window.state.afterRender = () => window.initSortable('dash-upcoming-tbody', { key: 'date', type: 'date', dir: 1 })
+
   return `
   <div class="page-header">
     <div class="page-header-left">
@@ -4172,9 +4140,9 @@ function pagePatientDashboard() {
           <colgroup>
             <col style="width:26%"><col style="width:22%"><col style="width:18%"><col style="width:18%"><col style="width:16%">
           </colgroup>
-          <thead><tr><th>Doctor</th><th>Date</th><th>Time</th><th>Type</th><th>Status</th></tr></thead>
-          <tbody>
-            ${show3.map(a => `<tr>
+          <thead><tr><th>Doctor</th><th data-sort-key="date" data-sort-type="date">Date</th><th>Time</th><th>Type</th><th>Status</th></tr></thead>
+          <tbody id="dash-upcoming-tbody">
+            ${show3.map(a => `<tr data-search="${(a.doctorName||'').toLowerCase()} ${(a.type||'').toLowerCase()}" data-sort-date="${a.date}">
               <td style="font-size:.82rem;font-weight:500">${a.doctorName}</td>
               <td style="font-size:.82rem">${fmtDate(a.date)}</td>
               <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
@@ -4196,118 +4164,18 @@ function pagePatientDashboard() {
             ${window.mockQRSvg(user.qrData, 130)}
           </div>
           <div style="font-size:.8rem;color:#6B7280;margin-bottom:10px">Show this QR at the clinic for quick check-in.</div>
-          <div class="qr-patient-id">${user.qrData}</div>
+          <div style="margin-bottom:6px">
+            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;font-weight:700;margin-bottom:3px">Manual Entry Code</div>
+            <div class="qr-patient-id">${user.qrData}</div>
+            <div style="font-size:.68rem;color:#9CA3AF;margin-top:4px">Type this at the reception desk if your QR code can't be scanned.</div>
+          </div>
           <div style="display:flex;gap:8px;margin-top:14px">
             <button class="btn-secondary" style="flex:1;justify-content:center" onclick="window.navigate('patient-qr')">
               ${ic('qr','icon-sm')} View Full QR
             </button>
-            <button class="btn-primary" style="flex:1;justify-content:center" onclick="window.navigate('patient-appts',{filter:'request'})">
-              ${ic('plus','icon-sm')} Book
-            </button>
           </div>
         </div>
 
-        ${(()=>{
-          const exams = user.examinations || []
-          if (!exams.length) return `
-          <div class="card" style="text-align:center;padding:20px">
-            <div style="color:#D1D5DB;margin-bottom:8px">${ic('eye','icon-lg')}</div>
-            <div style="font-size:.8rem;color:#9CA3AF;font-weight:600">No Examinations Yet</div>
-            <div style="font-size:.73rem;color:#D1D5DB;margin-top:4px">Your examination results will appear here after your first visit.</div>
-          </div>`
-          const latest = [...exams].sort((a,b)=>b.date.localeCompare(a.date))[0]
-          const examDate = new Date(latest.date.includes('T') ? latest.date : latest.date + 'T00:00:00')
-          const examDateStr = examDate.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-          return `
-          <div class="card" style="overflow:hidden">
-            <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2D2D2D 100%);padding:14px 16px;display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:#E8760A;font-weight:800;margin-bottom:3px">Latest Examination</div>
-                <div style="font-size:.82rem;font-weight:700;color:#fff;line-height:1.2">${latest.diagnosis||'—'}</div>
-              </div>
-              <div style="width:32px;height:32px;border-radius:50%;background:rgba(232,118,10,.15);display:flex;align-items:center;justify-content:center;color:#E8760A;flex-shrink:0">
-                ${ic('eye','icon-sm')}
-              </div>
-            </div>
-            <div style="padding:12px 16px;border-bottom:1px solid #F3F4F6">
-              <div style="font-size:.72rem;color:#9CA3AF;margin-bottom:8px">${examDateStr} &bull; ${latest.doctor||'—'}</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                <div style="background:#FFF7ED;border:1px solid #FDE68A;border-radius:6px;padding:7px 10px">
-                  <div style="font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#E8760A;margin-bottom:4px">OD</div>
-                  <div style="display:flex;gap:8px">
-                    <span><span style="font-size:.55rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latest.od?.sph||'—'}</strong></span>
-                    <span><span style="font-size:.55rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latest.od?.cyl||'—'}</strong></span>
-                  </div>
-                </div>
-                <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:7px 10px">
-                  <div style="font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#3B82F6;margin-bottom:4px">OS</div>
-                  <div style="display:flex;gap:8px">
-                    <span><span style="font-size:.55rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latest.os?.sph||'—'}</strong></span>
-                    <span><span style="font-size:.55rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latest.os?.cyl||'—'}</strong></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div style="padding:10px 16px;display:flex;gap:6px">
-              <button class="btn-primary" style="flex:1;justify-content:center;font-size:.75rem;padding:7px 10px"
-                onclick="window.viewExamDetail('${user.id}','${latest.id}')">
-                ${ic('eye','icon-sm')} View Results
-              </button>
-              <button class="btn-ghost" style="font-size:.75rem;padding:7px 10px"
-                onclick="window.navigate('patient-exam-history')">
-                All
-              </button>
-            </div>
-          </div>`
-        })()}
-
-        ${(()=>{
-          const rxs = (user.prescriptions && user.prescriptions.length)
-            ? user.prescriptions
-            : (patients.find(p=>p.id===user.id)?.prescriptions || [])
-          if (!rxs.length) return ''
-          const latestRx = [...rxs].sort((a,b)=>b.date.localeCompare(a.date))[0]
-          const rxDate2   = new Date(latestRx.date.includes('T') ? latestRx.date : latestRx.date + 'T00:00:00')
-          const rxDateStr2= rxDate2.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-          const exp2      = new Date(rxDate2); exp2.setFullYear(exp2.getFullYear()+1)
-          const expStr2   = exp2.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-          const isExp2    = exp2 < new Date()
-          return `
-          <div class="card" style="overflow:hidden">
-            <div style="padding:12px 16px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <div style="font-size:.56rem;text-transform:uppercase;letter-spacing:.12em;color:#9CA3AF;font-weight:700;margin-bottom:2px">Latest Prescription</div>
-                <div style="font-size:.82rem;font-weight:700;color:#1C1C1C">Rx #${latestRx.id}</div>
-                <div style="font-size:.7rem;color:#9CA3AF;margin-top:1px">${rxDateStr2} &bull; ${latestRx.doctor}</div>
-              </div>
-              <span style="font-size:.65rem;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0;${isExp2 ? 'background:#FEE2E2;color:#DC2626' : 'background:#ECFDF5;color:#059669'}">
-                ${isExp2 ? 'Expired' : 'Valid to ' + expStr2}
-              </span>
-            </div>
-            <div style="padding:10px 16px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <div style="background:#FFF7ED;border:1px solid #FDE68A;border-radius:6px;padding:7px 10px">
-                <div style="font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#E8760A;margin-bottom:4px">OD</div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  <span><span style="font-size:.55rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latestRx.od?.sph||'—'}</strong></span>
-                  <span><span style="font-size:.55rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latestRx.od?.cyl||'—'}</strong></span>
-                </div>
-              </div>
-              <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:7px 10px">
-                <div style="font-size:.55rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#3B82F6;margin-bottom:4px">OS</div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                  <span><span style="font-size:.55rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latestRx.os?.sph||'—'}</strong></span>
-                  <span><span style="font-size:.55rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.78rem;color:#1C1C1C">${latestRx.os?.cyl||'—'}</strong></span>
-                </div>
-              </div>
-            </div>
-            <div style="padding:8px 16px 12px;display:flex;gap:6px">
-              <button class="btn-secondary" style="flex:1;justify-content:center;font-size:.75rem;padding:6px 10px"
-                onclick="window.navigate('patient-prescriptions')">
-                ${ic('file-text','icon-sm')} All Prescriptions
-              </button>
-            </div>
-          </div>`
-        })()}
 
       </div>
     </div>
@@ -4337,7 +4205,7 @@ function pagePatientAppts() {
   if (tab === 'request') {
     window.state.afterRender = () => window.amcInit()
   } else {
-    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', tab === 'today' ? { key: 'time', type: 'text', dir: 1 } : { key: 'date', type: 'date', dir: _asc ? 1 : -1 }) }
+    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', tab === 'today' ? { key: 'time', type: 'text', dir: 1, context: tab } : { key: 'date', type: 'date', dir: _asc ? 1 : -1, context: tab }) }
   }
 
   const _minAdv = minAdvanceDays()
@@ -4716,147 +4584,106 @@ function pagePatientAppts() {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  PATIENT — MY RECORDS (read-only)
+//  PATIENT — CONSULTATIONS (read-only)
 // ════════════════════════════════════════════════════════════════
-function pagePatientRecords() {
+function pagePatientConsultations() {
   const { user } = st()
+  const sorted = [...(user.consultations||[])].sort((a,b)=>b.date.localeCompare(a.date))
+  const latest = sorted[0] || null
+  const latestRx = latest ? window._splitRxSummary(latest.prescription) : { od:'', os:'' }
 
-  window.state.afterRender = () => { window.initPagination('pt-rec-tbody'); window.initSortable('pt-rec-tbody') }
+  window.state.afterRender = () => {
+    window._filterConsultHistory = function(q) {
+      const term = q.toLowerCase()
+      document.querySelectorAll('.con-hist-row').forEach(function(r) {
+        r.style.display = (r.dataset.search || '').includes(term) ? '' : 'none'
+      })
+    }
+  }
 
   return `
   <div class="page-header">
     <div class="page-header-left">
-      <h1 class="page-title">My Medical Records</h1>
-      <p class="page-subtitle">Read-only view of your consultation and examination history</p>
+      <h1 class="page-title">Consultation History</h1>
+      <p class="page-subtitle">Your consultation records from Cana Optical Clinic</p>
     </div>
-    <button class="btn-secondary" onclick="window.print()">${ic('printer','icon-sm')} Print Records</button>
   </div>
   <div class="page-body">
-    <div class="alert-info" style="margin-bottom:20px">
-      ${ic('info','icon-sm')} Your medical records are maintained by clinic staff and doctors. Contact the clinic to request corrections.
+
+    ${sorted.length ? `
+
+    <!-- Latest consultation — featured card -->
+    <div style="background:linear-gradient(135deg,#1C1C1C 0%,#252525 100%);border-radius:14px;padding:22px 26px;margin-bottom:20px">
+      <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:#E8760A;font-weight:800;margin-bottom:10px">Latest Consultation</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:${(latest.prescription || latest.remarks) ? '16px' : '0'}">
+        <div>
+          <div style="font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:3px">${latest.diagnosis || 'No diagnosis recorded'}</div>
+          <div style="font-size:.77rem;color:rgba(255,255,255,.55)">${fmtDate(latest.date)} &bull; ${latest.doctor}${latest.type ? ' &bull; ' + latest.type : ''}</div>
+        </div>
+        <button onclick="window.viewConsultationDetail('${user.id}','${latest.id}')"
+          style="display:flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:rgba(255,255,255,.85);font-family:inherit;font-size:.8rem;font-weight:500;cursor:pointer;flex-shrink:0;transition:background .15s,border-color .15s"
+          onmouseover="this.style.background='rgba(255,255,255,.16)';this.style.borderColor='rgba(255,255,255,.3)'"
+          onmouseout="this.style.background='rgba(255,255,255,.08)';this.style.borderColor='rgba(255,255,255,.18)'">
+          ${ic('eye','icon-sm')} View Details
+        </button>
+      </div>
+      ${latest.prescription ? `
+      <div style="margin-bottom:${latest.remarks ? '14px' : '0'}">
+        <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:6px">Prescription</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:rgba(232,118,10,.1);border:1px solid rgba(232,118,10,.22);border-radius:8px;padding:10px 14px">
+            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#FBBF24;margin-bottom:5px">OD — Right Eye</div>
+            <div style="font-family:monospace;font-size:.82rem;color:#fff">${latestRx.od || '—'}</div>
+          </div>
+          <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);border-radius:8px;padding:10px 14px">
+            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#60A5FA;margin-bottom:5px">OS — Left Eye</div>
+            <div style="font-family:monospace;font-size:.82rem;color:#fff">${latestRx.os || '—'}</div>
+          </div>
+        </div>
+      </div>` : ''}
+      ${latest.remarks ? `<div style="font-size:.8rem;color:rgba(255,255,255,.7);font-style:italic;line-height:1.6">"${latest.remarks}"</div>` : ''}
     </div>
 
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-header"><div class="card-title">Consultation History</div></div>
-      ${user.consultations.length ? `
-      <div class="table-wrap" style="box-shadow:none;border:1px solid #f3f4f6">
-      <table class="tbl">
-        <colgroup>
-          <col style="width:12%"><col style="width:16%"><col style="width:12%">
-          <col style="width:18%"><col style="width:24%"><col style="width:18%">
-        </colgroup>
-        <thead><tr>
-          <th data-sort-key="date" data-sort-type="date">Date</th>
-          <th data-sort-key="doctor" data-sort-type="text">Doctor</th>
-          <th>Type</th><th>Diagnosis</th><th>Prescription</th><th>Remarks</th>
-        </tr></thead>
-        <tbody id="pt-rec-tbody">
-          ${user.consultations.map(c=>`<tr data-search="${(c.doctor||'').toLowerCase()} ${(c.diagnosis||'').toLowerCase()} ${(c.type||'').toLowerCase()}" data-sort-date="${c.date}" data-sort-doctor="${(c.doctor||'').toLowerCase()}">
-            <td style="font-size:.78rem;white-space:nowrap">${fmtDate(c.date)}</td>
-            <td style="font-size:.82rem">${c.doctor}</td>
-            <td style="font-size:.78rem">${c.type}</td>
-            <td style="font-size:.85rem;font-weight:600">${c.diagnosis}</td>
-            <td style="font-family:monospace;font-size:.75rem">${c.prescription}</td>
-            <td style="font-size:.75rem;color:#6B7280">${c.remarks}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      </div>` : `<div class="table-empty">No consultation records.</div>`}
-    </div>
-
+    <!-- All consultations list -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">Optical Examination Records</div>
-        ${user.examinations.length ? `<button class="btn-ghost" onclick="window.navigate('patient-exam-history')" style="font-size:.75rem;padding:4px 10px">View All</button>` : ''}
+        <div class="card-title">${sorted.length} Consultation${sorted.length !== 1 ? 's' : ''} on Record</div>
+        <div class="search-input-wrap">
+          ${ic('search','icon-sm')}
+          <input class="search-input" placeholder="Search doctor or diagnosis…" oninput="window._filterConsultHistory(this.value)">
+        </div>
       </div>
-      ${user.examinations.length ? [...user.examinations].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>`
-      <div style="padding:16px 20px;border-bottom:1px solid #F3F4F6">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
-          <div>
-            <div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${e.diagnosis}</div>
-            <div style="font-size:.73rem;color:#9CA3AF;margin-top:2px">${fmtDate(e.date)} &bull; ${e.doctor}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            ${badge(e.status || 'completed')}
-            <button class="btn-icon" title="View Results" onclick="window.viewExamDetail('${user.id}','${e.id}')">
-              ${ic('eye','icon-sm')}
-            </button>
-          </div>
+      ${sorted.map((c, i) => `
+      <div class="con-hist-row" data-search="${(c.diagnosis||'').toLowerCase()} ${(c.doctor||'').toLowerCase()} ${(c.type||'').toLowerCase()}"
+           style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #F3F4F6;${i===0 ? 'background:#FAFAF8;' : ''}">
+        <!-- Date block -->
+        <div style="text-align:center;min-width:38px;flex-shrink:0">
+          <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;line-height:1">${new Date(c.date+'T00:00:00').getDate()}</div>
+          <div style="font-size:.58rem;text-transform:uppercase;font-weight:600;color:#9CA3AF;margin-top:1px">${new Date(c.date+'T00:00:00').toLocaleString('en',{month:'short'})}</div>
+          <div style="font-size:.58rem;color:#C4C9D0">${new Date(c.date+'T00:00:00').getFullYear()}</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:#FFF7ED;border:1px solid #FDE68A;border-radius:7px;padding:8px 12px">
-            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#E8760A;margin-bottom:5px">OD — Right Eye</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap">
-              <span><span style="font-size:.58rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${e.od?.sph||'—'}</strong></span>
-              <span><span style="font-size:.58rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${e.od?.cyl||'—'}</strong></span>
-              <span><span style="font-size:.58rem;color:#9CA3AF">AXIS</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${e.od?.axis||'—'}</strong></span>
-            </div>
-          </div>
-          <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:7px;padding:8px 12px">
-            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#3B82F6;margin-bottom:5px">OS — Left Eye</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap">
-              <span><span style="font-size:.58rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${e.os?.sph||'—'}</strong></span>
-              <span><span style="font-size:.58rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${e.os?.cyl||'—'}</strong></span>
-              <span><span style="font-size:.58rem;color:#9CA3AF">AXIS</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${e.os?.axis||'—'}</strong></span>
-            </div>
-          </div>
+        <div style="width:1px;height:36px;background:#F3F4F6;flex-shrink:0"></div>
+        <!-- Info -->
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.87rem;font-weight:700;color:#1C1C1C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.diagnosis || 'No diagnosis recorded'}</div>
+          <div style="font-size:.72rem;color:#6B7280;margin-top:2px">${c.doctor}${c.type ? ' &bull; ' + c.type : ''}</div>
         </div>
-        ${e.lensType && e.lensType !== '—' ? `<div style="font-size:.75rem;color:#6B7280;margin-top:7px"><strong style="color:#374151">Lens:</strong> ${e.lensType}${e.lensMaterial && e.lensMaterial!=='N/A' ? ' / '+e.lensMaterial : ''}</div>` : ''}
-      </div>`).join('') : `<div class="table-empty">No examination records on file yet.</div>`}
+        ${i===0 ? `<span style="background:#FFF7ED;color:#E8760A;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;flex-shrink:0;white-space:nowrap">Latest</span>` : ''}
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn-icon" title="View Details" onclick="window.viewConsultationDetail('${user.id}','${c.id}')">
+            ${ic('eye','icon-sm')}
+          </button>
+        </div>
+      </div>`).join('')}
     </div>
 
-    ${(()=>{
-      const patient2 = patients.find(p=>p.id===user.id)
-      const rxList2  = user.prescriptions || patient2?.prescriptions || []
-      const sortedRx = [...rxList2].sort((a,b)=>b.date.localeCompare(a.date))
-      return `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Prescription Records</div>
-        ${sortedRx.length ? `<button class="btn-ghost" onclick="window.navigate('patient-prescriptions')" style="font-size:.75rem;padding:4px 10px">${ic('file-text','icon-sm')} View All</button>` : ''}
-      </div>
-      ${sortedRx.length ? sortedRx.map(rx=>{
-        const rxDate3    = new Date(rx.date.includes('T') ? rx.date : rx.date + 'T00:00:00')
-        const rxDateStr3 = rxDate3.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-        const exp3       = new Date(rxDate3); exp3.setFullYear(exp3.getFullYear()+1)
-        const expStr3    = exp3.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})
-        const isExp3     = exp3 < new Date()
-        return `
-      <div style="padding:14px 20px;border-bottom:1px solid #F3F4F6">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px">
-          <div>
-            <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:#E8760A;margin-bottom:2px">Official Prescription</div>
-            <div style="font-size:.85rem;font-weight:700;color:#1C1C1C">Rx #${rx.id}</div>
-            <div style="font-size:.72rem;color:#9CA3AF;margin-top:2px">${rxDateStr3} &bull; ${rx.doctor}</div>
-          </div>
-          <span style="font-size:.67rem;font-weight:700;padding:3px 9px;border-radius:20px;flex-shrink:0;${isExp3 ? 'background:#FEE2E2;color:#DC2626' : 'background:#ECFDF5;color:#059669'}">
-            ${isExp3 ? 'Expired' : 'Valid to ' + expStr3}
-          </span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div style="background:#FFF7ED;border:1px solid #FDE68A;border-radius:7px;padding:8px 12px">
-            <div style="font-size:.57rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#E8760A;margin-bottom:5px">OD — Right Eye</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <span><span style="font-size:.57rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${rx.od?.sph||'—'}</strong></span>
-              <span><span style="font-size:.57rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${rx.od?.cyl||'—'}</strong></span>
-              <span><span style="font-size:.57rem;color:#9CA3AF">AXIS</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${rx.od?.axis||'—'}</strong></span>
-            </div>
-          </div>
-          <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:7px;padding:8px 12px">
-            <div style="font-size:.57rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#3B82F6;margin-bottom:5px">OS — Left Eye</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <span><span style="font-size:.57rem;color:#9CA3AF">SPH</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${rx.os?.sph||'—'}</strong></span>
-              <span><span style="font-size:.57rem;color:#9CA3AF">CYL</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${rx.os?.cyl||'—'}</strong></span>
-              <span><span style="font-size:.57rem;color:#9CA3AF">AXIS</span> <strong style="font-family:monospace;font-size:.82rem;color:#1C1C1C">${rx.os?.axis||'—'}</strong></span>
-            </div>
-          </div>
-        </div>
-        ${rx.lensType && rx.lensType !== '—' ? `<div style="font-size:.75rem;color:#6B7280"><strong style="color:#374151">Lens:</strong> ${rx.lensType}</div>` : ''}
-      </div>`
-      }).join('') : `<div class="table-empty">No prescription records on file yet.</div>`}
-    </div>`
-    })()}
-
+    ` : `
+    <div style="text-align:center;padding:60px 24px">
+      <div style="width:56px;height:56px;border-radius:50%;background:#FFF7ED;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">${ic('message-square','icon-lg')}</div>
+      <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Consultations Yet</div>
+      <div style="font-size:.82rem;color:#6B7280;margin-bottom:20px">Your consultation records will appear here after your visit.</div>
+      <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+    </div>`}
   </div>`
 }
 
@@ -5094,32 +4921,24 @@ function pageStaffSettings() {
 // ════════════════════════════════════════════════════════════════
 //  PATIENT — PRESCRIPTIONS
 // ════════════════════════════════════════════════════════════════
-function pagePatientPrescriptions() {
-  const { user } = st()
-  const patient = patients.find(p => p.id === user.id)
-  const rxList  = patient?.prescriptions || []
-  const sorted  = [...rxList].sort((a,b) => b.date.localeCompare(a.date))
 
+// Full printable "document" card for one prescription — used both inline
+// (the featured latest Rx) and inside the view-detail modal for any other.
+function renderRxDocumentCard(rx, patient, isFeatured) {
+  if (!rx) return ''
+  const rxDate     = new Date(rx.date.includes('T') ? rx.date : rx.date + 'T00:00:00')
+  const rxDateStr  = rxDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const expiryDate = new Date(rxDate)
+  expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+  const expiryStr  = expiryDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
+  const isExpired  = expiryDate < new Date()
+  const docInits   = (rx.doctor||'Dr').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()
+  const docRecord  = doctors.find(d => d.name === rx.doctor)
+  const docPhoto   = docRecord?.photoUrl || null
+  const matchExam  = (patient?.examinations || []).find(e => e.date === rx.date && e.doctor === rx.doctor)
+                    || (patient?.examinations || []).find(e => e.date === rx.date)
   return `
-  <div class="page-header">
-    <div class="page-header-left">
-      <h1 class="page-title">My Prescriptions</h1>
-      <p class="page-subtitle">Official optical prescriptions from Cana Optical Clinic</p>
-    </div>
-    ${sorted.length ? `<button class="btn-ghost" onclick="window.navigate('patient-exam-history')" style="font-size:.82rem">${ic('eye','icon-sm')} Exam History</button>` : ''}
-  </div>
-  <div class="page-body">
-    ${sorted.length ? sorted.map((rx, rxIdx) => {
-      const rxDate     = new Date(rx.date.includes('T') ? rx.date : rx.date + 'T00:00:00')
-      const rxDateStr  = rxDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
-      const expiryDate = new Date(rxDate)
-      expiryDate.setFullYear(expiryDate.getFullYear() + 1)
-      const expiryStr  = expiryDate.toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'})
-      const isExpired  = expiryDate < new Date()
-      const docInits   = (rx.doctor||'Dr').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()
-      const isFirst    = rxIdx === 0
-      return `
-    <div class="card" style="margin-bottom:18px;overflow:hidden${isFirst ? ';box-shadow:0 0 0 2px #E8760A,0 8px 24px rgba(232,118,10,.12)' : ''}">
+    <div class="card" style="margin-bottom:18px;overflow:hidden${isFeatured ? ';box-shadow:0 0 0 2px #E8760A,0 8px 24px rgba(232,118,10,.12)' : ''}">
 
       <!-- Clinic document letterhead -->
       <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2D2D2D 100%);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -5128,7 +4947,7 @@ function pagePatientPrescriptions() {
           <div style="font-size:.9rem;font-weight:900;color:#fff;letter-spacing:-.01em">Cana Optical Clinic</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          ${isFirst ? `<span style="font-size:.58rem;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(232,118,10,.2);color:#E8760A;border:1px solid rgba(232,118,10,.3)">Latest</span>` : ''}
+          ${isFeatured ? `<span style="font-size:.58rem;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(232,118,10,.2);color:#E8760A;border:1px solid rgba(232,118,10,.3)">Latest</span>` : ''}
           <div style="font-size:.58rem;color:rgba(255,255,255,.38);text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Rx No.</div>
           <div style="font-size:.68rem;font-family:monospace;color:rgba(255,255,255,.52)">${rx.id}</div>
         </div>
@@ -5137,7 +4956,10 @@ function pagePatientPrescriptions() {
       <!-- Issuer + validity strip -->
       <div style="background:#F9FAFB;border-bottom:1px solid #F3F4F6;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1C1C1C,#3D3D3D);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:#E8760A;flex-shrink:0;letter-spacing:.02em">${docInits}</div>
+          ${docPhoto
+            ? `<div style="width:34px;height:34px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${docPhoto}" alt="${rx.doctor}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+            : `<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1C1C1C,#3D3D3D);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;color:#E8760A;flex-shrink:0;letter-spacing:.02em">${docInits}</div>`
+          }
           <div>
             <div style="font-size:.6rem;color:#9CA3AF;text-transform:uppercase;letter-spacing:.05em">Issued by</div>
             <div style="font-size:.85rem;font-weight:700;color:#1C1C1C">${rx.doctor}</div>
@@ -5210,7 +5032,7 @@ function pagePatientPrescriptions() {
           </div>
           <div style="text-align:center">
             <div style="height:24px"></div>
-            <div style="border-top:1px solid #374151;padding-top:5px;font-size:.75rem;color:#374151;font-weight:600">${user.name}</div>
+            <div style="border-top:1px solid #374151;padding-top:5px;font-size:.75rem;color:#374151;font-weight:600">${patient.name}</div>
             <div style="font-size:.65rem;color:#9CA3AF;margin-top:2px">Patient Signature &amp; Date</div>
           </div>
         </div>
@@ -5222,18 +5044,89 @@ function pagePatientPrescriptions() {
         <div style="font-size:.72rem;color:#9CA3AF">Rx valid for 1 year from date of issue</div>
         <div style="display:flex;gap:8px">
           <button class="btn-ghost" style="font-size:.78rem;padding:5px 12px"
-                  onclick="window.navigate('patient-exam-history')">
+                  onclick="${matchExam ? `window.viewExamDetail('${patient.id}','${matchExam.id}')` : `window.navigate('patient-exam-history')`}">
             ${ic('eye','icon-sm')} Exam History
           </button>
           <button class="btn-secondary" style="font-size:.78rem;padding:5px 12px"
-                  onclick="window.printPrescriptionCard('rx-card-${rx.id}')">
+                  onclick="window.printRxRecord('${patient.id}','${rx.id}')">
             ${ic('printer','icon-sm')} Print Rx
           </button>
         </div>
       </div>
 
     </div>`
-    }).join('') : `
+}
+window.renderRxDocumentCard = renderRxDocumentCard
+
+function pagePatientPrescriptions() {
+  const { user } = st()
+  const patient = patients.find(p => p.id === user.id)
+  const rxList  = patient?.prescriptions || []
+  const sorted  = [...rxList].sort((a,b) => b.date.localeCompare(a.date))
+  const latest  = sorted[0] || null
+
+  window.state.afterRender = () => {
+    window._filterRxHistory = function(q) {
+      const term = q.toLowerCase()
+      document.querySelectorAll('.rx-hist-row').forEach(function(r) {
+        r.style.display = (r.dataset.search || '').includes(term) ? '' : 'none'
+      })
+    }
+  }
+
+  return `
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">My Prescriptions</h1>
+      <p class="page-subtitle">Official optical prescriptions from Cana Optical Clinic</p>
+    </div>
+    ${sorted.length ? `<button class="btn-ghost" onclick="window.navigate('patient-exam-history')" style="font-size:.82rem">${ic('eye','icon-sm')} Exam History</button>` : ''}
+  </div>
+  <div class="page-body">
+    ${sorted.length ? `
+
+    ${renderRxDocumentCard(latest, patient, true)}
+
+    <!-- All prescriptions list -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">${sorted.length} Prescription${sorted.length !== 1 ? 's' : ''} on Record</div>
+        <div class="search-input-wrap">
+          ${ic('search','icon-sm')}
+          <input class="search-input" placeholder="Search doctor or lens type…" oninput="window._filterRxHistory(this.value)">
+        </div>
+      </div>
+      ${sorted.map((rx, i) => {
+        const d = new Date(rx.date.includes('T') ? rx.date : rx.date + 'T00:00:00')
+        const expiryDate = new Date(d)
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1)
+        const isExpired = expiryDate < new Date()
+        return `
+      <div class="rx-hist-row" data-search="${(rx.doctor||'').toLowerCase()} ${(rx.lensType||'').toLowerCase()} ${rx.id.toLowerCase()}"
+           style="display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #F3F4F6;${i===0 ? 'background:#FAFAF8;' : ''}">
+        <!-- Date block -->
+        <div style="text-align:center;min-width:38px;flex-shrink:0">
+          <div style="font-size:1.05rem;font-weight:800;color:#1C1C1C;line-height:1">${d.getDate()}</div>
+          <div style="font-size:.58rem;text-transform:uppercase;font-weight:600;color:#9CA3AF;margin-top:1px">${d.toLocaleString('en',{month:'short'})}</div>
+          <div style="font-size:.58rem;color:#C4C9D0">${d.getFullYear()}</div>
+        </div>
+        <div style="width:1px;height:36px;background:#F3F4F6;flex-shrink:0"></div>
+        <!-- Info -->
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.87rem;font-weight:700;color:#1C1C1C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${rx.id} &bull; ${rx.doctor}</div>
+          <div style="font-size:.72rem;color:#6B7280;margin-top:2px">${rx.lensType && rx.lensType !== '—' ? rx.lensType : 'No lens type on file'}</div>
+        </div>
+        ${i===0 ? `<span style="background:#FFF7ED;color:#E8760A;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;flex-shrink:0;white-space:nowrap">Latest</span>` : ''}
+        <span style="font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;${isExpired ? 'background:#FEE2E2;color:#DC2626;border:1px solid #FECACA' : 'background:#ECFDF5;color:#059669;border:1px solid #A7F3D0'}">${isExpired ? 'Expired' : 'Valid'}</span>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="btn-icon" title="View Prescription" onclick="window.viewPrescriptionDetail('${patient.id}','${rx.id}')">
+            ${ic('eye','icon-sm')}
+          </button>
+        </div>
+      </div>`}).join('')}
+    </div>
+
+    ` : `
     <div style="text-align:center;padding:64px 24px">
       <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#F9FAFB,#F3F4F6);border:2px dashed #E5E7EB;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#D1D5DB">${ic('file-text','icon-lg')}</div>
       <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Prescriptions Yet</div>

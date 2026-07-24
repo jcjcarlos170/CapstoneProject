@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/stats/public.php
+//  CANAOPTICALCLINIC — api/stats/public.php
 //  GET — public endpoint, no auth required.
 //  Returns live clinic stats for the landing page.
 // ================================================================

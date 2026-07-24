@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/services/reorder.php
+//  CANAOPTICALCLINIC — api/services/reorder.php
 //  POST { order: [id, id, ...] } — admin only.
 //  Updates sort_order for each service based on array position.
 // ================================================================

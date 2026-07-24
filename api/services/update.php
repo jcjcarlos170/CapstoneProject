@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/services/update.php
+//  CANAOPTICALCLINIC — api/services/update.php
 //  POST { id, name, description, duration, status, icon } — admin only.
 //  Only the fields present in the request body are updated.
 // ================================================================

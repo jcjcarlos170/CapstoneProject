@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/logout.php
+//  CANAOPTICALCLINIC — api/auth/logout.php
 //  POST (no body required) — destroys the PHP session.
 // ================================================================
 

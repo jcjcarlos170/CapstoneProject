@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/doctors/public.php
+//  CANAOPTICALCLINIC — api/doctors/public.php
 //  GET — public endpoint, no auth required.
 //  Returns active doctors with schedule and photo URL.
 // ================================================================

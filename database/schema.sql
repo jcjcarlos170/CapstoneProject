@@ -1,10 +1,10 @@
 -- ================================================================
---  OPTICANA — database/schema.sql
+--  CANAOPTICALCLINIC — database/schema.sql
 --  Full DDL for all tables.
 --  Step 1: Create the database first:
---    CREATE DATABASE opticana_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+--    CREATE DATABASE canaopticalclinic_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 --  Step 2: Run this file in phpMyAdmin or MySQL CLI:
---    mysql -u root opticana_db < schema.sql
+--    mysql -u root canaopticalclinic_db < schema.sql
 --  Step 3: Run seed.php to populate data.
 --
 --  If upgrading an existing database, run these once in phpMyAdmin:

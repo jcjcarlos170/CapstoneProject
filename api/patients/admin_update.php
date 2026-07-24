@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/admin_update.php
+//  CANAOPTICALCLINIC — api/patients/admin_update.php
 //  Admin/Staff only. Edits an existing patient's profile, including
 //  gender and date of birth — fields the patient cannot self-edit
 //  (see api/patients/update.php, which is patient-self-service only

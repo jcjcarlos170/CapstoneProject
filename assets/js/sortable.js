@@ -37,7 +37,12 @@
     }
   }
 
-  // defaultSort: optional { key, type, dir } applied only when no prior sort exists for this tbody.
+  // defaultSort: optional { key, type, dir, context }. Applied when no prior sort exists for
+  // this tbody, OR when `context` is given and differs from the last call's context — this lets
+  // pages that reuse one tbody id across multiple tabs/filters (e.g. patient-appts: All/Today/
+  // Approved/Pending/...) each keep their own default instead of inheriting whichever tab was
+  // visited first. Omit `context` for single-view tables where the cached sort should just persist
+  // across re-renders (e.g. after the table's data refreshes).
   function initSortable(tbodyId, defaultSort) {
     ensureCSS()
     var tbody = document.getElementById(tbodyId)
@@ -46,7 +51,8 @@
     if (!table) return
 
     var st = _sort[tbodyId]
-    if (!st) {
+    var contextChanged = !!(defaultSort && st && defaultSort.context !== st.context)
+    if (!st || contextChanged) {
       // Use the explicit default if given, otherwise fall back to ascending on the first sortable column
       var auto = defaultSort
       if (!auto) {
@@ -80,7 +86,7 @@
       _setThVisual(h, h === th ? dir : 0, h.getAttribute('data-sort-type') || 'text')
     })
 
-    _sort[tbodyId] = { key: key, type: type, dir: dir }
+    _sort[tbodyId] = { context: prev && prev.context, key: key, type: type, dir: dir }
     _applySort(tbodyId, key, type, dir)
   }
 

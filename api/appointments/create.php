@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/appointments/create.php
+//  CANAOPTICALCLINIC — api/appointments/create.php
 //  POST { patientId, patientName, doctorId, doctorName,
 //         date, time, type, status, notes }
 //  → { success:true, id:'A001' }

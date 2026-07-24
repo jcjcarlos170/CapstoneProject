@@ -1,5 +1,5 @@
 ﻿// ================================================================
-//  OPTICANA — router.js
+//  CANAOPTICALCLINIC — router.js
 //  Navigation, sidebar, topbar rendering, layout toggles
 // ================================================================
 
@@ -127,8 +127,9 @@ const SIDEBAR_CONFIG = {
     { key: 'doctor-availability',  label: 'Doctor Availability', icon: 'user' },
     { key: 'patient-records',      label: 'My Records',       icon: 'file-text',
       children: [
-        { key: 'patient-prescriptions', label: 'Prescriptions' },
-        { key: 'patient-exam-history',  label: 'Examination History' }
+        { key: 'patient-prescriptions',  label: 'Prescriptions' },
+        { key: 'patient-exam-history',   label: 'Examination History' },
+        { key: 'patient-consultations',  label: 'Consultations' }
       ]
     },
     { section: 'Account' },
@@ -175,6 +176,7 @@ const PAGE_LABELS = {
   'doctor-availability':   'Doctor Availability',
   'patient-prescriptions': 'Prescriptions',
   'patient-exam-history':  'Examination History',
+  'patient-consultations': 'Consultations',
   'patient-notifications': 'Notifications',
   'notifications':         'Notifications',
   'patient-settings':      'Settings'
@@ -197,18 +199,67 @@ function navigate(page, params = {}) {
   if (window.stopQRCamera) window.stopQRCamera()
   renderPage()
 
-  // Refresh appointment data when doctor visits appointment pages (shows newly approved)
-  if (state.role === 'doctor' && (page === 'doctor-dashboard' || page === 'doctor-appointments')) {
+  // ── Per-page sync-on-navigate ────────────────────────────────────
+  // Fire the relevant sync immediately so the page opens with fresh data
+  // instead of waiting for the next 30-second poll tick.
+
+  // Notifications page — all roles
+  if (page === 'notifications' || page === 'patient-notifications') {
+    if (window._syncNotifications) window._syncNotifications()
+  }
+
+  // Appointment pages — all roles
+  const _apptPages = new Set(['appointments','doctor-appointments','patient-appts'])
+  if (_apptPages.has(page)) {
     if (window._syncAppointments) window._syncAppointments(true)
   }
-  // Always refresh patient data (incl. profile photos) when opening the examination form
-  if (page === 'new-examination' && window._syncPatients) {
-    window._syncPatients()
+
+  // Dashboard pages — refresh the most relevant data
+  if (page === 'admin-dashboard' || page === 'staff-dashboard') {
+    if (window._syncAppointments) window._syncAppointments()
+    if (window._syncPatients)     window._syncPatients()
   }
-  // Refresh archived records when visiting the Archives section
-  if (page === 'admin-settings' && params.filter === 'archives' && window._syncArchives) {
-    window._syncArchives()
+  if (page === 'doctor-dashboard') {
+    if (window._syncAppointments) window._syncAppointments(true)
   }
+  if (page === 'patient-dashboard') {
+    if (window._syncMyRecords) window._syncMyRecords()
+  }
+
+  // Patient-facing record pages
+  const _patientDataPages = new Set(['patient-exam-history','patient-prescriptions','patient-consultations'])
+  if (_patientDataPages.has(page)) {
+    if (window._syncMyRecords) window._syncMyRecords()
+  }
+
+  // Staff/admin patient data pages
+  if (page === 'patient-list' || page === 'new-examination') {
+    if (window._syncPatients) window._syncPatients()
+  }
+
+  // Contact messages (admin/staff)
+  if (page === 'contact-messages') {
+    if (window._syncContactMessages) window._syncContactMessages()
+  }
+
+  // Activity log (admin)
+  if (page === 'activity-log') {
+    if (window._syncActivityLog) window._syncActivityLog()
+  }
+
+  // Exam records (doctor/admin — part of patients data)
+  if (page === 'exam-records') {
+    if (window._syncPatients) window._syncPatients()
+  }
+
+  // Archives
+  if (page === 'admin-settings' && params.filter === 'archives') {
+    if (window._syncArchives) window._syncArchives()
+  }
+
+  // Reset the poll timer so the next tick is always 30s from this navigation,
+  // not from wherever the interval happened to be in its current cycle.
+  if (window._resetSystemPoll) window._resetSystemPoll()
 }
 
 // ── renderPage ──────────────────────────────────────────────────
@@ -242,11 +293,11 @@ function renderPage() {
     'patient-dashboard':     Pages.pagePatientDashboard,
     'patient-appts':         Pages.pagePatientAppts,
     'patient-request-appt': Pages.pagePatientAppts,
-    'patient-records':       Pages.pagePatientRecords,
     'patient-qr':            Pages.pagePatientQR,
     'doctor-availability':   Pages.pagePatientDoctorAvail,
     'patient-prescriptions': Pages.pagePatientPrescriptions,
     'patient-exam-history':  Pages.pagePatientExamHistory,
+    'patient-consultations': Pages.pagePatientConsultations,
     'patient-notifications': Pages.pagePatientNotifications,
     'notifications':         Pages.pagePatientNotifications,
     'patient-settings':      Pages.pagePatientSettings,
@@ -535,7 +586,7 @@ function _notifNavTarget(type, role) {
   }
 
   const map = {
-    record:          role === 'patient' ? 'patient-records'       : 'patient-list',
+    record:          role === 'patient' ? 'patient-exam-history'  : 'patient-list',
     prescription:    role === 'patient' ? 'patient-prescriptions' : 'patient-list',
     welcome:         dashPage,
     info:            dashPage,

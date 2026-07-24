@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/contact/create.php
+//  CANAOPTICALCLINIC — api/contact/create.php
 //  POST — public endpoint, no auth required.
 //  Body: { name, email, service, message }
 //  → { success:true, id:N }
@@ -79,7 +79,7 @@ function _contactEmailBody(string $name, string $email, string $service, string 
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>New Contact Message — Opticana</title>
+  <title>New Contact Message — Cana Optical Clinic</title>
 </head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 16px">
@@ -88,7 +88,7 @@ function _contactEmailBody(string $name, string $email, string $service, string 
         <tr>
           <td style="background:#E8760A;padding:28px 32px;text-align:center">
             <div style="font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.02em">&#128236; New Contact Message</div>
-            <div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:4px">Opticana — Cana Optical Clinic</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:4px">Cana Optical Clinic</div>
           </td>
         </tr>
         <tr>

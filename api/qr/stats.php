@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/qr/stats.php
+//  CANAOPTICALCLINIC — api/qr/stats.php
 //  GET — today's QR scan totals.
 //  → 200 { success:true, total, found, notFound } | { success:false, message }
 // ================================================================

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/create.php
+//  CANAOPTICALCLINIC — api/patients/create.php
 //  Admin/Staff only. Registers a new patient from the dashboard.
 //  POST { firstName, lastName, gender, dob, contact, email?,
 //         address?, occupation?, medicalHistory?, opticalHistory?,
@@ -72,7 +72,7 @@ try {
         $pid = 'P' . str_pad($next, 3, '0', STR_PAD_LEFT);
     }
 
-    $qrData  = 'OPTICANA-' . $pid . '-' . strtoupper($first . $last);
+    $qrData  = 'CANA-' . $pid . '-' . strtoupper($first . $last);
     $today   = date('Y-m-d');
     $uid     = null;
     $tempPw  = null;
@@ -105,7 +105,7 @@ try {
     // Welcome notification if user account was created
     if ($uid) {
         createNotification($pdo, $uid, 'welcome',
-            'Welcome to OPTICANA',
+            'Welcome to Cana Optical Clinic',
             'Your patient account has been activated. You can now book appointments and view your records online.'
         );
     }

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/send-email-verification.php
+//  CANAOPTICALCLINIC — api/auth/send-email-verification.php
 //  Resends the verification OTP for a pending registration.
 //  POST { email }
 //  → { success:true } | { success:false, message }
@@ -59,9 +59,9 @@ try {
 function sendVerificationEmail(string $to, string $otp, string $firstName = ''): void {
     sendEmail(
         $to, $firstName,
-        'Your New Opticana Verification Code',
+        'Your New Cana Optical Clinic Verification Code',
         verificationEmailBody($otp, $firstName),
-        "Your new Opticana verification code is: $otp\n\nExpires in 5 minutes."
+        "Your new Cana Optical Clinic verification code is: $otp\n\nExpires in 5 minutes."
     );
 }
 
@@ -89,8 +89,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
         <tr>
           <td style="background:#E8760A;
                      padding:32px 40px 28px;text-align:center;">
-            <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:4px;">OPTICANA</div>
-            <div style="font-size:11px;font-weight:500;letter-spacing:2.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;">Cana Optical Clinic</div>
+            <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:1px;margin-bottom:4px;">Cana Optical Clinic</div>
           </td>
         </tr>
 
@@ -126,7 +125,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
                   </svg>
                 </td>
                 <td style="font-size:13px;color:#6b7280;line-height:1.65;">
-                  If you did not create an Opticana account, please ignore this email. Never share this code with anyone.
+                  If you did not create a Cana Optical Clinic account, please ignore this email. Never share this code with anyone.
                 </td>
               </tr>
             </table>
@@ -135,7 +134,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
 
         <tr>
           <td style="background:#f8f8fb;padding:20px 40px;border-top:1px solid #f0f0f4;text-align:center;">
-            <p style="margin:0;font-size:11px;color:#b0b7c3;">&copy; Opticana &nbsp;&bull;&nbsp; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email</p>
+            <p style="margin:0;font-size:11px;color:#b0b7c3;">&copy; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email</p>
           </td>
         </tr>
 

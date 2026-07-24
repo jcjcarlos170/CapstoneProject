@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/archive/create.php
+//  CANAOPTICALCLINIC — api/archive/create.php
 //  Admin only. Archives a user account or patient record:
 //  flags the role-table row as archived, blocks login, and
 //  stores a restorable snapshot in archived_records.

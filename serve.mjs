@@ -1,4 +1,4 @@
-// Simple static file server for OPTICANA
+// Simple static file server for CANAOPTICALCLINIC
 // Run: node serve.mjs
 // Then open: http://localhost:3000
 
@@ -57,5 +57,5 @@ http.createServer((req, res) => {
     res.end(data)
   })
 }).listen(PORT, () => {
-  console.log(`OPTICANA server running at http://localhost:${PORT}`)
+  console.log(`CANAOPTICALCLINIC server running at http://localhost:${PORT}`)
 })

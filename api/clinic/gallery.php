@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/clinic/gallery.php
+//  CANAOPTICALCLINIC — api/clinic/gallery.php
 //  GET (public)   — list {id, caption, filename, sortOrder}
 //  POST (admin)   — upload {imageData: base64DataUrl, caption}
 //  DELETE (admin) — remove {id}

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/clinic/upload_hero.php
+//  CANAOPTICALCLINIC — api/clinic/upload_hero.php
 //  POST multipart/form-data { hero: File } — admin only.
 //  Saves to assets/images/hero/clinic-hero.<ext>, updates clinic_settings.hero_url.
 // ================================================================

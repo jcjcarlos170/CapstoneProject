@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/contact/index.php
+//  CANAOPTICALCLINIC — api/contact/index.php
 //  GET — admin/staff only. Returns all contact-form submissions.
 // ================================================================
 

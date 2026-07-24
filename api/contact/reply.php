@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/contact/reply.php
+//  CANAOPTICALCLINIC — api/contact/reply.php
 //  POST { id, reply } — admin/staff only.
 //  Saves the reply and emails the original sender via SMTP (best-effort —
 //  the reply is still saved even if the email fails to send). Email is
@@ -103,7 +103,7 @@ function replyEmailBody(string $name, string $original, string $reply, string $r
             <div style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                         font-size:22px;font-weight:800;color:#ffffff;
                         letter-spacing:1px;line-height:1;margin-bottom:4px;">
-              OPTICANA
+              Cana Optical Clinic
             </div>
             <div style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                         font-size:11px;font-weight:500;letter-spacing:2.5px;
@@ -178,7 +178,7 @@ function replyEmailBody(string $name, string $original, string $reply, string $r
                      border-top:1px solid #f0f0f4;text-align:center;">
             <p style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                       margin:0;font-size:11px;color:#b0b7c3;">
-              &copy; Opticana &nbsp;&bull;&nbsp; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email
+              &copy; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email
             </p>
           </td>
         </tr>

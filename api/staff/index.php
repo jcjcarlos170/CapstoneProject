@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/staff/index.php
+//  CANAOPTICALCLINIC — api/staff/index.php
 //  GET — authenticated (admin/staff only).
 //  Returns all staff and admin users with photoUrl for the
 //  user management table and profile syncing.

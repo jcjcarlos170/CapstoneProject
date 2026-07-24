@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/notifications/delete.php
+//  CANAOPTICALCLINIC — api/notifications/delete.php
 //  POST { id }      → delete one notification (must belong to caller)
 //  POST { all:true} → delete all notifications for the caller
 // ================================================================

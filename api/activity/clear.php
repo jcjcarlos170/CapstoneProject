@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/activity/clear.php
+//  CANAOPTICALCLINIC — api/activity/clear.php
 //  Admin only. Deletes all activity log entries.
 //  POST {} → { success:true }
 // ================================================================

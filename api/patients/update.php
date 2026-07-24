@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/update.php
+//  CANAOPTICALCLINIC — api/patients/update.php
 //
 //  POST { action:'profile', firstName, lastName, phone, email, address }
 //  POST { action:'password', currentPassword, newPassword }

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/verify-email-otp.php
+//  CANAOPTICALCLINIC — api/auth/verify-email-otp.php
 //  POST { email, otp }
 //  Reads from pending_registrations. On correct OTP, creates the
 //  real users + patients rows, deletes the pending record, starts
@@ -100,7 +100,7 @@ try {
         $pid = 'P' . str_pad($cnt + 1, 3, '0', STR_PAD_LEFT);
     }
 
-    $qr = 'OPTICANA-' . $pid . '-' . strtoupper($first . $last);
+    $qr = 'CANA-' . $pid . '-' . strtoupper($first . $last);
 
     $pdo->beginTransaction();
 
@@ -129,7 +129,7 @@ try {
 
     // Welcome notification
     createNotification($pdo, $uid, 'welcome',
-        'Welcome to OPTICANA',
+        'Welcome to Cana Optical Clinic',
         'Your patient account has been activated. You can now book appointments and view your records online.'
     );
 

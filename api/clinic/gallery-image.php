@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/clinic/gallery-image.php
+//  CANAOPTICALCLINIC — api/clinic/gallery-image.php
 //  GET ?id=N — redirects to the static file in assets/images/about/
 // ================================================================
 

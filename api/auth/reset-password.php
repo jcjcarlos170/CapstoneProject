@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/reset-password.php
+//  CANAOPTICALCLINIC — api/auth/reset-password.php
 //  POST { token, password }
 //  → 200 { success:true }
 //  → 200 { success:false, message }

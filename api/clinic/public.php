@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/clinic/public.php
+//  CANAOPTICALCLINIC — api/clinic/public.php
 //  GET — public endpoint, no auth required.
 //  Returns clinic info + a computed schedule string built from the
 //  structured day/time fields so the contact page always reflects

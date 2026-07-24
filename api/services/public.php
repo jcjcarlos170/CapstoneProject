@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/services/public.php
+//  CANAOPTICALCLINIC — api/services/public.php
 //  GET — public endpoint, no auth required.
 //  Returns active services sorted by sort_order for the public page.
 // ================================================================

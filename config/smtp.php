@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — config/smtp.php
+//  CANAOPTICALCLINIC — config/smtp.php
 //  SMTP credentials loaded from environment variables.
 //  Set these in Railway → Variables dashboard:
 //
@@ -9,7 +9,7 @@
 //  SMTP_USERNAME  = your-brevo-login@email.com  (or Gmail address)
 //  SMTP_PASSWORD  = your-brevo-api-key          (or Gmail App Password)
 //  SMTP_FROM      = sender@yourdomain.com
-//  SMTP_FROM_NAME = Opticana - Cana Optical Clinic
+//  SMTP_FROM_NAME = Cana Optical Clinic
 //
 //  Brevo (recommended for Railway):  https://app.brevo.com → SMTP & API → SMTP
 //  Gmail App Password (local dev):   https://myaccount.google.com/apppasswords

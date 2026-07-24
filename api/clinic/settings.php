@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/clinic/settings.php
+//  CANAOPTICALCLINIC — api/clinic/settings.php
 //  GET  — any authenticated user. Returns the single clinic settings row.
 //  POST — admin only. Partial update: send only the fields you want to
 //         change (clinic info, consultation/scheduling rules, or both

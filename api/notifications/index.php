@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/notifications/index.php
+//  CANAOPTICALCLINIC — api/notifications/index.php
 //  GET → returns notifications for the current user
 //  Query params:
 //    ?limit=N  (default 20; pass 0 for all)

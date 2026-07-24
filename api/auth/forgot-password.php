@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/forgot-password.php
+//  CANAOPTICALCLINIC — api/auth/forgot-password.php
 //  POST { email }
 //  Generates a 6-digit OTP, stores it, and emails it via SMTP.
 //  Returns success:false if the email isn't registered (intentionally
@@ -60,9 +60,9 @@ try {
 
     sendEmail(
         $email, '',
-        'Your Opticana Password Reset Code',
+        'Your Cana Optical Clinic Password Reset Code',
         emailBody($otp),
-        "Your Opticana password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone."
+        "Your Cana Optical Clinic password reset code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone."
     );
 
     jsonResponse(['success' => true]);
@@ -101,11 +101,6 @@ function emailBody(string $otp): string {
             <div style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                         font-size:22px;font-weight:800;color:#ffffff;
                         letter-spacing:1px;line-height:1;margin-bottom:4px;">
-              OPTICANA
-            </div>
-            <div style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
-                        font-size:11px;font-weight:500;letter-spacing:2.5px;
-                        color:rgba(255,255,255,0.7);text-transform:uppercase;">
               Cana Optical Clinic
             </div>
           </td>
@@ -123,7 +118,7 @@ function emailBody(string $otp): string {
             <p style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                       margin:0 auto;font-size:14px;color:#6b7280;
                       line-height:1.7;max-width:360px;">
-              We received a request to reset your Opticana account password.
+              We received a request to reset your Cana Optical Clinic account password.
               Use the verification code below to continue. It is valid for
               <strong style="color:#1C1C1C;font-weight:600;">5 minutes</strong> only.
             </p>
@@ -192,7 +187,7 @@ function emailBody(string $otp): string {
                      border-top:1px solid #f0f0f4;text-align:center;">
             <p style="font-family:'Poppins','Segoe UI',Arial,sans-serif;
                       margin:0;font-size:11px;color:#b0b7c3;">
-              &copy; Opticana &nbsp;&bull;&nbsp; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email
+              &copy; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email
             </p>
           </td>
         </tr>

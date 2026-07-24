@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/clinic/upload_logo.php
+//  CANAOPTICALCLINIC — api/clinic/upload_logo.php
 //  POST multipart/form-data { logo: File } — admin only.
 //  Saves to assets/images/logo/clinic-logo.<ext>, updates clinic_settings.logo_url.
 // ================================================================

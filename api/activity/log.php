@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/activity/log.php
+//  CANAOPTICALCLINIC — api/activity/log.php
 //
 //  GET  → returns all log entries (admin only)
 //  POST { id, user, role, action, timestamp, type }

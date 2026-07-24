@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/register.php
+//  CANAOPTICALCLINIC — api/auth/register.php
 //  POST { firstName, lastName, dob, gender, address, contact,
 //         bloodType, email, password }
 //  → 200 { success:true, pendingVerification:true, email }
@@ -92,9 +92,9 @@ try {
 function sendVerificationEmail(string $to, string $otp, string $firstName = ''): void {
     sendEmail(
         $to, $firstName,
-        'Verify Your Opticana Account',
+        'Verify Your Cana Optical Clinic Account',
         verificationEmailBody($otp, $firstName),
-        "Your Opticana email verification code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone."
+        "Your Cana Optical Clinic email verification code is: $otp\n\nThis code expires in 5 minutes. Do not share it with anyone."
     );
 }
 
@@ -124,9 +124,6 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
           <td style="background:#E8760A;
                      padding:32px 40px 28px;text-align:center;">
             <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:1px;line-height:1;margin-bottom:4px;">
-              OPTICANA
-            </div>
-            <div style="font-size:11px;font-weight:500;letter-spacing:2.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;">
               Cana Optical Clinic
             </div>
           </td>
@@ -139,7 +136,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
               Verify Your Email Address
             </h1>
             <p style="margin:0 auto;font-size:14px;color:#6b7280;line-height:1.7;max-width:360px;">
-              {$greeting} Thank you for registering with Opticana. Use the code below
+              {$greeting} Thank you for registering with Cana Optical Clinic. Use the code below
               to confirm your email and activate your patient account.
               Valid for <strong style="color:#1C1C1C;font-weight:600;">5 minutes</strong>.
             </p>
@@ -179,7 +176,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
                   </svg>
                 </td>
                 <td style="font-size:13px;color:#6b7280;line-height:1.65;">
-                  If you did not create an Opticana account, please ignore this email —
+                  If you did not create a Cana Optical Clinic account, please ignore this email —
                   no account will be created. Never share this code with anyone.
                 </td>
               </tr>
@@ -191,7 +188,7 @@ function verificationEmailBody(string $otp, string $firstName = ''): string {
         <tr>
           <td style="background:#f8f8fb;padding:20px 40px;border-top:1px solid #f0f0f4;text-align:center;">
             <p style="margin:0;font-size:11px;color:#b0b7c3;">
-              &copy; Opticana &nbsp;&bull;&nbsp; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email
+              &copy; Cana Optical Clinic &nbsp;&bull;&nbsp; Do not reply to this email
             </p>
           </td>
         </tr>

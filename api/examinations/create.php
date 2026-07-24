@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/examinations/create.php
+//  CANAOPTICALCLINIC — api/examinations/create.php
 //  POST { patientId, apptId?, od, os, iop, pd, diagnosis, ... }
 //  → { success:true, id:'E001' }
 //  Saves examination, consultation, optional prescription,

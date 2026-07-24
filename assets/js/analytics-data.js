@@ -1,5 +1,5 @@
 // ================================================================
-//  OPTICANA — analytics-data.js
+//  CANAOPTICALCLINIC — analytics-data.js
 //  Centralized mock data for descriptive analytics.
 //  Loaded as a global script before the ES module.
 // ================================================================

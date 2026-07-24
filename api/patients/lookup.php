@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/lookup.php
+//  CANAOPTICALCLINIC — api/patients/lookup.php
 //
 //  GET ?qr=<qr_data>           → single patient by qr_data
 //  GET ?id=<patient_id>        → single patient by id (e.g. P001)

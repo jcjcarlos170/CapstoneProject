@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/contact/mark_read.php
+//  CANAOPTICALCLINIC — api/contact/mark_read.php
 //  POST { id: N, read: true|false } → mark single message read/unread
 //  POST { all: true }                → mark all messages as read
 //  admin/staff only.

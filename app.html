@@ -79,8 +79,8 @@
               animation:_ls-rise .4s .12s both">Cana Optical Clinic</div>
   <script>
   ;(function(){try{
-    var cn=localStorage.getItem('_opticana_clinicName');
-    var lu=localStorage.getItem('_opticana_logo_url');
+    var cn=localStorage.getItem('_canaopticalclinic_clinicName');
+    var lu=localStorage.getItem('_canaopticalclinic_logo_url');
     if(cn){var el=document.getElementById('ls-brand-name');if(el)el.textContent=cn;}
     if(cn){document.querySelectorAll('.brand-logo-name').forEach(function(e){e.textContent=cn;});}
     if(lu){document.querySelectorAll('.loading-screen-logo,.auth-bp-logo').forEach(function(e){e.src=lu;});}
@@ -739,11 +739,11 @@
     if (!d || !d.success || !d.clinic) return
     if (d.clinic.name) {
       document.querySelectorAll('.brand-clinic-name').forEach(function(el){ el.textContent = d.clinic.name })
-      try { localStorage.setItem('_opticana_clinicName', d.clinic.name) } catch(_) {}
+      try { localStorage.setItem('_canaopticalclinic_clinicName', d.clinic.name) } catch(_) {}
     }
     if (d.clinic.logoName) {
       document.querySelectorAll('.brand-logo-name').forEach(function(el){ el.textContent = d.clinic.logoName })
-      try { localStorage.setItem('_opticana_logoName', d.clinic.logoName) } catch(_) {}
+      try { localStorage.setItem('_canaopticalclinic_logoName', d.clinic.logoName) } catch(_) {}
     }
   }).catch(function(){})
 </script>

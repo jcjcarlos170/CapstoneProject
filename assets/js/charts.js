@@ -1,5 +1,5 @@
 // ================================================================
-//  OPTICANA — charts.js
+//  CANAOPTICALCLINIC — charts.js
 //  All Chart.js initializations. Requires Chart.js global from CDN.
 // ================================================================
 

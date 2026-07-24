@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/archive/index.php
+//  CANAOPTICALCLINIC — api/archive/index.php
 //  GET — admin only. Returns all archived records.
 // ================================================================
 

@@ -1,5 +1,5 @@
 // ================================================================
-//  OPTICANA — auth.js
+//  CANAOPTICALCLINIC — auth.js
 //  Login, register, logout — backed by PHP API endpoints.
 //  API base: /api/auth/  (relative, works with any sub-path)
 // ================================================================
@@ -54,8 +54,8 @@ async function handleLogin() {
     // Remember (or forget) the email for next time, based on the checkbox —
     // separate from the session-length extension login.php already applies.
     try {
-      if (remember) localStorage.setItem('opticana_remembered_email', email)
-      else localStorage.removeItem('opticana_remembered_email')
+      if (remember) localStorage.setItem('canaopticalclinic_remembered_email', email)
+      else localStorage.removeItem('canaopticalclinic_remembered_email')
     } catch (_) { /* localStorage unavailable (private mode, etc.) — non-critical */ }
 
     _bootAfterAuth(data.role, data.user)
@@ -71,6 +71,7 @@ async function handleLogin() {
 
 // ── Logout ───────────────────────────────────────────────────────
 async function logout() {
+  _stopSystemPolling()
   try { await fetch('api/auth/logout.php', { method: 'POST' }) } catch (_) {}
 
   if (window.closeModal) window.closeModal()
@@ -456,7 +457,7 @@ async function restoreSession() {
 // session (even a 30-day one) has expired and the user has to sign in again.
 function _prefillRememberedEmail() {
   try {
-    const saved = localStorage.getItem('opticana_remembered_email')
+    const saved = localStorage.getItem('canaopticalclinic_remembered_email')
     if (!saved) return
     const emailEl    = document.getElementById('login-email')
     const rememberEl = document.getElementById('login-remember')
@@ -1227,7 +1228,7 @@ function _bootAfterAuth(role, user) {
 
   // Load real data from backend (non-blocking)
   _syncAppointments()
-  _syncNotifications()
+  _syncNotifications().then(() => _startSystemPolling())
   _syncClinicSettings()
   _syncServices()
   if (role === 'admin') { _syncActivityLog(); _syncStaff(); _syncArchives() }
@@ -1304,7 +1305,7 @@ async function _syncMyRecords() {
     const exams = d.examinations  || []
     const rxs   = d.prescriptions || []
     const cons  = d.consultations || []
-    // Update state.user so patient-records page (reads user.examinations directly) works
+    // Update state.user so the exam-history/prescriptions/consultations pages (which read user.examinations etc. directly) work
     if (window.state.user) {
       window.state.user.examinations  = exams
       window.state.user.prescriptions = rxs
@@ -1323,7 +1324,7 @@ async function _syncMyRecords() {
       }
     }
     const page = window.state?.page
-    const dataPages = new Set(['patient-dashboard','patient-records','patient-prescriptions','patient-exam-history'])
+    const dataPages = new Set(['patient-dashboard','patient-prescriptions','patient-exam-history','patient-consultations'])
     if (dataPages.has(page)) window.renderPage()
   } catch (_) {}
 }
@@ -1426,7 +1427,7 @@ async function _syncClinicSettings() {
     window._clinicName     = clinicInfo.name     || 'Cana Optical Clinic'
     window._clinicAddress  = clinicInfo.address  || ''
     try {
-      if (clinicInfo.name) localStorage.setItem('_opticana_clinicName', clinicInfo.name)
+      if (clinicInfo.name) localStorage.setItem('_canaopticalclinic_clinicName', clinicInfo.name)
     } catch(_) {}
     const _lsBrand = document.getElementById('ls-brand-name')
     if (_lsBrand && clinicInfo.name) _lsBrand.textContent = clinicInfo.name
@@ -1461,21 +1462,104 @@ async function _syncServices() {
 window._syncServices = _syncServices
 
 // ── Notifications sync ────────────────────────────────────────────
-window._notifications = []
-window._unreadCount   = 0
+window._notifications      = []
+window._unreadCount        = 0
+window._systemPollInterval = null
+let _pollTick       = 0
+let _pollFailStreak = 0
+let _pollSkipTicks  = 0
 
+// Returns true on success so the poll tick can use it as a server-health signal.
 async function _syncNotifications() {
   try {
     const r = await fetch('api/notifications/index.php')
-    if (!r.ok) return
+    if (!r.ok) return false
     const d = await r.json()
-    if (!d.success) return
+    if (!d.success) return false
     window._notifications = d.notifications || []
     window._unreadCount   = d.unread_count  || 0
     if (window._updateNotifUI) window._updateNotifUI()
-  } catch (_) {}
+    if (window._updateSidebarBadges) window._updateSidebarBadges()
+    return true
+  } catch (_) { return false }
 }
 window._syncNotifications = _syncNotifications
+
+async function _systemPollTick() {
+  // Don't poll a tab the user isn't looking at
+  if (document.hidden) return
+
+  // Exponential back-off after repeated server failures
+  if (_pollSkipTicks > 0) { _pollSkipTicks--; return }
+
+  const role = window.state?.role
+  const page = window.state?.page
+  if (!role) return
+
+  _pollTick++
+
+  // Notifications run first — their success/fail is our server health signal
+  const ok = await _syncNotifications()
+  if (!ok) {
+    _pollFailStreak++
+    // After 3 failures: skip 1–4 extra ticks (30s → up to 150s between retries)
+    if (_pollFailStreak >= 3) _pollSkipTicks = Math.min(_pollFailStreak - 2, 4)
+    return
+  }
+  _pollFailStreak = 0
+
+  const examInProgress = page === 'new-examination' && window.state?.params?.patientId
+
+  // Appointments badge matters for admin/staff/doctor; patients have no badge
+  // and their nav triggers already refresh appointment data on page open
+  if (role !== 'patient') _syncAppointments()
+
+  // Role-specific light syncs
+  if (role === 'patient') _syncMyRecords()
+  if (['admin','staff'].includes(role)) _syncContactMessages()
+
+  // Heavier syncs every other tick (~60s)
+  if (_pollTick % 2 === 0) {
+    if (['admin','staff','doctor'].includes(role) && !examInProgress) _syncPatients()
+    if (role === 'admin') _syncActivityLog()
+  }
+}
+
+function _startSystemPolling() {
+  if (window._systemPollInterval) return
+  _pollTick = 0
+  window._systemPollInterval = setInterval(_systemPollTick, 30000)
+}
+
+function _stopSystemPolling() {
+  if (window._systemPollInterval) {
+    clearInterval(window._systemPollInterval)
+    window._systemPollInterval = null
+  }
+  _pollTick = 0
+}
+
+// Restart the 30s clock from now — called on every navigation so the next
+// tick is always a full interval away, not wherever the old timer happened to be.
+function _resetSystemPoll() {
+  _stopSystemPolling()
+  _pollFailStreak = 0
+  _pollSkipTicks  = 0
+  _startSystemPolling()
+}
+window._startSystemPolling = _startSystemPolling
+window._stopSystemPolling  = _stopSystemPolling
+window._resetSystemPoll    = _resetSystemPoll
+
+// When the user comes back to a hidden tab: fire an immediate catch-up sync
+// and reset the timer so the next poll is 30s from now, not from whenever
+// the interval would have fired next.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && window.state?.role) {
+    _systemPollTick()
+    _resetSystemPoll()
+  }
+})
 
 // ── Activity log sync ─────────────────────────────────────────────
 async function _syncActivityLog() {

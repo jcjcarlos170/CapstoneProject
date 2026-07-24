@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/services/index.php
+//  CANAOPTICALCLINIC — api/services/index.php
 //  GET — any authenticated user. Returns all clinic services.
 // ================================================================
 

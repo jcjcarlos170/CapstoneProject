@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/users/reset_password.php
+//  CANAOPTICALCLINIC — api/users/reset_password.php
 //  Admin only. Resets any user's password.
 //  POST { profileId, role, newPassword }
 //  → { success:true } | { success:false, message }

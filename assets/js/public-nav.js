@@ -1,5 +1,5 @@
 // ================================================================
-//  OPTICANA — public-nav.js
+//  CANAOPTICALCLINIC — public-nav.js
 //  Shared across the public pages (index.html, pages/*.html).
 //  If the visitor has an active session, swaps the navbar's "Login"
 //  link for a profile dropdown (name/avatar + Dashboard + Sign Out),
@@ -43,8 +43,8 @@
 
   // Pre-sync from localStorage so name shows immediately before the API responds
   try {
-    var _pn = localStorage.getItem('_opticana_clinicName')
-    var _pl = localStorage.getItem('_opticana_logo_url')
+    var _pn = localStorage.getItem('_canaopticalclinic_clinicName')
+    var _pl = localStorage.getItem('_canaopticalclinic_logo_url')
     if (_pn) document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = _pn })
     if (_pl) {
       document.querySelectorAll('#site-logo-img, .footer-logo-img').forEach(function (img) { img.src = _pl })
@@ -272,12 +272,12 @@
 
   // Real-time branding sync: when admin saves clinic settings in another tab
   window.addEventListener('storage', function (e) {
-    if (e.key === '_opticana_logo_url' && e.newValue) {
+    if (e.key === '_canaopticalclinic_logo_url' && e.newValue) {
       var url = e.newValue
       document.querySelectorAll('#site-logo-img, .footer-logo-img').forEach(function (img) { img.src = url })
       document.querySelectorAll('#site-favicon').forEach(function (link) { link.href = url })
     }
-    if (e.key === '_opticana_clinicName' && e.newValue) {
+    if (e.key === '_canaopticalclinic_clinicName' && e.newValue) {
       document.querySelectorAll('.nav-logo-name, .footer-logo-name').forEach(function (el) { el.textContent = e.newValue })
       var footerLine = document.querySelector('.footer-line')
       if (footerLine) footerLine.textContent = '© ' + new Date().getFullYear() + ' ' + e.newValue + '. All rights reserved.'

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/doctors/update.php
+//  CANAOPTICALCLINIC — api/doctors/update.php
 //  POST { doctorId, days:[], workHours, available } — admin/staff only.
 //  Updates a doctor's weekly availability pattern (which days they
 //  work, their hours, and whether they're marked available at all).

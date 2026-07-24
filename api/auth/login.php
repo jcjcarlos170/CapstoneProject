@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/login.php
+//  CANAOPTICALCLINIC — api/auth/login.php
 //  POST { email, password }
 //  → 200 { success:true,  role, user }
 //  → 200 { success:false, message }

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/contact/delete.php
+//  CANAOPTICALCLINIC — api/contact/delete.php
 //  POST { id: N } → delete a contact message. admin/staff only.
 // ================================================================
 

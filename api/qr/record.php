@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/qr/record.php
+//  CANAOPTICALCLINIC — api/qr/record.php
 //  POST { found, patientId } — logs one QR scan attempt.
 //  → 200 { success:true } | { success:false, message }
 // ================================================================

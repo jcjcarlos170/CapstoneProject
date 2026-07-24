@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/users/update_profile.php
+//  CANAOPTICALCLINIC — api/users/update_profile.php
 //
 //  POST { firstName, lastName, phone, email }
 //  Authenticated admin / staff / doctor only.

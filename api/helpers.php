@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/helpers.php
+//  CANAOPTICALCLINIC — api/helpers.php
 //  Shared utilities for all API endpoints.
 // ================================================================
 

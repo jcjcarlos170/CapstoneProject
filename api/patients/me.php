@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/me.php
+//  CANAOPTICALCLINIC — api/patients/me.php
 //  GET → returns the logged-in patient's own examinations,
 //        prescriptions, and consultations.
 //  Accessible only by the 'patient' role.

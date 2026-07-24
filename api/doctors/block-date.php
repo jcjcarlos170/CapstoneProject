@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/doctors/block-date.php
+//  CANAOPTICALCLINIC — api/doctors/block-date.php
 //  POST { doctorId, date, reason } — admin/staff only.
 //  Marks a single date as unavailable for a doctor (leave, conference,
 //  holiday, etc.) — separate from their recurring weekly schedule.

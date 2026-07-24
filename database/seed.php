@@ -1,9 +1,9 @@
 <?php
 // ================================================================
-//  OPTICANA — database/seed.php
+//  CANAOPTICALCLINIC — database/seed.php
 //  Clears all tables and re-inserts demo data with hashed passwords.
 //
-//  OPTION A — Browser:  http://localhost/opticana/database/seed.php
+//  OPTION A — Browser:  http://localhost/canaopticalclinic/database/seed.php
 //             Confirm the prompt that appears.
 //  OPTION B — CLI:      php seed.php --force
 //
@@ -24,7 +24,7 @@ if (!$isCLI && !isset($_GET['go'])) {
     <style>body{font-family:sans-serif;max-width:520px;margin:60px auto;padding:24px;background:#f9f9f9;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
     h2{color:#E8891C}p{color:#555}a{display:inline-block;background:#E8891C;color:#fff;padding:10px 24px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:12px}</style>
     </head><body>
-    <h2>OPTICANA — Database Seeder</h2>
+    <h2>Cana Optical Clinic — Database Seeder</h2>
     <p>This will <strong>delete all existing data</strong> and insert fresh demo records.<br>Run this only on a development database.</p>
     <a href="?go=1">Yes, seed the database</a>
     </body></html>
@@ -44,7 +44,7 @@ function log_msg(string $msg): void {
 
 if (!$isCLI) {
     echo "<!DOCTYPE html><html><head><meta charset='utf-8'><style>body{font-family:monospace;padding:24px}p{margin:4px 0}</style></head><body>\n";
-    echo "<h2 style='color:#E8891C'>OPTICANA — Seeding Database…</h2>\n";
+    echo "<h2 style='color:#E8891C'>Cana Optical Clinic — Seeding Database…</h2>\n";
 }
 
 // ── Clear tables (FK-safe order) ─────────────────────────────────
@@ -212,7 +212,7 @@ $patRows = [
 foreach ($patRows as $r) {
     [$pid,$email,$pass,$fn,$ln,$gender,$dob,$age,$contact,$address,$blood,$occ,$medHx,$optHx,$regDate,$lastVisit,$status] = $r;
     $uid = addUser($pdo, $email, $pass, 'patient');
-    $qr  = 'OPTICANA-' . $pid . '-' . strtoupper($fn . $ln);
+    $qr  = 'CANA-' . $pid . '-' . strtoupper($fn . $ln);
     $insP->execute([$pid,$uid,$fn,$ln,$gender,$dob,$age,$contact,$address,$blood,$occ,$medHx,$optHx,$qr,$regDate,$lastVisit,$status]);
 }
 
@@ -221,7 +221,7 @@ $aliasUid = addUser($pdo, 'patient@gmail.com', 'patient123', 'patient');
 $insP->execute(['P026',$aliasUid,'Maria','Santos','Female','1990-03-15',35,'09171234567',
     '123 Rizal St, Bacoor, Cavite','O+','Accountant',
     'Hypertension (controlled).','Myopia since age 12.',
-    'OPTICANA-P026-MARIASANTOS',date('Y-m-d'),null,'active']);
+    'CANA-P026-MARIASANTOS',date('Y-m-d'),null,'active']);
 
 log_msg('Patients seeded (P001–P026).');
 
@@ -275,5 +275,5 @@ log_msg("Done! Total users in DB: $totalUsers");
 
 if (!$isCLI) {
     echo "<p style='color:green;font-weight:bold'>✓ Database seeded successfully.</p>";
-    echo "<p><a href='../index.html'>→ Go to OPTICANA</a></p></body></html>";
+    echo "<p><a href='../index.html'>→ Go to Cana Optical Clinic</a></p></body></html>";
 }

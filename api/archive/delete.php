@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/archive/delete.php
+//  CANAOPTICALCLINIC — api/archive/delete.php
 //  Admin only. Permanently deletes an archived account/patient —
 //  removes the role row (cascading to appointments/examinations/
 //  prescriptions/consultations), the login row, and the archive

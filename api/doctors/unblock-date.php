@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/doctors/unblock-date.php
+//  CANAOPTICALCLINIC — api/doctors/unblock-date.php
 //  POST { doctorId, date } — admin/staff only.
 //  Removes a previously blocked date, restoring normal availability.
 // ================================================================

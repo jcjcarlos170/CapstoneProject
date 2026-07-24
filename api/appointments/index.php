@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/appointments/index.php
+//  CANAOPTICALCLINIC — api/appointments/index.php
 //  GET → returns appointments filtered by caller's role:
 //    admin/staff  → all appointments
 //    doctor       → only their appointments

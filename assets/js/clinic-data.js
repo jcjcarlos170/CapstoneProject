@@ -1,5 +1,5 @@
 // ================================================================
-//  OPTICANA — branch-data.js
+//  CANAOPTICALCLINIC — branch-data.js
 //  Single-clinic data layer. Loaded as a plain script (non-module).
 // ================================================================
 

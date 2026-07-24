@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/me.php
+//  CANAOPTICALCLINIC — api/auth/me.php
 //  GET — returns the current session user, or { success: false }.
 //  Called on page load to restore an active PHP session.
 // ================================================================

@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/archive/restore.php
+//  CANAOPTICALCLINIC — api/archive/restore.php
 //  Admin only. Restores an archived account/patient back to the
 //  active list and re-enables login.
 //

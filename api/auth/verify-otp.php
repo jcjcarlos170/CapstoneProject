@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/auth/verify-otp.php
+//  CANAOPTICALCLINIC — api/auth/verify-otp.php
 //  POST { email, otp }
 //  → 200 { success:true, token }                  — OTP matched
 //  → 200 { success:false, attemptsLeft:N }         — wrong code

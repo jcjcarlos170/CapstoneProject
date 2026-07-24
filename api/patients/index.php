@@ -1,6 +1,6 @@
 <?php
 // ================================================================
-//  OPTICANA — api/patients/index.php
+//  CANAOPTICALCLINIC — api/patients/index.php
 //  GET → returns all patients (admin/staff/doctor only)
 //  Each patient includes their examinations, prescriptions,
 //  and consultations so the front-end can work offline.

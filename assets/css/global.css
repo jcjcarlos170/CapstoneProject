@@ -595,21 +595,31 @@ input[type="date"].reg-input {
 }
 /* Some Android WebView builds render this native icon invisible (white-on-
    white) no matter what color-scheme says, so it's hidden in favor of the
-   always-visible custom .reg-date-icon drawn over it. Stretched to cover
-   the whole field (not left at its small default size/position) so a click
-   anywhere opens the picker on desktop too — otherwise desktop only opens
-   it via that tiny icon's exact original spot, which no longer lines up
-   with where the fake icon is drawn. Mobile already opens on any tap
-   regardless of icon size, so this just brings desktop in line with it. */
+   always-visible custom .reg-date-icon drawn over it — its hit area stays
+   at its normal small size/position (tapping anywhere already opens the
+   picker on touch devices regardless of icon size, so nothing else is
+   needed here for mobile). */
 input[type="date"].reg-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
   opacity: 0;
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
+}
+/* Desktop-only: stretch the (still invisible) indicator to cover the whole
+   field so a click anywhere opens the picker — desktop has no "tap
+   anywhere" behavior, it only opens via that tiny icon's exact spot, which
+   doesn't line up with where the fake icon is drawn. Scoped to fine-pointer
+   (mouse) devices because on at least one Android build, adding
+   position:absolute + full width/height here made the browser stop
+   respecting opacity:0 and fall back to rendering a default chevron icon —
+   mobile never needed this stretch anyway. */
+@media (hover: hover) and (pointer: fine) {
+  input[type="date"].reg-input::-webkit-calendar-picker-indicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+  }
 }
 /* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
    remain visible even when the system prefers dark mode. */

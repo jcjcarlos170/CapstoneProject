@@ -593,45 +593,16 @@ input[type="date"].reg-input {
      white background set by .reg-input. */
   color-scheme: light;
 }
-/* Some Android WebView builds render this native icon invisible (white-on-
-   white) no matter what color-scheme says, so it's hidden in favor of the
-   always-visible custom .reg-date-icon drawn over it — its hit area stays
-   at its normal small size/position (tapping anywhere already opens the
-   picker on touch devices regardless of icon size, so nothing else is
-   needed here for mobile). */
+/* The native calendar icon is unreliable across browsers here — some
+   Android builds render it invisible (white-on-white) regardless of
+   color-scheme, others ignore opacity:0 entirely and show a fallback
+   chevron instead. Rather than keep fighting per-browser rendering of
+   this pseudo-element, it's removed outright; the always-visible custom
+   .reg-date-icon is drawn in its place, and JS calls showPicker() on
+   click so the field still opens on any click/tap regardless of where
+   the real icon would have been. */
 input[type="date"].reg-input::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0;
-}
-/* Desktop-only: stretch the (still invisible) indicator to cover the whole
-   field so a click anywhere opens the picker — desktop has no "tap
-   anywhere" behavior, it only opens via that tiny icon's exact spot, which
-   doesn't line up with where the fake icon is drawn. Scoped to fine-pointer
-   (mouse) devices because on at least one Android build, adding
-   position:absolute + full width/height here made the browser stop
-   respecting opacity:0 and fall back to rendering a default chevron icon —
-   mobile never needed this stretch anyway. */
-@media (hover: hover) and (pointer: fine) {
-  input[type="date"].reg-input::-webkit-calendar-picker-indicator {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    margin: 0;
-  }
-}
-/* Touch devices: some Android Chrome builds still render a fallback
-   chevron for this indicator even with opacity:0 (confirmed — this isn't
-   caused by the desktop stretch above, it happens without it too).
-   display:none removes it outright instead of just hiding it, which is
-   safe here specifically because touch devices already open the date
-   picker on a tap anywhere on the field — they never depended on this
-   indicator remaining its own clickable target the way desktop does. */
-@media (pointer: coarse) {
-  input[type="date"].reg-input::-webkit-calendar-picker-indicator {
-    display: none;
-  }
+  display: none;
 }
 /* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
    remain visible even when the system prefers dark mode. */

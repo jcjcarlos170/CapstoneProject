@@ -16,7 +16,7 @@ try {
     $pdo = getDB();
 
     $rows = $pdo->query(
-        'SELECT d.id, d.first_name, d.last_name, d.specialization, d.work_hours,
+        'SELECT d.id, d.first_name, d.middle_name, d.last_name, d.specialization, d.work_hours,
                 d.available, d.status, u.id AS user_id,
                 GROUP_CONCAT(dd.day_of_week
                     ORDER BY FIELD(dd.day_of_week,"Mon","Tue","Wed","Thu","Fri","Sat","Sun")
@@ -26,7 +26,7 @@ try {
          JOIN users u ON u.id = d.user_id
          LEFT JOIN doctor_days dd ON dd.doctor_id = d.id
          WHERE d.status = "active" AND u.is_active = 1
-         GROUP BY d.id, d.first_name, d.last_name, d.specialization, d.work_hours,
+         GROUP BY d.id, d.first_name, d.middle_name, d.last_name, d.specialization, d.work_hours,
                   d.available, d.status, u.id
          ORDER BY d.sort_order ASC, d.first_name ASC'
     )->fetchAll();
@@ -69,13 +69,14 @@ try {
     $seen    = [];
     $doctors = [];
     foreach ($rows as $r) {
-        $key = strtolower($r['first_name'] . ' ' . $r['last_name']);
+        $key = strtolower($r['first_name'] . ' ' . ($r['middle_name'] ?? '') . ' ' . $r['last_name']);
         if (isset($seen[$key])) continue;
         $seen[$key] = true;
         $doctors[] = [
             'id'             => $r['id'],
-            'name'           => 'Dr. ' . $r['first_name'] . ' ' . $r['last_name'],
+            'name'           => trim('Dr. ' . $r['first_name'] . _mi($r['middle_name'] ?? '') . ' ' . $r['last_name']),
             'firstName'      => $r['first_name'],
+            'middleName'     => $r['middle_name'] ?? '',
             'lastName'       => $r['last_name'],
             'specialization' => $r['specialization'] ?: 'Optometrist',
             'degree'         => $degreeMap[$r['id']]  ?? 'OD',

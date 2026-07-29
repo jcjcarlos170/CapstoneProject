@@ -78,6 +78,12 @@
 --      FOREIGN KEY (`doctor_id`) REFERENCES `doctors`(`id`) ON DELETE CASCADE
 --    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --    ALTER TABLE `doctors` ADD COLUMN `prc_license` VARCHAR(50) NULL DEFAULT NULL AFTER `specialization`;
+--    ALTER TABLE `patients` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
+--    ALTER TABLE `doctors` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
+--    ALTER TABLE `staff` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
+--    ALTER TABLE `admins` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
+--    ALTER TABLE `pending_registrations` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
+--    ALTER TABLE `activity_log` ADD COLUMN `ip_address` VARCHAR(45) NULL DEFAULT NULL AFTER `type`;
 -- ================================================================
 
 SET NAMES utf8mb4;
@@ -105,6 +111,7 @@ CREATE TABLE IF NOT EXISTS `admins` (
   `id`          VARCHAR(10)  NOT NULL,
   `user_id`     INT UNSIGNED NULL,
   `first_name`  VARCHAR(100) NOT NULL,
+  `middle_name` VARCHAR(100) NULL DEFAULT NULL,
   `last_name`   VARCHAR(100) NOT NULL,
   `contact`     VARCHAR(20)  DEFAULT NULL,
   `status`      ENUM('active','inactive') NOT NULL DEFAULT 'active',
@@ -119,6 +126,7 @@ CREATE TABLE IF NOT EXISTS `staff` (
   `id`          VARCHAR(10)  NOT NULL,
   `user_id`     INT UNSIGNED NULL,
   `first_name`  VARCHAR(100) NOT NULL,
+  `middle_name` VARCHAR(100) NULL DEFAULT NULL,
   `last_name`   VARCHAR(100) NOT NULL,
   `contact`     VARCHAR(20)  DEFAULT NULL,
   `status`      ENUM('active','inactive') NOT NULL DEFAULT 'active',
@@ -133,6 +141,7 @@ CREATE TABLE IF NOT EXISTS `doctors` (
   `id`             VARCHAR(10)  NOT NULL,
   `user_id`        INT UNSIGNED NULL,
   `first_name`     VARCHAR(100) NOT NULL,
+  `middle_name`    VARCHAR(100) NULL DEFAULT NULL,
   `last_name`      VARCHAR(100) NOT NULL,
   `specialization` VARCHAR(100) NOT NULL DEFAULT 'Optometrist',
   `degree`         VARCHAR(30)  NOT NULL DEFAULT 'OD',
@@ -175,6 +184,7 @@ CREATE TABLE IF NOT EXISTS `patients` (
   `id`              VARCHAR(10)  NOT NULL,
   `user_id`         INT UNSIGNED NULL,
   `first_name`      VARCHAR(100) NOT NULL,
+  `middle_name`     VARCHAR(100) NULL DEFAULT NULL,
   `last_name`       VARCHAR(100) NOT NULL,
   `gender`          ENUM('Male','Female','Other') NOT NULL,
   `dob`             DATE         NOT NULL,
@@ -320,6 +330,7 @@ CREATE TABLE IF NOT EXISTS `activity_log` (
   `action`    TEXT         DEFAULT NULL,
   `timestamp` DATETIME     DEFAULT NULL,
   `type`      VARCHAR(50)  DEFAULT NULL,
+  `ip_address` VARCHAR(45) DEFAULT NULL,
   PRIMARY KEY (`id`),
   INDEX `idx_al_user` (`users_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -418,6 +429,19 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
 --    ALTER TABLE `password_resets` ADD COLUMN IF NOT EXISTS `total_attempts` TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `attempts`;
 --    ALTER TABLE `password_resets` ADD COLUMN IF NOT EXISTS `blocked_until` DATETIME NULL DEFAULT NULL AFTER `total_attempts`;
 
+-- ── Password History (reuse prevention) ───────────────────────────
+-- Stores each user's previously-used password hashes so a new password
+-- can be checked against their recent history, not just the current one.
+CREATE TABLE IF NOT EXISTS `password_history` (
+  `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `users_id`      INT UNSIGNED NOT NULL,
+  `password_hash` VARCHAR(255) NOT NULL,
+  `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_ph_user` (`users_id`),
+  FOREIGN KEY (`users_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ── Pending Registrations (staging until OTP confirmed) ───────────
 -- Self-registration form data lives here until the OTP is verified.
 -- Only then are rows inserted into users + patients. This prevents
@@ -426,6 +450,7 @@ CREATE TABLE IF NOT EXISTS `pending_registrations` (
   `id`            INT UNSIGNED     NOT NULL AUTO_INCREMENT,
   `email`         VARCHAR(255)     NOT NULL,
   `first_name`    VARCHAR(100)     NOT NULL,
+  `middle_name`   VARCHAR(100)     NULL DEFAULT NULL,
   `last_name`     VARCHAR(100)     NOT NULL,
   `dob`           DATE             NOT NULL,
   `gender`        VARCHAR(20)      NOT NULL,

@@ -27,7 +27,7 @@ try {
     $pdo = getDB();
 
     $rows = $pdo->query(
-        'SELECT d.id, d.first_name, d.last_name, d.specialization, d.work_hours,
+        'SELECT d.id, d.first_name, d.middle_name, d.last_name, d.specialization, d.work_hours,
                 d.available, d.status, d.contact, u.id AS user_id, u.email,
                 GROUP_CONCAT(dd.day_of_week
                     ORDER BY FIELD(dd.day_of_week,"Mon","Tue","Wed","Thu","Fri","Sat","Sun")
@@ -37,7 +37,7 @@ try {
          LEFT JOIN users u ON u.id = d.user_id
          LEFT JOIN doctor_days dd ON dd.doctor_id = d.id
          WHERE d.archived_at IS NULL
-         GROUP BY d.id, d.first_name, d.last_name, d.specialization,
+         GROUP BY d.id, d.first_name, d.middle_name, d.last_name, d.specialization,
                   d.work_hours, d.available, d.status, d.contact, u.id, u.email
          ORDER BY d.sort_order ASC, d.first_name ASC'
     )->fetchAll();
@@ -80,8 +80,9 @@ try {
 
     $doctors = array_map(fn($r) => [
         'id'             => $r['id'],
-        'name'           => 'Dr. ' . $r['first_name'] . ' ' . $r['last_name'],
+        'name'           => trim('Dr. ' . $r['first_name'] . _mi($r['middle_name'] ?? '') . ' ' . $r['last_name']),
         'firstName'      => $r['first_name'],
+        'middleName'     => $r['middle_name'] ?? '',
         'lastName'       => $r['last_name'],
         'email'          => $r['email'] ?? '',
         'specialization' => $r['specialization'] ?: 'Optometrist',

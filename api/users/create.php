@@ -23,6 +23,7 @@ if ($_SESSION['role'] !== 'admin') {
 $b       = getBody();
 $role    = trim($b['role']           ?? '');
 $first   = trim($b['firstName']      ?? '');
+$middle  = trim($b['middleName']     ?? '');
 $last    = trim($b['lastName']       ?? '');
 $email   = strtolower(trim($b['email'] ?? ''));
 $pass    = $b['password']            ?? '';
@@ -90,23 +91,24 @@ try {
         $degree = trim($b['degree']         ?? '') ?: 'OD';
         $prc    = trim($b['prcLicense']     ?? '');
         $pdo->prepare(
-            'INSERT INTO doctors (id, user_id, first_name, last_name, contact, specialization, degree, prc_license, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        )->execute([$newId, $userId, $first, $last, $contact, $spec, $degree, $prc ?: null, 'active']);
+            'INSERT INTO doctors (id, user_id, first_name, middle_name, last_name, contact, specialization, degree, prc_license, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$newId, $userId, $first, $middle ?: null, $last, $contact, $spec, $degree, $prc ?: null, 'active']);
     } else {
         $pdo->prepare(
-            "INSERT INTO `{$table}` (id, user_id, first_name, last_name, contact, status)
-             VALUES (?, ?, ?, ?, ?, ?)"
-        )->execute([$newId, $userId, $first, $last, $contact, 'active']);
+            "INSERT INTO `{$table}` (id, user_id, first_name, middle_name, last_name, contact, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )->execute([$newId, $userId, $first, $middle ?: null, $last, $contact, 'active']);
     }
 
     $pdo->commit();
 
     $userObj = [
-        'id'        => $newId,
-        'firstName' => $first,
-        'lastName'  => $last,
-        'name'      => ($role === 'Doctor' ? 'Dr. ' : '') . "$first $last",
+        'id'         => $newId,
+        'firstName'  => $first,
+        'middleName' => $middle,
+        'lastName'   => $last,
+        'name'       => ($role === 'Doctor' ? 'Dr. ' : '') . "$first $last",
         'email'     => $email,
         'contact'   => $contact,
         'role'      => $dbRole,

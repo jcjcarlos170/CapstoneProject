@@ -76,6 +76,7 @@ try {
 
     // ── Correct OTP: create the real account now ──────────────────
     $first   = $row['first_name'];
+    $middle  = $row['middle_name'];
     $last    = $row['last_name'];
     $dob     = $row['dob'];
     $gender  = $row['gender'];
@@ -110,13 +111,13 @@ try {
 
     $pdo->prepare(
         'INSERT INTO patients
-           (id, user_id, first_name, last_name, gender, dob, age,
+           (id, user_id, first_name, middle_name, last_name, gender, dob, age,
             contact, address, blood_type, occupation,
             medical_history, optical_history,
             qr_data, registered_date, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     )->execute([
-        $pid, $uid, $first, $last, $gender, $dob, $age,
+        $pid, $uid, $first, $middle ?: null, $last, $gender, $dob, $age,
         $contact, $address, $blood, '',
         '', '',
         $qr, $today, 'active',
@@ -137,9 +138,9 @@ try {
     try {
         $logId = 'L' . date('YmdHis') . substr((string)microtime(true), -3);
         $pdo->prepare(
-            'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type)
-             VALUES (?,?,?,?,\'Registered and verified email\',NOW(),\'login\')'
-        )->execute([substr($logId, 0, 20), $uid, "$first $last", 'Patient']);
+            'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type, ip_address)
+             VALUES (?,?,?,?,\'Registered and verified email\',NOW(),\'login\',?)'
+        )->execute([substr($logId, 0, 20), $uid, "$first $last", 'Patient', clientIp()]);
     } catch (PDOException $e) { /* non-critical */ }
 
     $result  = loadUserProfile($pdo, $uid, 'patient');

@@ -669,6 +669,7 @@ function pagePatientView() {
   window.state.afterRender = () => {
     window.initPagination('pv-appt-tbody')
     window.initSortable('pv-appt-tbody')
+    if (params.tab) window.switchPatientTab(params.tab)
   }
 
   // ── Tab panel helper ─────────────────────────────────────────
@@ -746,7 +747,7 @@ function pagePatientView() {
         </div>
         ${i===0 ? `<span style="background:#FFF7ED;color:#E8760A;font-size:.63rem;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDE68A;flex-shrink:0;white-space:nowrap">Latest</span>` : ''}
         <button class="btn-icon" title="View Results" onclick="window.viewExamDetail('${p.id}','${e.id}')">${ic('eye','icon-sm')}</button>
-        ${role !== 'patient' ? `<button class="btn-ghost" onclick="window.navigate('${role === 'doctor' ? 'new-examination' : 'examination'}',{patientId:'${p.id}',examId:'${e.id}'})"
+        ${role !== 'patient' ? `<button class="btn-ghost" onclick="window.navigate('${role === 'doctor' ? 'edit-examination' : 'examination'}',{patientId:'${p.id}',examId:'${e.id}'})"
           style="font-size:.72rem;padding:4px 10px;flex-shrink:0;white-space:nowrap">${ic('edit','icon-sm')} Edit</button>` : ''}
       </div>`).join('')}
     </div>` : emptyState('eye', 'No examination records', 'No examination records on file.')
@@ -860,6 +861,7 @@ function pagePatientView() {
         ${panel('personal', `
           <div class="profile-two-col" style="gap:0 32px">
             ${[
+              ['Full Name',       [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || p.name],
               ['Date of Birth',   fmtDate(p.dob)],
               ['Age',             `${p.age} years old`],
               ['Gender',          p.gender],
@@ -1702,10 +1704,14 @@ function pageAdminSettings() {
             <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C">Personal Information</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:14px">
-            <div class="form-row-2">
+            <div class="form-row-3">
               <div class="form-group">
                 <label class="form-label">First Name</label>
                 <input class="form-input" id="ad-fname" value="${adm.firstName || ''}">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Middle Name</label>
+                <input class="form-input" id="ad-mname" value="${adm.middleName || ''}">
               </div>
               <div class="form-group">
                 <label class="form-label">Last Name</label>
@@ -1752,7 +1758,7 @@ function pageAdminSettings() {
               <div id="ad-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-              ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter.
+              ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
             </div>
             <div style="display:flex;justify-content:flex-end">
               <button class="btn-primary"
@@ -2288,8 +2294,8 @@ function pageActivityLog() {
       </div>
       <table class="tbl">
         <colgroup>
-          <col style="width:5%"><col style="width:16%"><col style="width:9%">
-          <col style="width:38%"><col style="width:18%"><col style="width:14%">
+          <col style="width:5%"><col style="width:15%"><col style="width:8%">
+          <col style="width:30%"><col style="width:15%"><col style="width:12%"><col style="width:15%">
         </colgroup>
         <thead id="log-thead"><tr>
           <th>#</th>
@@ -2297,6 +2303,7 @@ function pageActivityLog() {
           <th>Role</th><th>Action</th>
           <th data-sort-key="ts" data-sort-type="date">Timestamp</th>
           <th>Type</th>
+          <th>IP Address</th>
         </tr></thead>
         <tbody id="log-tbody">
           ${activityLog.map((l,i) => {
@@ -2316,10 +2323,11 @@ function pageActivityLog() {
               <td style="font-size:.82rem;max-width:380px">${l.action}</td>
               <td style="font-size:.75rem;color:#9CA3AF;white-space:nowrap">${fmtTimestamp12h(l.timestamp)}</td>
               <td>${logTypeBadge(l.type)}</td>
+              <td style="font-size:.75rem;color:#9CA3AF;font-family:monospace;white-space:nowrap">${l.ip || '—'}</td>
             </tr>`
           }).join('')}
           <tr id="log-empty-row" style="display:none;pointer-events:none">
-            <td colspan="6" style="padding:24px;text-align:center;border:none;color:#9CA3AF;font-size:.85rem">No activities found.</td>
+            <td colspan="7" style="padding:24px;text-align:center;border:none;color:#9CA3AF;font-size:.85rem">No activities found.</td>
           </tr>
         </tbody>
       </table>
@@ -2836,10 +2844,14 @@ function pageDoctorSettings() {
           <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C">Personal Information</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
-          <div class="form-row-2">
+          <div class="form-row-3">
             <div class="form-group">
               <label class="form-label">First Name</label>
               <input class="form-input" id="doc-fname" value="${doc.firstName || ''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Middle Name</label>
+              <input class="form-input" id="doc-mname" value="${doc.middleName || ''}">
             </div>
             <div class="form-group">
               <label class="form-label">Last Name</label>
@@ -2904,7 +2916,7 @@ function pageDoctorSettings() {
             <div id="doc-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-            ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter.
+            ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
           </div>
           <div style="display:flex;justify-content:flex-end">
             <button class="btn-primary"
@@ -2934,12 +2946,20 @@ function pageExamination() {
 
   if (role !== 'doctor') {
     const exam = params.examId ? (p?.examinations || []).find(e => e.id === params.examId) || pre : pre
-    const val = (obj, key) => (obj && obj[key]) || '—'
     const ro = (v) => `<div style="padding:8px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;font-size:.87rem;color:#1f2937;min-height:38px">${v || '—'}</div>`
+    const eyeField = (label, val, isLast) => `
+      <div style="padding:10px 6px;${isLast ? '' : 'border-right:1px solid #F3F4F6;'}text-align:center;flex:1;min-width:0">
+        <div style="font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:4px">${label}</div>
+        <div style="font-size:.9rem;font-weight:800;font-family:monospace;color:#1C1C1C">${val || '—'}</div>
+      </div>`
+    const hasIopOrPd = exam.iop?.od || exam.iop?.os || exam.pd
+    const backTarget = p
+      ? `window.navigate('patient-view',{patientId:'${p.id}',patientName:'${(p.name||'').replace(/'/g,"\\'")}',tab:'history'})`
+      : `window.navigate('patient-list')`
     return `
   <div class="page-header">
     <div class="page-header-left" style="display:flex;align-items:center;gap:12px">
-      <button class="btn-icon" onclick="history.back()">${ic('chevron-left','icon')}</button>
+      <button class="btn-icon" onclick="${backTarget}">${ic('chevron-left','icon')}</button>
       <div>
         <h1 class="page-title">Optical Examination</h1>
         <p class="page-subtitle">${p ? p.name + ' · ' + p.id : 'Patient'} ${exam.id ? '· ' + exam.id : ''}</p>
@@ -2953,35 +2973,61 @@ function pageExamination() {
     <div class="card" style="margin-bottom:20px">
       <div class="card-header"><div class="card-title">Visual Acuity &amp; Refraction</div><div class="card-subtitle">${fmtDate(exam.date)} ${exam.doctor ? '· ' + exam.doctor : ''}</div></div>
       <div class="card-body">
-        <div class="eye-grid" style="margin-bottom:12px">
-          <div></div>
-          <div class="eye-header">SPH</div><div class="eye-header">CYL</div><div class="eye-header">AXIS</div><div class="eye-header">VA</div>
-          <div class="eye-label">OD (Right)</div>
-          ${ro(val(exam.od,'sph'))} ${ro(val(exam.od,'cyl'))} ${ro(val(exam.od,'axis'))} ${ro(val(exam.od,'va'))}
-          <div class="eye-label">OS (Left)</div>
-          ${ro(val(exam.os,'sph'))} ${ro(val(exam.os,'cyl'))} ${ro(val(exam.os,'axis'))} ${ro(val(exam.os,'va'))}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px${hasIopOrPd ? ';margin-bottom:14px' : ''}">
+          <div style="border:1.5px solid #86EFAC;border-radius:10px;overflow:hidden">
+            <div style="background:#F0FDF4;padding:8px 12px;border-bottom:1px solid #86EFAC;display:flex;align-items:center;gap:6px">
+              <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;flex-shrink:0"></div>
+              <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#059669">OD — Right Eye</span>
+            </div>
+            <div style="display:flex;background:#fff">
+              ${eyeField('SPH', exam.od?.sph, false)}
+              ${eyeField('CYL', exam.od?.cyl, false)}
+              ${eyeField('AXIS', exam.od?.axis, false)}
+              ${eyeField('VA', exam.od?.va, true)}
+            </div>
+            ${exam.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #BBF7D0;background:#F0FDF4;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#059669">${exam.od.add}</span></div>` : ''}
+          </div>
+          <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+            <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+              <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+              <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OS — Left Eye</span>
+            </div>
+            <div style="display:flex;background:#fff">
+              ${eyeField('SPH', exam.os?.sph, false)}
+              ${eyeField('CYL', exam.os?.cyl, false)}
+              ${eyeField('AXIS', exam.os?.axis, false)}
+              ${eyeField('VA', exam.os?.va, true)}
+            </div>
+            ${exam.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #FDE68A;background:#FFF7ED;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#B45309">${exam.os.add}</span></div>` : ''}
+          </div>
         </div>
-        <div class="form-row-3" style="margin-top:12px">
-          <div class="form-group"><label class="form-label">ADD — OD</label>${ro(val(exam.od,'add'))}</div>
-          <div class="form-group"><label class="form-label">ADD — OS</label>${ro(val(exam.os,'add'))}</div>
-          <div class="form-group"><label class="form-label">PD (mm)</label>${ro(exam.pd||'—')}</div>
-        </div>
-        <div class="form-row-2" style="margin-top:12px">
-          <div class="form-group"><label class="form-label">IOP — OD (mmHg)</label>${ro(val(exam.iop,'od'))}</div>
-          <div class="form-group"><label class="form-label">IOP — OS (mmHg)</label>${ro(val(exam.iop,'os'))}</div>
-        </div>
+        ${hasIopOrPd ? `<div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${exam.iop?.od ? `<div style="flex:1;min-width:120px;background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:8px 12px"><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#9CA3AF;margin-bottom:2px">IOP — OD</div><div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${exam.iop.od} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mmHg</span></div></div>` : ''}
+          ${exam.iop?.os ? `<div style="flex:1;min-width:120px;background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:8px 12px"><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#9CA3AF;margin-bottom:2px">IOP — OS</div><div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${exam.iop.os} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mmHg</span></div></div>` : ''}
+          ${exam.pd ? `<div style="flex:1;min-width:120px;background:#f9fafb;border:1px solid #eee;border-radius:8px;padding:8px 12px"><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#9CA3AF;margin-bottom:2px">PD</div><div style="font-size:.88rem;font-weight:700;color:#1C1C1C">${exam.pd} <span style="font-size:.7rem;font-weight:400;color:#9CA3AF">mm</span></div></div>` : ''}
+        </div>` : ''}
       </div>
     </div>
     <div class="card">
       <div class="card-header"><div class="card-title">Clinical Assessment &amp; Prescription</div></div>
       <div class="card-body">
-        <div class="form-row-2" style="margin-bottom:14px">
-          <div class="form-group"><label class="form-label">Diagnosis</label>${ro(exam.diagnosis)}</div>
-          <div class="form-group"><label class="form-label">Lens Type</label>${ro(exam.lensType)}</div>
-        </div>
-        <div class="form-group" style="margin-bottom:14px"><label class="form-label">Prescription / Lens Recommendation</label>${ro(exam.recommendation)}</div>
-        <div class="form-group" style="margin-bottom:14px"><label class="form-label">Test Results</label>${ro(exam.testResults)}</div>
-        <div class="form-group"><label class="form-label">Remarks / Additional Notes</label>${ro(exam.remarks)}</div>
+        <div class="form-group" style="margin-bottom:14px"><label class="form-label">Diagnosis</label>${ro(exam.diagnosis)}</div>
+        ${(exam.lensType || exam.lensMaterial || (exam.lensCoating && exam.lensCoating.length) || exam.frameSelection) ? `
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">Lens Prescription</label>
+          <div style="padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+            <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:.87rem;font-weight:600;color:#1f2937">
+              ${exam.lensType || '—'}
+              ${exam.lensMaterial && exam.lensMaterial !== 'N/A' ? `<span style="color:#D1D5DB;font-weight:400">/</span><span style="font-weight:400;color:#6B7280">${exam.lensMaterial}</span>` : ''}
+            </div>
+            ${exam.lensCoating && exam.lensCoating.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px">${exam.lensCoating.map(c=>`<span style="background:#FFF7ED;color:#C2410C;font-size:.7rem;font-weight:600;padding:2px 9px;border-radius:20px;border:1px solid #FDE68A">${c}</span>`).join('')}</div>` : ''}
+            ${exam.frameSelection && exam.frameSelection !== 'N/A — monitoring only' ? `<div style="font-size:.78rem;color:#6B7280;margin-top:7px">Frame: ${exam.frameSelection}</div>` : ''}
+          </div>
+        </div>` : ''}
+        ${exam.recommendation ? `<div class="form-group" style="margin-bottom:14px"><label class="form-label">Prescription / Lens Recommendation</label>${ro(exam.recommendation)}</div>` : ''}
+        ${exam.prescriptionDetails ? `<div class="form-group" style="margin-bottom:14px"><label class="form-label">Prescription Notes</label>${ro(exam.prescriptionDetails)}</div>` : ''}
+        ${exam.testResults ? `<div class="form-group" style="margin-bottom:14px"><label class="form-label">Test Results</label>${ro(exam.testResults)}</div>` : ''}
+        ${exam.remarks ? `<div class="form-group"><label class="form-label">Remarks / Additional Notes</label>${ro(exam.remarks)}</div>` : ''}
       </div>
     </div>
   </div>`
@@ -3793,18 +3839,18 @@ function pageNewExamination() {
   <div class="page-header">
     <div class="page-header-left">
       <div style="display:flex;align-items:center;gap:12px">
-        <button class="btn-icon" onclick="window.navigate('new-examination')" title="Back">${ic('chevron-left','icon')}</button>
+        <button class="btn-icon" onclick="window.navigate('${isEdit ? 'patient-view' : 'new-examination'}'${isEdit ? `,{patientId:'${p.id}',patientName:'${p.name.replace(/'/g,"\\'")}'}` : ''})" title="Back">${ic('chevron-left','icon')}</button>
         <div>
-          <h1 class="page-title" style="font-size:1.4rem">Optical Examination Record</h1>
-          <p class="page-subtitle">Patient: <strong>${p.name}</strong> &nbsp;·&nbsp; ${p.id}</p>
+          <h1 class="page-title" style="font-size:1.4rem">${isEdit ? 'Edit Optical Examination' : 'Optical Examination Record'}</h1>
+          <p class="page-subtitle">Patient: <strong>${p.name}</strong> &nbsp;·&nbsp; ${p.id}${isEdit ? ` &nbsp;·&nbsp; ${params.examId}` : ''}</p>
         </div>
       </div>
     </div>
-    <div class="page-header-right">
+    ${!isEdit ? `<div class="page-header-right">
       <button class="btn-secondary" style="font-size:.82rem" onclick="window.navigate('new-examination')">
         ${ic('refresh-cw','icon-sm')} Change Patient
       </button>
-    </div>
+    </div>` : ''}
   </div>
 
   <div class="page-body">
@@ -3984,16 +4030,16 @@ function pagePatientExamHistory() {
       </div>
       <!-- OD/OS snapshot -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div style="background:rgba(232,118,10,.1);border:1px solid rgba(232,118,10,.22);border-radius:8px;padding:10px 14px">
-          <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#FBBF24;margin-bottom:7px">OD — Right Eye</div>
+        <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:10px 14px">
+          <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#4ADE80;margin-bottom:7px">OD — Right Eye</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
             <span><span style="font-size:.58rem;color:rgba(255,255,255,.38)">SPH</span> <strong style="font-family:monospace;font-size:.88rem;color:#fff">${latest.od?.sph || '—'}</strong></span>
             <span><span style="font-size:.58rem;color:rgba(255,255,255,.38)">CYL</span> <strong style="font-family:monospace;font-size:.88rem;color:#fff">${latest.od?.cyl || '—'}</strong></span>
             <span><span style="font-size:.58rem;color:rgba(255,255,255,.38)">AXIS</span> <strong style="font-family:monospace;font-size:.88rem;color:#fff">${latest.od?.axis || '—'}</strong></span>
           </div>
         </div>
-        <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);border-radius:8px;padding:10px 14px">
-          <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#60A5FA;margin-bottom:7px">OS — Left Eye</div>
+        <div style="background:rgba(232,118,10,.1);border:1px solid rgba(232,118,10,.22);border-radius:8px;padding:10px 14px">
+          <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#FBBF24;margin-bottom:7px">OS — Left Eye</div>
           <div style="display:flex;gap:16px;flex-wrap:wrap">
             <span><span style="font-size:.58rem;color:rgba(255,255,255,.38)">SPH</span> <strong style="font-family:monospace;font-size:.88rem;color:#fff">${latest.os?.sph || '—'}</strong></span>
             <span><span style="font-size:.58rem;color:rgba(255,255,255,.38)">CYL</span> <strong style="font-family:monospace;font-size:.88rem;color:#fff">${latest.os?.cyl || '—'}</strong></span>
@@ -4631,12 +4677,12 @@ function pagePatientConsultations() {
       <div style="margin-bottom:${latest.remarks ? '14px' : '0'}">
         <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:6px">Prescription</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div style="background:rgba(232,118,10,.1);border:1px solid rgba(232,118,10,.22);border-radius:8px;padding:10px 14px">
-            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#FBBF24;margin-bottom:5px">OD — Right Eye</div>
+          <div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:10px 14px">
+            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#4ADE80;margin-bottom:5px">OD — Right Eye</div>
             <div style="font-family:monospace;font-size:.82rem;color:#fff">${latestRx.od || '—'}</div>
           </div>
-          <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.22);border-radius:8px;padding:10px 14px">
-            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#60A5FA;margin-bottom:5px">OS — Left Eye</div>
+          <div style="background:rgba(232,118,10,.1);border:1px solid rgba(232,118,10,.22);border-radius:8px;padding:10px 14px">
+            <div style="font-size:.58rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#FBBF24;margin-bottom:5px">OS — Left Eye</div>
             <div style="font-family:monospace;font-size:.82rem;color:#fff">${latestRx.os || '—'}</div>
           </div>
         </div>
@@ -4853,10 +4899,14 @@ function pageStaffSettings() {
           <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C">Personal Information</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
-          <div class="form-row-2">
+          <div class="form-row-3">
             <div class="form-group">
               <label class="form-label">First Name</label>
               <input class="form-input" id="st-fname" value="${staffMember.firstName || ''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Middle Name</label>
+              <input class="form-input" id="st-mname" value="${staffMember.middleName || ''}">
             </div>
             <div class="form-group">
               <label class="form-label">Last Name</label>
@@ -4903,7 +4953,7 @@ function pageStaffSettings() {
             <div id="st-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-            ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter.
+            ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
           </div>
           <div style="display:flex;justify-content:flex-end">
             <button class="btn-primary"
@@ -4981,10 +5031,10 @@ function renderRxDocumentCard(rx, patient, isFeatured) {
         <!-- OD / OS bordered cards -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
           <!-- OD -->
-          <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
-            <div style="background:#FFF7ED;padding:7px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:5px">
-              <div style="width:6px;height:6px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
-              <span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+          <div style="border:1.5px solid #86EFAC;border-radius:10px;overflow:hidden">
+            <div style="background:#F0FDF4;padding:7px 12px;border-bottom:1px solid #86EFAC;display:flex;align-items:center;gap:5px">
+              <div style="width:6px;height:6px;border-radius:50%;background:#22C55E;flex-shrink:0"></div>
+              <span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#059669">OD — Right Eye</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);background:#fff">
               ${['sph','cyl','axis'].map((k,i) => `
@@ -4995,10 +5045,10 @@ function renderRxDocumentCard(rx, patient, isFeatured) {
             </div>
           </div>
           <!-- OS -->
-          <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
-            <div style="background:#EFF6FF;padding:7px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:5px">
-              <div style="width:6px;height:6px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
-              <span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+          <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+            <div style="background:#FFF7ED;padding:7px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:5px">
+              <div style="width:6px;height:6px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+              <span style="font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OS — Left Eye</span>
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);background:#fff">
               ${['sph','cyl','axis'].map((k,i) => `
@@ -5287,10 +5337,14 @@ function pagePatientSettings() {
           <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C">Personal Information</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
-          <div class="form-row-2">
+          <div class="form-row-3">
             <div class="form-group">
               <label class="form-label">First Name</label>
               <input type="text" class="form-input" value="${patient?.firstName || user.firstName}" id="sett-first">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Middle Name</label>
+              <input type="text" class="form-input" value="${patient?.middleName || user.middleName || ''}" id="sett-middle">
             </div>
             <div class="form-group">
               <label class="form-label">Last Name</label>
@@ -5310,6 +5364,10 @@ function pagePatientSettings() {
           <div class="form-group">
             <label class="form-label">Complete Address</label>
             <input type="text" class="form-input" value="${patient?.address || ''}" id="sett-address">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Occupation</label>
+            <input type="text" class="form-input" placeholder="e.g. Teacher, Engineer, Student" value="${patient?.occupation || ''}" id="sett-occupation">
           </div>
           <div class="form-row-2">
             <div class="form-group">
@@ -5363,7 +5421,7 @@ function pagePatientSettings() {
               <div id="sett-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-              ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter.
+              ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
             </div>
             <div style="display:flex;justify-content:flex-end">
               <button class="btn-primary"

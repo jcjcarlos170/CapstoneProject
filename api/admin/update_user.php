@@ -24,6 +24,7 @@ $b             = getBody();
 $profileId     = trim($b['profileId']     ?? '');
 $role          = trim($b['role']          ?? '');
 $fn            = trim($b['firstName']     ?? '');
+$mn            = trim($b['middleName']    ?? '');
 $ln            = trim($b['lastName']      ?? '');
 $email         = trim($b['email']         ?? '');
 $contact       = trim($b['contact']       ?? '');
@@ -69,12 +70,12 @@ try {
 
     // Update name and contact on the role table
     $pdo->prepare(
-        "UPDATE `{$table}` SET first_name = ?, last_name = ?, contact = ?" .
+        "UPDATE `{$table}` SET first_name = ?, middle_name = ?, last_name = ?, contact = ?" .
         ($status ? ", status = ?" : "") .
         " WHERE id = ?"
     )->execute($status
-        ? [$fn, $ln, $contact, $status, $profileId]
-        : [$fn, $ln, $contact, $profileId]
+        ? [$fn, $mn ?: null, $ln, $contact, $status, $profileId]
+        : [$fn, $mn ?: null, $ln, $contact, $profileId]
     );
 
     // Doctor-only: specialization, degree, PRC license, and display order are locked

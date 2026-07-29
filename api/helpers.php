@@ -9,6 +9,58 @@
 // end up 8 hours behind the actual local time.
 date_default_timezone_set('Asia/Manila');
 
+// Middle initial as displayed on formal names/documents ("Juan D. Dela Cruz") —
+// the standard PH convention — leading space included so callers can just
+// concatenate it between first and last name.
+function _mi(?string $middleName): string {
+    $middleName = trim((string)$middleName);
+    return $middleName !== '' ? ' ' . mb_strtoupper(mb_substr($middleName, 0, 1)) . '.' : '';
+}
+
+// ── Password reuse prevention ──────────────────────────────────────
+// Standard practice (a new password must differ from recent past ones,
+// not just the current one) backed by the `password_history` table.
+const PASSWORD_HISTORY_LIMIT = 5;
+
+// True if $newPassword matches the user's current password or any of
+// their last PASSWORD_HISTORY_LIMIT passwords.
+function passwordWasUsedBefore(PDO $pdo, int $userId, string $newPassword): bool {
+    $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $current = $stmt->fetchColumn();
+    if ($current && password_verify($newPassword, $current)) return true;
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT password_hash FROM password_history
+              WHERE users_id = ? ORDER BY created_at DESC LIMIT ' . PASSWORD_HISTORY_LIMIT
+        );
+        $stmt->execute([$userId]);
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $oldHash) {
+            if (password_verify($newPassword, $oldHash)) return true;
+        }
+    } catch (PDOException $e) { /* table not yet migrated — skip history check */ }
+
+    return false;
+}
+
+// Archives the password hash being replaced, then prunes anything past
+// PASSWORD_HISTORY_LIMIT so the table doesn't grow unbounded per user.
+function recordPasswordHistory(PDO $pdo, int $userId, string $oldHash): void {
+    try {
+        $pdo->prepare('INSERT INTO password_history (users_id, password_hash) VALUES (?, ?)')
+            ->execute([$userId, $oldHash]);
+        $pdo->prepare(
+            'DELETE FROM password_history WHERE users_id = ? AND id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM password_history WHERE users_id = ?
+                    ORDER BY created_at DESC LIMIT ' . PASSWORD_HISTORY_LIMIT . '
+                ) keep
+            )'
+        )->execute([$userId, $userId]);
+    } catch (PDOException $e) { /* table not yet migrated — non-critical */ }
+}
+
 // ── IP-based rate limiting ────────────────────────────────────────
 // Reads hits from the `rate_limits` table keyed by IP + endpoint.
 // Fails open if the table doesn't exist yet so no legitimate request
@@ -193,17 +245,23 @@ function checkApptConflict(PDO $pdo, string $doctorId, string $date, string $tim
 // ── Build the frontend-compatible user object ─────────────────────
 // Maps snake_case DB columns to camelCase keys expected by pages.js.
 function buildUserObject(string $role, array $p, string $email, array $days = [], ?int $usersId = null): array {
+    $middleName    = trim($p['middle_name'] ?? '');
+    $middleInitial = ltrim(_mi($middleName));
+    $fullName      = trim($p['first_name'] . _mi($middleName) . ' ' . $p['last_name']);
+
     $base = [
-        'id'        => $p['id'],
-        'dbId'      => $usersId,   // users.id integer — used for activity log photo join
-        'firstName' => $p['first_name'],
-        'lastName'  => $p['last_name'],
-        'name'      => ($role === 'doctor' ? 'Dr. ' : '') . $p['first_name'] . ' ' . $p['last_name'],
-        'email'     => $email,
-        'contact'   => $p['contact'] ?? '',
-        'status'    => $p['status']  ?? 'active',
-        'role'      => $role,
-        'photoUrl'  => $p['photo_url'] ?? null,
+        'id'           => $p['id'],
+        'dbId'         => $usersId,   // users.id integer — used for activity log photo join
+        'firstName'    => $p['first_name'],
+        'middleName'   => $middleName,
+        'middleInitial'=> $middleInitial,
+        'lastName'     => $p['last_name'],
+        'name'         => ($role === 'doctor' ? 'Dr. ' : '') . $fullName,
+        'email'        => $email,
+        'contact'      => $p['contact'] ?? '',
+        'status'       => $p['status']  ?? 'active',
+        'role'         => $role,
+        'photoUrl'     => $p['photo_url'] ?? null,
     ];
 
     if ($role === 'doctor') {

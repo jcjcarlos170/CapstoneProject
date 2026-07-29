@@ -6,8 +6,8 @@
 //  (see api/patients/update.php, which is patient-self-service only
 //  and intentionally excludes gender/dob for record-accuracy reasons).
 //
-//  POST { id, firstName, lastName, gender?, dob?, contact?, email?,
-//         address?, bloodType? }
+//  POST { id, firstName, middleName?, lastName, gender?, dob?, contact?,
+//         email?, address?, bloodType?, occupation? }
 // ================================================================
 
 require_once '../../config/db.php';
@@ -29,8 +29,9 @@ if (!$id) {
     jsonResponse(['success' => false, 'message' => 'Patient id is required.']);
 }
 
-$first   = trim($b['firstName'] ?? '');
-$last    = trim($b['lastName']  ?? '');
+$first   = trim($b['firstName']  ?? '');
+$middle  = trim($b['middleName'] ?? '');
+$last    = trim($b['lastName']   ?? '');
 if (!$first || !$last) {
     jsonResponse(['success' => false, 'message' => 'First and last name are required.']);
 }
@@ -41,6 +42,7 @@ $contact = trim($b['contact'] ?? '');
 $email   = trim($b['email']   ?? '');
 $address = trim($b['address'] ?? '');
 $blood   = trim($b['bloodType'] ?? '');
+$occupation = isset($b['occupation']) ? trim($b['occupation']) : null;
 $medical = isset($b['medicalHistory']) ? trim($b['medicalHistory']) : null;
 $optical = isset($b['opticalHistory']) ? trim($b['opticalHistory']) : null;
 $status  = isset($b['status']) ? trim($b['status']) : null;
@@ -62,8 +64,8 @@ try {
         jsonResponse(['success' => false, 'message' => 'Patient not found.'], 404);
     }
 
-    $sets   = ['first_name = ?', 'last_name = ?'];
-    $values = [$first, $last];
+    $sets   = ['first_name = ?', 'middle_name = ?', 'last_name = ?'];
+    $values = [$first, $middle ?: null, $last];
 
     if ($gender) { $sets[] = 'gender = ?'; $values[] = $gender; }
 
@@ -77,6 +79,7 @@ try {
     if ($contact !== '') { $sets[] = 'contact = ?'; $values[] = $contact; }
     if ($address !== '') { $sets[] = 'address = ?'; $values[] = $address; }
     if ($blood   !== '') { $sets[] = 'blood_type = ?'; $values[] = $blood; }
+    if ($occupation !== null) { $sets[] = 'occupation = ?'; $values[] = $occupation; }
     if ($medical !== null) { $sets[] = 'medical_history = ?'; $values[] = $medical; }
     if ($optical !== null) { $sets[] = 'optical_history = ?'; $values[] = $optical; }
     if ($status)           { $sets[] = 'status = ?'; $values[] = $status; }

@@ -4,6 +4,14 @@
 //  handles modals, QR, toasts, and action handlers.
 // ================================================================
 
+// Full display name from parts, middle name shown as an initial ("Juan D.
+// Dela Cruz") — PH official-document convention, mirrors api/helpers.php's _mi().
+function fmtFullName(first, middle, last, prefix = '') {
+  const mi = (middle || '').trim() ? ` ${middle.trim()[0].toUpperCase()}.` : ''
+  return `${prefix}${first || ''}${mi} ${last || ''}`.replace(/\s+/g, ' ').trim()
+}
+window.fmtFullName = fmtFullName
+
 // ── SVG Icon library ────────────────────────────────────────────
 function icon(name, cls = 'icon') {
   const p = {
@@ -378,16 +386,23 @@ function printQR(wrapperId, patientName, patientId, qrData) {
   _printHtmlDocument(`<!DOCTYPE html><html><head><title>QR — ${patientName || 'Patient'}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:flex-start;padding:24px;background:#fff}
-    .card{text-align:center;border:2px solid #E5E7EB;border-radius:12px;padding:28px 24px;width:280px}
+    @page{size:A4;margin:0}
+    body{font-family:Arial,sans-serif;background:#fff}
+    /* Table/table-cell centering — reliably honored by Chrome's print
+       engine (unlike flexbox height resolution, which collapses to
+       content-size during pagination) — vertically centers the card
+       on the page instead of stranding it at the top. */
+    .pg{display:table;width:100%;height:297mm}
+    .pg-inner{display:table-cell;vertical-align:middle;text-align:center;padding:24px}
+    .card{display:inline-block;text-align:center;border:2px solid #E5E7EB;border-radius:12px;padding:28px 24px;width:280px}
     .clinic{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#6B7280;margin-bottom:16px}
     .qr-box{width:200px;height:200px;margin:0 auto 16px}
     .qr-box img{width:200px;height:200px}
     .name{font-size:15px;font-weight:700;color:#1C1C1C;margin-bottom:3px}
     .pid{font-size:11px;color:#9CA3AF;font-family:monospace;margin-bottom:6px}
     .hint{font-size:9px;color:#CBD5E1;font-family:monospace;word-break:break-all}
-    @media print{body{padding:0}}
   </style></head><body>
+  <div class="pg"><div class="pg-inner">
   <div class="card">
     <div class="clinic">${window._clinicName || clinicInfo.name || 'Cana Optical Clinic'}</div>
     <div class="qr-box">${dataUrl ? `<img src="${dataUrl}" alt="QR">` : '<div style="background:#f3f4f6;width:200px;height:200px;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:12px">QR unavailable</div>'}</div>
@@ -395,6 +410,7 @@ function printQR(wrapperId, patientName, patientId, qrData) {
     <div class="pid">${patientId || ''}</div>
     <div class="hint">${qrData || ''}</div>
   </div>
+  </div></div>
   </body></html>`)
 }
 window.printQR = printQR
@@ -1313,6 +1329,7 @@ async function saveUserProfile() {
   const role   = state.role
   const prefix = role === 'doctor' ? 'doc' : role === 'staff' ? 'st' : 'ad'
   const fn     = document.getElementById(`${prefix}-fname`)?.value.trim() || ''
+  const mn     = document.getElementById(`${prefix}-mname`)?.value.trim() || ''
   const ln     = document.getElementById(`${prefix}-lname`)?.value.trim() || ''
   const email  = document.getElementById(`${prefix}-email`)?.value.trim() || ''
   const phone  = document.getElementById(`${prefix}-phone`)?.value.trim() || ''
@@ -1322,19 +1339,20 @@ async function saveUserProfile() {
     const r = await fetch('api/users/update_profile.php', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ firstName: fn, lastName: ln, phone, email })
+      body:    JSON.stringify({ firstName: fn, middleName: mn, lastName: ln, phone, email })
     })
     const d = await r.json()
     if (d.success) {
       toast('Profile updated successfully.', 'success')
 
-      const fullName = (role === 'doctor' ? 'Dr. ' : '') + fn + ' ' + ln
+      const fullName = fmtFullName(fn, mn, ln, role === 'doctor' ? 'Dr. ' : '')
 
       // Update state.user
       if (state.user) {
-        state.user.firstName = fn
-        state.user.lastName  = ln
-        state.user.name      = fullName
+        state.user.firstName  = fn
+        state.user.middleName = mn
+        state.user.lastName   = ln
+        state.user.name       = fullName
         if (email) state.user.email = email
         state.user.contact   = phone
       }
@@ -1342,13 +1360,13 @@ async function saveUserProfile() {
       // Sync the in-memory mock arrays so navigating away and back shows new values
       if (role === 'doctor') {
         const entry = doctors.find(d => d.id === state.user?.id)
-        if (entry) { entry.firstName = fn; entry.lastName = ln; entry.name = fullName; entry.contact = phone; if (email) entry.email = email }
+        if (entry) { entry.firstName = fn; entry.middleName = mn; entry.lastName = ln; entry.name = fullName; entry.contact = phone; if (email) entry.email = email }
       } else if (role === 'staff') {
         const entry = staff.find(s => s.id === state.user?.id)
-        if (entry) { entry.firstName = fn; entry.lastName = ln; entry.name = fullName; entry.contact = phone; if (email) entry.email = email }
+        if (entry) { entry.firstName = fn; entry.middleName = mn; entry.lastName = ln; entry.name = fullName; entry.contact = phone; if (email) entry.email = email }
       } else if (role === 'admin') {
         const entry = admins.find(a => a.id === state.user?.id)
-        if (entry) { entry.firstName = fn; entry.lastName = ln; entry.name = fullName; entry.contact = phone; if (email) entry.email = email }
+        if (entry) { entry.firstName = fn; entry.middleName = mn; entry.lastName = ln; entry.name = fullName; entry.contact = phone; if (email) entry.email = email }
       }
 
       // Re-render the current page so the profile banner reflects new values,
@@ -1366,29 +1384,46 @@ window.saveUserProfile = saveUserProfile
 // Save patient profile fields via backend
 async function savePatientSettings() {
   const fn      = document.getElementById('sett-first')?.value.trim()   || ''
+  const mn      = document.getElementById('sett-middle')?.value.trim() || ''
   const ln      = document.getElementById('sett-last')?.value.trim()    || ''
   const contact = document.getElementById('sett-contact')?.value.trim() || ''
   const email   = document.getElementById('sett-email')?.value.trim()   || ''
-  const address = document.getElementById('sett-address')?.value.trim() || ''
+  const address    = document.getElementById('sett-address')?.value.trim() || ''
+  const occupation = document.getElementById('sett-occupation')?.value.trim() || ''
   if (!fn || !ln) { toast('First and last name are required.', 'error'); return }
 
   try {
     const r = await fetch('api/patients/update.php', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ action: 'profile', firstName: fn, lastName: ln, phone: contact, email, address })
+      body:    JSON.stringify({ action: 'profile', firstName: fn, middleName: mn, lastName: ln, phone: contact, email, address, occupation })
     })
     const d = await r.json()
     if (d.success) {
       toast('Profile updated successfully.', 'success')
-      const fullName = fn + ' ' + ln
+      const fullName = fmtFullName(fn, mn, ln)
       if (state.user) {
-        state.user.firstName = fn
-        state.user.lastName  = ln
-        state.user.name      = fullName
+        state.user.firstName  = fn
+        state.user.middleName = mn
+        state.user.lastName   = ln
+        state.user.name       = fullName
         if (email)   state.user.email   = email
         if (contact) state.user.contact = contact
         if (address) state.user.address = address
+      }
+      // Keep the in-memory patients array in sync too — pagePatientSettings
+      // reads from it first and falls back to state.user, so a stale entry
+      // here would silently override the just-saved values on re-render.
+      const p = patients.find(pt => pt.id === state.user?.id)
+      if (p) {
+        p.firstName  = fn
+        p.middleName = mn
+        p.lastName   = ln
+        p.name       = fullName
+        p.contact    = contact
+        if (email) p.email = email
+        p.address    = address
+        p.occupation = occupation
       }
       window.navigate(state.page, { ...state.params })
     } else {
@@ -2487,9 +2522,11 @@ function openAddUserModal() {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
-      <div class="form-row-2">
+      <div class="form-row-3">
         <div class="form-group"><label class="form-label">First Name <span class="req">*</span></label>
           <input id="nu-first" class="form-input" placeholder="Juan"></div>
+        <div class="form-group"><label class="form-label">Middle Name</label>
+          <input id="nu-middle" class="form-input" placeholder="Santos"></div>
         <div class="form-group"><label class="form-label">Last Name <span class="req">*</span></label>
           <input id="nu-last" class="form-input" placeholder="Dela Cruz"></div>
       </div>
@@ -2588,10 +2625,12 @@ async function doAddUser() {
   try {
     let endpoint, body
 
+    const middle = gv('nu-middle')
+
     if (role === 'Patient') {
       endpoint = '/canaopticalclinic/api/patients/create.php'
       body = {
-        firstName: first, lastName: last, email, contact,
+        firstName: first, middleName: middle, lastName: last, email, contact,
         dob: gv('nu-dob'), gender: gv('nu-gender'),
         address: gv('nu-address'), bloodType: gv('nu-blood') || 'Unknown',
         occupation: gv('nu-occupation'),
@@ -2600,7 +2639,7 @@ async function doAddUser() {
       }
     } else {
       endpoint = '/canaopticalclinic/api/users/create.php'
-      body = { role, firstName: first, lastName: last, email, password: pass, contact }
+      body = { role, firstName: first, middleName: middle, lastName: last, email, password: pass, contact }
       if (role === 'Doctor') {
         body.specialization = gv('nu-specialization') || 'Optometrist'
         body.degree         = gv('nu-degree') || 'OD'
@@ -2617,7 +2656,7 @@ async function doAddUser() {
 
     if (!data.success) { toast(data.message || 'Failed to create account.', 'error'); return }
 
-    const name = `${first} ${last}`
+    const name = fmtFullName(first, middle, last, role === 'Doctor' ? 'Dr. ' : '')
     if (role === 'Patient') patients.push(data.patient)
     else if (role === 'Admin')  admins.push(data.user)
     else if (role === 'Staff')  staff.push(data.user)
@@ -2657,9 +2696,11 @@ function editUserModal(id, role) {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="form-row-2">
+      <div class="form-row-3">
         <div class="form-group"><label class="form-label">First Name</label>
           <input id="eu-first" class="form-input" value="${u.firstName || ''}"></div>
+        <div class="form-group"><label class="form-label">Middle Name</label>
+          <input id="eu-middle" class="form-input" value="${u.middleName || ''}"></div>
         <div class="form-group"><label class="form-label">Last Name</label>
           <input id="eu-last" class="form-input" value="${u.lastName || ''}"></div>
       </div>
@@ -2730,6 +2771,7 @@ async function doEditUser(id, role) {
   if (!u) return
 
   const fn      = (document.getElementById('eu-first')   || {}).value?.trim() || u.firstName
+  const mn      = (document.getElementById('eu-middle')  || {}).value?.trim() ?? (u.middleName || '')
   const ln      = (document.getElementById('eu-last')    || {}).value?.trim() || u.lastName
   const email   = (document.getElementById('eu-email')   || {}).value?.trim() || u.email
   const contact = (document.getElementById('eu-contact') || {}).value?.trim() || u.contact
@@ -2751,7 +2793,7 @@ async function doEditUser(id, role) {
   try {
     const r = await fetch('api/admin/update_user.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profileId: id, role, firstName: fn, lastName: ln, email, contact, status, specialization, prcLicense, degree, ...(sortOrder !== null ? { sortOrder } : {}) })
+      body: JSON.stringify({ profileId: id, role, firstName: fn, middleName: mn, lastName: ln, email, contact, status, specialization, prcLicense, degree, ...(sortOrder !== null ? { sortOrder } : {}) })
     })
     const d = await r.json()
     if (!d.success) { toast(d.message || 'Failed to save changes.', 'error'); return }
@@ -2781,9 +2823,10 @@ async function doEditUser(id, role) {
 
   // Update in-memory array so the table reflects new values immediately
   const prefix = role === 'Doctor' ? 'Dr. ' : ''
-  u.firstName = fn
-  u.lastName  = ln
-  u.name      = prefix + fn + ' ' + ln
+  u.firstName  = fn
+  u.middleName = mn
+  u.lastName   = ln
+  u.name       = fmtFullName(fn, mn, ln, prefix)
   u.email     = email
   u.contact   = contact
   u.status    = status
@@ -2900,9 +2943,11 @@ function openAddPatientModal() {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
-      <div class="form-row-2">
+      <div class="form-row-3">
         <div class="form-group"><label class="form-label">First Name <span class="req">*</span></label>
           <input id="ap-first" class="form-input" placeholder="Juan"></div>
+        <div class="form-group"><label class="form-label">Middle Name</label>
+          <input id="ap-middle" class="form-input" placeholder="Santos"></div>
         <div class="form-group"><label class="form-label">Last Name <span class="req">*</span></label>
           <input id="ap-last" class="form-input" placeholder="Dela Cruz"></div>
       </div>
@@ -2965,6 +3010,7 @@ async function doAddPatient() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         firstName:      first,
+        middleName:     gv('ap-middle'),
         lastName:       last,
         gender:         gv('ap-gender'),
         dob:            gv('ap-dob'),
@@ -3006,9 +3052,11 @@ function openEditPatientModal(patientId) {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div class="form-row-2">
+      <div class="form-row-3">
         <div class="form-group"><label class="form-label">First Name</label>
           <input id="ep-first" class="form-input" value="${p.firstName}"></div>
+        <div class="form-group"><label class="form-label">Middle Name</label>
+          <input id="ep-middle" class="form-input" value="${p.middleName || ''}"></div>
         <div class="form-group"><label class="form-label">Last Name</label>
           <input id="ep-last" class="form-input" value="${p.lastName}"></div>
       </div>
@@ -3039,6 +3087,8 @@ function openEditPatientModal(patientId) {
             <option value="inactive"${(p.status||'active')==='inactive'?' selected':''}>Inactive</option>
           </select></div>` : ''}
       </div>
+      <div class="form-group"><label class="form-label">Occupation</label>
+        <input id="ep-occupation" class="form-input" placeholder="e.g. Teacher, Engineer, Student" value="${p.occupation || ''}"></div>
       <div class="form-group"><label class="form-label">Medical History</label>
         <textarea id="ep-medical" class="form-textarea" rows="2"
           placeholder="Known conditions, allergies, medications…">${p.medicalHistory || ''}</textarea></div>
@@ -3115,10 +3165,11 @@ async function doEditPatient(patientId) {
 
   const statusEl = document.getElementById('ep-status')
   const payload = {
-    id: patientId, firstName, lastName,
+    id: patientId, firstName, middleName: gv('ep-middle'), lastName,
     gender: gv('ep-gender'), dob: gv('ep-dob'),
     contact: gv('ep-contact'), email: gv('ep-email'),
     address: gv('ep-address'), bloodType: gv('ep-blood'),
+    occupation: gv('ep-occupation'),
     medicalHistory: (document.getElementById('ep-medical') || {}).value ?? p.medicalHistory ?? '',
     opticalHistory: (document.getElementById('ep-optical') || {}).value ?? p.opticalHistory ?? '',
     ...(statusEl ? { status: statusEl.value } : {})
@@ -3151,15 +3202,17 @@ async function doEditPatient(patientId) {
     }
   }
 
-  p.firstName = firstName
-  p.lastName  = lastName
-  p.name      = `${firstName} ${lastName}`
+  p.firstName  = firstName
+  p.middleName = payload.middleName
+  p.lastName   = lastName
+  p.name       = fmtFullName(firstName, payload.middleName, lastName)
   if (payload.gender) p.gender = payload.gender
   if (payload.dob)    p.dob    = payload.dob
   p.contact       = payload.contact
   if (payload.email && p.email) p.email = payload.email
   p.address       = payload.address
   p.bloodType     = payload.bloodType
+  p.occupation    = payload.occupation
   p.medicalHistory = payload.medicalHistory
   p.opticalHistory = payload.opticalHistory
   if (payload.status) p.status = payload.status
@@ -4637,19 +4690,9 @@ async function saveNewExam(patientId) {
   const saveBtn = document.getElementById('wiz-btn-save')
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…' }
 
-  try {
-    const apptId = window._examApptId || null
-    const r = await fetch('api/examinations/create.php', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ patientId, apptId, ...newExam })
-    })
-    const d = await r.json()
-    if (!d.success) {
-      toast(d.message || 'Failed to save examination.', 'error')
-      return
-    }
+  const examId = state.params?.examId || null
 
+  try {
     // Persist updated history back to patient record if changed
     const newMedical = gv('ne-medical')
     const newOptical = gv('ne-optical')
@@ -4660,6 +4703,45 @@ async function saveNewExam(patientId) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patientId, medicalHistory: newMedical, opticalHistory: newOptical })
       }).catch(() => {})
+    }
+
+    if (examId) {
+      // ── Editing an existing record — update it in place, don't create
+      // a duplicate. Consultation/prescription rows from the original
+      // save are intentionally left alone (no exam_id link exists to
+      // find "the ones this exam created" to update instead).
+      const r = await fetch('api/examinations/update.php', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ patientId, examId, ...newExam })
+      })
+      const d = await r.json()
+      if (!d.success) {
+        toast(d.message || 'Failed to update examination.', 'error')
+        return
+      }
+
+      newExam.id = examId
+      const idx = p.examinations.findIndex(ex => ex.id === examId)
+      if (idx >= 0) p.examinations[idx] = newExam
+      else p.examinations.unshift(newExam)
+      p.lastVisit = newExam.date
+
+      toast('Examination record updated successfully.', 'success')
+      navigate('patient-view', { patientId, patientName: p.name })
+      return
+    }
+
+    const apptId = window._examApptId || null
+    const r = await fetch('api/examinations/create.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ patientId, apptId, ...newExam })
+    })
+    const d = await r.json()
+    if (!d.success) {
+      toast(d.message || 'Failed to save examination.', 'error')
+      return
     }
 
     // Update local arrays so the UI stays consistent
@@ -4695,7 +4777,7 @@ async function saveNewExam(patientId) {
   } catch (_) {
     toast('Network error — please try again.', 'error')
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = window.icon('check','icon-sm') + ' ' + (state.params?.examId ? 'Save Changes' : 'Save Examination') }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = window.icon('check','icon-sm') + ' ' + (examId ? 'Save Changes' : 'Save Examination') }
   }
 }
 window.saveNewExam = saveNewExam
@@ -4891,7 +4973,7 @@ function viewExamDetail(patientId, examId) {
     <div class="modal-body" style="padding:0">
 
       <!-- Branded clinic header -->
-      <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2A2A2A 100%);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2A2A2A 100%);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div>
           <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:#E8760A;font-weight:800;margin-bottom:3px">Optical Examination Results</div>
           <div style="font-size:1.1rem;font-weight:900;color:#fff;letter-spacing:-.01em">Cana Optical Clinic</div>
@@ -4924,10 +5006,10 @@ function viewExamDetail(patientId, examId) {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
 
             <!-- OD Card -->
-            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
-              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
-                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+            <div style="border:1.5px solid #86EFAC;border-radius:10px;overflow:hidden">
+              <div style="background:#F0FDF4;padding:8px 12px;border-bottom:1px solid #86EFAC;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#059669">OD — Right Eye</span>
               </div>
               <div style="display:flex;background:#fff">
                 ${eyeField('SPH', e.od?.sph, false)}
@@ -4935,17 +5017,17 @@ function viewExamDetail(patientId, examId) {
                 ${eyeField('AXIS', e.od?.axis, false)}
                 ${eyeField('VA', e.od?.va, true)}
               </div>
-              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between">
+              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #BBF7D0;background:#F0FDF4;display:flex;align-items:center;justify-content:space-between">
                 <span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Add Power</span>
-                <span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.od.add}</span>
+                <span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#059669">${e.od.add}</span>
               </div>` : ''}
             </div>
 
             <!-- OS Card -->
-            <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
-              <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:6px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
-                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OS — Left Eye</span>
               </div>
               <div style="display:flex;background:#fff">
                 ${eyeField('SPH', e.os?.sph, false)}
@@ -4953,9 +5035,9 @@ function viewExamDetail(patientId, examId) {
                 ${eyeField('AXIS', e.os?.axis, false)}
                 ${eyeField('VA', e.os?.va, true)}
               </div>
-              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #DBEAFE;background:#EFF6FF;display:flex;align-items:center;justify-content:space-between">
+              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between">
                 <span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Add Power</span>
-                <span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#3B82F6">${e.os.add}</span>
+                <span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.os.add}</span>
               </div>` : ''}
             </div>
           </div>
@@ -5099,15 +5181,15 @@ function viewConsultationDetail(patientId, consultationId) {
       ${c.prescription ? `<div>
         <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9CA3AF;margin-bottom:6px">Prescription</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div style="border:1.5px solid #FDE68A;border-radius:8px;overflow:hidden">
-            <div style="background:#FFF7ED;padding:6px 10px;border-bottom:1px solid #FDE68A">
-              <span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+          <div style="border:1.5px solid #86EFAC;border-radius:8px;overflow:hidden">
+            <div style="background:#F0FDF4;padding:6px 10px;border-bottom:1px solid #86EFAC">
+              <span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#059669">OD — Right Eye</span>
             </div>
             <div style="padding:8px 10px;font-family:monospace;font-size:.85rem;color:#1C1C1C;background:#fff">${od || '—'}</div>
           </div>
-          <div style="border:1.5px solid #BFDBFE;border-radius:8px;overflow:hidden">
-            <div style="background:#EFF6FF;padding:6px 10px;border-bottom:1px solid #BFDBFE">
-              <span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+          <div style="border:1.5px solid #FDE68A;border-radius:8px;overflow:hidden">
+            <div style="background:#FFF7ED;padding:6px 10px;border-bottom:1px solid #FDE68A">
+              <span style="font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OS — Left Eye</span>
             </div>
             <div style="padding:8px 10px;font-family:monospace;font-size:.85rem;color:#1C1C1C;background:#fff">${os || '—'}</div>
           </div>
@@ -5149,7 +5231,7 @@ function viewExamRecord(examId) {
     <div class="modal-body" style="padding:0">
 
       <!-- Header -->
-      <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2A2A2A 100%);padding:18px 24px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div style="background:linear-gradient(135deg,#1C1C1C 0%,#2A2A2A 100%);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
           <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.14em;color:#E8760A;font-weight:800;margin-bottom:3px">Patient Examination Record</div>
           <div style="font-size:1rem;font-weight:900;color:#fff">${e.patientName}</div>
@@ -5169,10 +5251,10 @@ function viewExamRecord(examId) {
         <div>
           <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:8px">Refraction &amp; Visual Acuity</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
-              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
-                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+            <div style="border:1.5px solid #86EFAC;border-radius:10px;overflow:hidden">
+              <div style="background:#F0FDF4;padding:8px 12px;border-bottom:1px solid #86EFAC;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#059669">OD — Right Eye</span>
               </div>
               <div style="display:flex;background:#fff">
                 ${eyeField('SPH', e.od?.sph, false)}
@@ -5180,12 +5262,12 @@ function viewExamRecord(examId) {
                 ${eyeField('AXIS', e.od?.axis, false)}
                 ${eyeField('VA', e.od?.va, true)}
               </div>
-              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.od.add}</span></div>` : ''}
+              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #BBF7D0;background:#F0FDF4;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#059669">${e.od.add}</span></div>` : ''}
             </div>
-            <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
-              <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:6px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
-                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OS — Left Eye</span>
               </div>
               <div style="display:flex;background:#fff">
                 ${eyeField('SPH', e.os?.sph, false)}
@@ -5193,7 +5275,7 @@ function viewExamRecord(examId) {
                 ${eyeField('AXIS', e.os?.axis, false)}
                 ${eyeField('VA', e.os?.va, true)}
               </div>
-              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #DBEAFE;background:#EFF6FF;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#3B82F6">${e.os.add}</span></div>` : ''}
+              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.os.add}</span></div>` : ''}
             </div>
           </div>
         </div>
@@ -5309,12 +5391,18 @@ function generateClearance(patientId, examId) {
     'Dr. Carmen Sumaya':        { name: 'DR. CARMEN SUMAYA, OD',         title: 'OPTOMETRIST' },
     'Dr. Julianne Rosche Cana': { name: 'DR. JULIANNE ROSCHE CANA, OD',  title: 'OPTOMETRIST' },
   }
-  const doc = DOCTOR_INFO[e.doctor] || {
+  // realDoc is matched by the full display name (which may include a middle
+  // initial), but DOCTOR_INFO's keys are plain "Dr. First Last" — so the
+  // lookup key is rebuilt from realDoc's first/last name to stay correct
+  // whether or not that doctor has a middle name on file.
+  const realDoc   = doctors.find(d => d.name === e.doctor)
+  const doctorKey = realDoc ? `Dr. ${realDoc.firstName} ${realDoc.lastName}` : e.doctor
+  const doc = DOCTOR_INFO[doctorKey] || {
     name:  (e.doctor || 'DOCTOR').toUpperCase() + ', OD',
     title: 'OPTOMETRIST'
   }
-  const realDoc = doctors.find(d => d.name === e.doctor)
   doc.prc = realDoc?.prcLicense ? `PRC LICENSE NO. ${realDoc.prcLicense}` : 'PRC LICENSE NO. — NOT ON FILE'
+  const qrDataUrl = _makeQRDataUrl(p.qrData, 70)
 
   // Date formatter: "2025-12-10" → "December 10, 2025"
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -5378,7 +5466,7 @@ function generateClearance(patientId, examId) {
       <div class="clearance-document" style="padding:48px 56px;background:#fff;flex:1;font-family:Georgia,'Times New Roman',serif;color:#111;font-size:.95rem;line-height:1.7;">
 
         <!-- LETTERHEAD -->
-        <div style="border:1.5px solid #222;padding:18px 24px;margin-bottom:24px;text-align:center;">
+        <div style="border:1.5px solid #222;padding:18px 24px;margin-bottom:16px;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:10px;">
             <img src="${window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png'}" alt="Cana Optical" style="height:64px;flex-shrink:0;">
             <div style="text-align:left;line-height:1;">
@@ -5387,6 +5475,17 @@ function generateClearance(patientId, examId) {
           </div>
           <div style="font-family:Arial,sans-serif;font-size:.73rem;text-transform:uppercase;letter-spacing:.05em;color:#222;margin-bottom:3px;">UNIT 3, PASEO DE CARMONA, CARMONA, CAVITE</div>
           <div style="font-family:Arial,sans-serif;font-size:.73rem;font-weight:700;color:#222;">MOBILE NUMBER: 09952376617 / 09296636080</div>
+        </div>
+
+        <!-- PATIENT IDENTIFICATION — QR paired with the patient's own ID
+             (not the clinic letterhead or the doctor's signature below),
+             matching the avatar+QR pairing on the Exam/Rx print documents. -->
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:18px;">
+          <div style="text-align:right;">
+            <div style="font-family:Arial,sans-serif;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#888;">Patient ID</div>
+            <div style="font-family:Arial,sans-serif;font-size:.85rem;font-weight:700;color:#111;">${p.id}</div>
+          </div>
+          ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:50px;height:50px;">` : ''}
         </div>
 
         <!-- TITLE -->
@@ -5524,12 +5623,23 @@ function downloadClearancePDF(patientName, examId) {
   wrap.appendChild(clone)
   document.body.appendChild(wrap)
 
+  // html2pdf/html2canvas has no CSS print pipeline to center against — it
+  // just rasterizes the clone and drops it at the page's top margin. So the
+  // vertical centering has to be computed manually here: measure the actual
+  // rendered height, then split whatever's left on an A4 page evenly above
+  // and below it (falling back to the plain corner margin if the content is
+  // tall enough that there's nothing meaningful left to split).
+  const pageHeightMm    = 297
+  const contentHeightMm = clone.offsetHeight * 25.4 / 96
+  const leftoverMm      = pageHeightMm - contentHeightMm
+  const vMarginMm       = leftoverMm > pdfMarginMm * 2 ? leftoverMm / 2 : pdfMarginMm
+
   const safeName = (patientName || 'Patient').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '')
   const filename = `Clearance-${safeName}-${examId || ''}.pdf`
 
   window.html2pdf()
     .set({
-      margin:      [pdfMarginMm, pdfMarginMm],
+      margin:      [vMarginMm, pdfMarginMm, vMarginMm, pdfMarginMm],
       filename,
       image:       { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: contentWidthPx, width: contentWidthPx, x: 0, y: 0 },
@@ -5555,8 +5665,8 @@ function _openExamPrintWindow(p, e) {
   const eyeRow  = (lbl, od, os) => `
     <tr>
       <td style="padding:6px 10px;font-size:11px;color:#555;font-weight:600;border-bottom:1px solid #eee">${lbl}</td>
-      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#1D4ED8;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
-      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#B45309;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
     </tr>`
   const pill    = txt => `<span style="display:inline-block;background:#E8760A;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;margin:2px 3px 2px 0">${txt}</span>`
   const secLbl  = txt => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin:10px 0 4px">${txt}</div>`
@@ -5578,62 +5688,79 @@ function _openExamPrintWindow(p, e) {
   <meta charset="UTF-8">
   <title>Optical Examination — ${p.name}</title>
   <style>
-    @page { size: A4; margin: 12mm 16mm 12mm 16mm; }
+    /* margin:0 so Chrome has no page-margin band left to draw its own
+       print header/footer (URL, date, page number) into — the same
+       visual margin is restored via body padding below instead. */
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12px; line-height: 1.5; background: #fff; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 14px; line-height: 1.65; background: #fff; }
+    /* Table/table-cell centering is far more reliably honored by Chrome's
+       print engine than flexbox height resolution, which tends to collapse
+       to content-size during pagination and strands content at the top
+       with empty space below instead of centering it on the page. */
+    .pg       { display: table; width: 100%; height: 297mm; }
+    .pg-inner { display: table-cell; vertical-align: middle; padding: 16mm 20mm; }
     table { width: 100%; border-collapse: collapse; }
-    .clinic-hdr  { text-align: center; border-bottom: 2.5px solid #E8760A; padding-bottom: 10px; margin-bottom: 14px; }
-    .clinic-logo { height: 40px; margin-bottom: 6px; }
-    .clinic-name { font-size: 20px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
-    .clinic-sub  { font-size: 10px; color: #888; margin-top: 2px; }
-    .clinic-doc  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 4px; }
-    .patient-block { display: flex; gap: 14px; align-items: flex-start; padding: 10px 14px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; margin-bottom: 12px; }
-    .avatar { width: 50px; height: 50px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 900; flex-shrink: 0; }
-    .pt-name   { font-size: 15px; font-weight: 800; color: #111; margin-bottom: 1px; }
-    .pt-id     { font-size: 10px; font-family: monospace; color: #aaa; margin-bottom: 4px; }
-    .pt-meta   { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-    .pt-meta span { font-size: 10px; color: #555; }
-    .pt-addr   { font-size: 10px; color: #999; margin-top: 2px; }
-    .issuer    { text-align: right; flex-shrink: 0; min-width: 150px; }
-    .iss-lbl   { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 2px; }
-    .iss-name  { font-size: 13px; font-weight: 700; color: #111; }
-    .iss-date  { font-size: 10px; color: #888; }
-    .iss-id    { font-size: 9px; font-family: monospace; color: #bbb; margin-top: 2px; }
-    .tbl-hdr th { background: #f5f5f5; padding: 7px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-    .tbl-border { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
-    .info-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 7px 10px; }
-    .ib-lbl    { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 2px; }
-    .ib-val    { font-size: 13px; font-weight: 800; color: #111; }
-    .ib-unit   { font-size: 9px; color: #aaa; font-weight: 400; }
-    .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 8px 12px; }
-    .db-lbl    { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 3px; }
-    .db-val    { font-size: 13px; font-weight: 800; color: #111; margin-bottom: 2px; }
-    .db-sub    { font-size: 10px; color: #555; }
-    .remarks-block { border-top: 1px solid #eee; padding-top: 8px; margin-top: 4px; font-style: italic; font-size: 11px; color: #555; }
-    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 18px; padding-top: 12px; border-top: 1px dashed #ccc; page-break-before: avoid; }
-    .sig-line  { border-top: 1px solid #111; padding-top: 5px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-    .sig-sub   { font-size: 9px; color: #888; margin-top: 2px; text-align: center; }
-    .stamp     { font-size: 9px; color: #ccc; text-align: right; font-family: monospace; margin-top: 12px; }
+    .clinic-hdr  { display: flex; align-items: center; gap: 14px; border-bottom: 3px solid #E8760A; padding-bottom: 14px; margin-bottom: 20px; }
+    .clinic-hdr-text { text-align: left; }
+    .clinic-name { font-size: 13px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: .04em; }
+    .clinic-logo { height: 70px; flex-shrink: 0; }
+    .clinic-name { font-size: 24px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
+    .clinic-sub  { font-size: 16px; font-weight: 700; color: #1C1C1C; }
+    .clinic-doc  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 6px; }
+    .patient-block { display: flex; gap: 18px; align-items: flex-start; padding: 16px 18px; background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; margin-bottom: 18px; }
+    .avatar { width: 60px; height: 60px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 21px; font-weight: 900; flex-shrink: 0; }
+    .pt-name   { font-size: 18px; font-weight: 800; color: #111; margin-bottom: 2px; }
+    .pt-id     { font-size: 11px; font-family: monospace; color: #aaa; margin-bottom: 5px; }
+    .pt-meta   { display: flex; flex-wrap: wrap; gap: 5px 14px; }
+    .pt-meta span { font-size: 11px; color: #555; }
+    .pt-addr   { font-size: 11px; color: #999; margin-top: 3px; }
+    .issuer    { text-align: right; flex-shrink: 0; min-width: 160px; }
+    .iss-lbl   { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 3px; }
+    .iss-name  { font-size: 15px; font-weight: 700; color: #111; }
+    .iss-date  { font-size: 11px; color: #888; }
+    .iss-id    { font-size: 10px; font-family: monospace; color: #bbb; margin-top: 2px; }
+    .tbl-hdr th { background: #f5f5f5; padding: 9px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .tbl-border { border: 1px solid #eee; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .info-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 10px 12px; }
+    .ib-lbl    { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 3px; }
+    .ib-val    { font-size: 16px; font-weight: 800; color: #111; }
+    .ib-unit   { font-size: 10px; color: #aaa; font-weight: 400; }
+    .diag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 12px 14px; }
+    .db-lbl    { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 4px; }
+    .db-val    { font-size: 16px; font-weight: 800; color: #111; margin-bottom: 3px; }
+    .db-sub    { font-size: 11px; color: #555; }
+    .remarks-block { border-top: 1px solid #eee; padding-top: 12px; margin-top: 8px; font-style: italic; font-size: 13px; color: #555; }
+    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 26px; padding-top: 16px; border-top: 1px dashed #ccc; page-break-before: avoid; }
+    .sig-line  { border-top: 1px solid #111; padding-top: 7px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .sig-sub   { font-size: 10px; color: #888; margin-top: 3px; text-align: center; }
+    .stamp     { font-size: 10px; color: #ccc; text-align: right; font-family: monospace; margin-top: 16px; }
   </style>
 </head>
 <body>
+<div class="pg"><div class="pg-inner">
 
   <!-- CLINIC HEADER -->
   <div class="clinic-hdr">
     <img src="${logoAbsUrl}" alt="Cana Optical Clinic" class="clinic-logo" onerror="this.style.display='none'">
-    <div class="clinic-name">CANA OPTICAL CLINIC</div>
-    <div class="clinic-sub">Optical Examination Record</div>
-    <div class="clinic-doc">Confidential Medical Document</div>
+    <div class="clinic-hdr-text">
+      <div class="clinic-name">Cana Optical Clinic</div>
+      <div class="clinic-sub">Optical Examination Record</div>
+      <div class="clinic-doc">Confidential Medical Document</div>
+    </div>
   </div>
 
   <!-- PATIENT PROFILE -->
   ${secLbl('Patient Information')}
   <div class="patient-block">
-    ${p.photoUrl
-      ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
-      : `<div class="avatar">${_inits(p.name)}</div>`}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+      ${p.photoUrl
+        ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+        : `<div class="avatar">${_inits(p.name)}</div>`}
+      ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:52px;height:52px">` : ''}
+    </div>
     <div style="flex:1;min-width:0">
       <div class="pt-name">${p.name}</div>
       <div class="pt-id">${p.id}</div>
@@ -5664,8 +5791,8 @@ function _openExamPrintWindow(p, e) {
       <thead class="tbl-hdr">
         <tr>
           <th style="text-align:left;color:#777;width:35%">Measurement</th>
-          <th style="text-align:center;color:#1D4ED8">OD (Right Eye)</th>
-          <th style="text-align:center;color:#059669">OS (Left Eye)</th>
+          <th style="text-align:center;color:#059669">OD (Right Eye)</th>
+          <th style="text-align:center;color:#B45309">OS (Left Eye)</th>
         </tr>
       </thead>
       <tbody>
@@ -5730,11 +5857,9 @@ function _openExamPrintWindow(p, e) {
     </div>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
-    ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:42px;height:42px">` : '<div></div>'}
-    <div class="stamp" style="margin-top:0">Exam ID: ${e.id} &bull; Printed: ${generated}</div>
-  </div>
+  <div class="stamp">Exam ID: ${e.id} &bull; Printed: ${generated}</div>
 
+</div></div>
 </body></html>`
 
   _printHtmlDocument(html)
@@ -5750,8 +5875,8 @@ function _openRxPrintWindow(p, rx) {
   const eyeRow = (lbl, od, os) => `
     <tr>
       <td style="padding:6px 10px;font-size:11px;color:#555;font-weight:600;border-bottom:1px solid #eee">${lbl}</td>
-      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#1D4ED8;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
-      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#059669;text-align:center;border-bottom:1px solid #eee">${od||'—'}</td>
+      <td style="padding:6px 10px;font-size:12px;font-weight:800;color:#B45309;text-align:center;border-bottom:1px solid #eee">${os||'—'}</td>
     </tr>`
   const secLbl = txt => `<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#999;margin:10px 0 4px">${txt}</div>`
 
@@ -5771,55 +5896,72 @@ function _openRxPrintWindow(p, rx) {
   <meta charset="UTF-8">
   <title>Prescription — ${p.name}</title>
   <style>
-    @page { size: A4; margin: 12mm 16mm 12mm 16mm; }
+    /* margin:0 so Chrome has no page-margin band left to draw its own
+       print header/footer (URL, date, page number) into — the same
+       visual margin is restored via body padding below instead. */
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 12px; line-height: 1.5; background: #fff; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 14px; line-height: 1.65; background: #fff; }
+    /* Table/table-cell centering is far more reliably honored by Chrome's
+       print engine than flexbox height resolution, which tends to collapse
+       to content-size during pagination and strands content at the top
+       with empty space below instead of centering it on the page. */
+    .pg       { display: table; width: 100%; height: 297mm; }
+    .pg-inner { display: table-cell; vertical-align: middle; padding: 16mm 20mm; }
     table { width: 100%; border-collapse: collapse; }
-    .clinic-hdr  { text-align: center; border-bottom: 2.5px solid #E8760A; padding-bottom: 10px; margin-bottom: 14px; }
-    .clinic-logo { height: 40px; margin-bottom: 6px; }
-    .clinic-name { font-size: 20px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
-    .clinic-sub  { font-size: 10px; color: #888; margin-top: 2px; }
-    .clinic-doc  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 4px; }
-    .patient-block { display: flex; gap: 14px; align-items: flex-start; padding: 10px 14px; background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; margin-bottom: 12px; }
-    .avatar { width: 50px; height: 50px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; font-weight: 900; flex-shrink: 0; }
-    .pt-name   { font-size: 15px; font-weight: 800; color: #111; margin-bottom: 1px; }
-    .pt-id     { font-size: 10px; font-family: monospace; color: #aaa; margin-bottom: 4px; }
-    .pt-meta   { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-    .pt-meta span { font-size: 10px; color: #555; }
-    .issuer    { text-align: right; flex-shrink: 0; min-width: 150px; }
-    .iss-lbl   { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 2px; }
-    .iss-name  { font-size: 13px; font-weight: 700; color: #111; }
-    .iss-date  { font-size: 10px; color: #888; }
-    .iss-id    { font-size: 9px; font-family: monospace; color: #bbb; margin-top: 2px; }
-    .tbl-hdr th { background: #f5f5f5; padding: 7px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-    .tbl-border { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
-    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; }
-    .db-lbl    { font-size: 9px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 3px; }
-    .db-val    { font-size: 13px; font-weight: 800; color: #111; }
-    .remarks-block { border-top: 1px solid #eee; padding-top: 8px; margin-top: 4px; font-style: italic; font-size: 11px; color: #555; }
-    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 18px; padding-top: 12px; border-top: 1px dashed #ccc; page-break-before: avoid; }
-    .sig-line  { border-top: 1px solid #111; padding-top: 5px; text-align: center; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-    .sig-sub   { font-size: 9px; color: #888; margin-top: 2px; text-align: center; }
-    .stamp     { font-size: 9px; color: #ccc; text-align: right; font-family: monospace; margin-top: 12px; }
-    .valid-pill { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 9px; border-radius: 20px; margin-top: 4px; }
+    .clinic-hdr  { display: flex; align-items: center; gap: 14px; border-bottom: 3px solid #E8760A; padding-bottom: 14px; margin-bottom: 20px; }
+    .clinic-hdr-text { text-align: left; }
+    .clinic-name { font-size: 13px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: .04em; }
+    .clinic-logo { height: 70px; flex-shrink: 0; }
+    .clinic-name { font-size: 24px; font-weight: 900; color: #E8760A; letter-spacing: -.02em; }
+    .clinic-sub  { font-size: 16px; font-weight: 700; color: #1C1C1C; }
+    .clinic-doc  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #bbb; margin-top: 6px; }
+    .patient-block { display: flex; gap: 18px; align-items: flex-start; padding: 16px 18px; background: #f9f9f9; border: 1px solid #eee; border-radius: 10px; margin-bottom: 18px; }
+    .avatar { width: 60px; height: 60px; border-radius: 50%; background: #E8760A; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 21px; font-weight: 900; flex-shrink: 0; }
+    .pt-name   { font-size: 18px; font-weight: 800; color: #111; margin-bottom: 2px; }
+    .pt-id     { font-size: 11px; font-family: monospace; color: #aaa; margin-bottom: 5px; }
+    .pt-meta   { display: flex; flex-wrap: wrap; gap: 5px 14px; }
+    .pt-meta span { font-size: 11px; color: #555; }
+    .issuer    { text-align: right; flex-shrink: 0; min-width: 160px; }
+    .iss-lbl   { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #bbb; margin-bottom: 3px; }
+    .iss-name  { font-size: 15px; font-weight: 700; color: #111; }
+    .iss-date  { font-size: 11px; color: #888; }
+    .iss-id    { font-size: 10px; font-family: monospace; color: #bbb; margin-top: 2px; }
+    .tbl-hdr th { background: #f5f5f5; padding: 9px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .tbl-border { border: 1px solid #eee; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+    .diag-box  { background: #f9f9f9; border: 1px solid #eee; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+    .db-lbl    { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #aaa; margin-bottom: 4px; }
+    .db-val    { font-size: 16px; font-weight: 800; color: #111; }
+    .remarks-block { border-top: 1px solid #eee; padding-top: 12px; margin-top: 8px; font-style: italic; font-size: 13px; color: #555; }
+    .sig-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 26px; padding-top: 16px; border-top: 1px dashed #ccc; page-break-before: avoid; }
+    .sig-line  { border-top: 1px solid #111; padding-top: 7px; text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .sig-sub   { font-size: 10px; color: #888; margin-top: 3px; text-align: center; }
+    .stamp     { font-size: 10px; color: #ccc; text-align: right; font-family: monospace; margin-top: 16px; }
+    .valid-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-top: 5px; }
   </style>
 </head>
 <body>
+<div class="pg"><div class="pg-inner">
 
   <!-- CLINIC HEADER -->
   <div class="clinic-hdr">
     <img src="${logoAbsUrl}" alt="Cana Optical Clinic" class="clinic-logo" onerror="this.style.display='none'">
-    <div class="clinic-name">CANA OPTICAL CLINIC</div>
-    <div class="clinic-sub">Official Optical Prescription</div>
-    <div class="clinic-doc">Rx No. ${rx.id}</div>
+    <div class="clinic-hdr-text">
+      <div class="clinic-name">Cana Optical Clinic</div>
+      <div class="clinic-sub">Official Optical Prescription</div>
+      <div class="clinic-doc">Rx No. ${rx.id}</div>
+    </div>
   </div>
 
   <!-- PATIENT PROFILE -->
   ${secLbl('Patient Information')}
   <div class="patient-block">
-    ${p.photoUrl
-      ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
-      : `<div class="avatar">${_inits(p.name)}</div>`}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
+      ${p.photoUrl
+        ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+        : `<div class="avatar">${_inits(p.name)}</div>`}
+      ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:52px;height:52px">` : ''}
+    </div>
     <div style="flex:1;min-width:0">
       <div class="pt-name">${p.name}</div>
       <div class="pt-id">${p.id}</div>
@@ -5851,8 +5993,8 @@ function _openRxPrintWindow(p, rx) {
       <thead class="tbl-hdr">
         <tr>
           <th style="text-align:left;color:#777;width:35%">Measurement</th>
-          <th style="text-align:center;color:#1D4ED8">OD (Right Eye)</th>
-          <th style="text-align:center;color:#059669">OS (Left Eye)</th>
+          <th style="text-align:center;color:#059669">OD (Right Eye)</th>
+          <th style="text-align:center;color:#B45309">OS (Left Eye)</th>
         </tr>
       </thead>
       <tbody>
@@ -5885,11 +6027,9 @@ function _openRxPrintWindow(p, rx) {
     </div>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px">
-    ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:42px;height:42px">` : '<div></div>'}
-    <div class="stamp" style="margin-top:0">Rx valid for 1 year from date of issue &bull; Printed: ${generated}</div>
-  </div>
+  <div class="stamp">Rx valid for 1 year from date of issue &bull; Printed: ${generated}</div>
 
+</div></div>
 </body></html>`
 
   _printHtmlDocument(html)
@@ -5996,10 +6136,10 @@ function viewPrescriptionModal(patientId, examId) {
         <div>
           <div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#9CA3AF;margin-bottom:8px">Refraction Prescription</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
-              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
-                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OD — Right Eye</span>
+            <div style="border:1.5px solid #86EFAC;border-radius:10px;overflow:hidden">
+              <div style="background:#F0FDF4;padding:8px 12px;border-bottom:1px solid #86EFAC;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#22C55E;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#059669">OD — Right Eye</span>
               </div>
               <div style="display:flex;background:#fff">
                 ${eyeField('SPH', e.od?.sph, false)}
@@ -6007,12 +6147,12 @@ function viewPrescriptionModal(patientId, examId) {
                 ${eyeField('AXIS', e.od?.axis, false)}
                 ${eyeField('VA', e.od?.va, true)}
               </div>
-              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.od.add}</span></div>` : ''}
+              ${e.od?.add ? `<div style="padding:7px 12px;border-top:1px solid #BBF7D0;background:#F0FDF4;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#059669">${e.od.add}</span></div>` : ''}
             </div>
-            <div style="border:1.5px solid #BFDBFE;border-radius:10px;overflow:hidden">
-              <div style="background:#EFF6FF;padding:8px 12px;border-bottom:1px solid #BFDBFE;display:flex;align-items:center;gap:6px">
-                <div style="width:7px;height:7px;border-radius:50%;background:#3B82F6;flex-shrink:0"></div>
-                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#1D4ED8">OS — Left Eye</span>
+            <div style="border:1.5px solid #FDE68A;border-radius:10px;overflow:hidden">
+              <div style="background:#FFF7ED;padding:8px 12px;border-bottom:1px solid #FDE68A;display:flex;align-items:center;gap:6px">
+                <div style="width:7px;height:7px;border-radius:50%;background:#E8760A;flex-shrink:0"></div>
+                <span style="font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:#B45309">OS — Left Eye</span>
               </div>
               <div style="display:flex;background:#fff">
                 ${eyeField('SPH', e.os?.sph, false)}
@@ -6020,7 +6160,7 @@ function viewPrescriptionModal(patientId, examId) {
                 ${eyeField('AXIS', e.os?.axis, false)}
                 ${eyeField('VA', e.os?.va, true)}
               </div>
-              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #DBEAFE;background:#EFF6FF;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#3B82F6">${e.os.add}</span></div>` : ''}
+              ${e.os?.add ? `<div style="padding:7px 12px;border-top:1px solid #FEF3C7;background:#FFFBEB;display:flex;align-items:center;justify-content:space-between"><span style="font-size:.6rem;color:#9CA3AF;font-weight:700;text-transform:uppercase">Add Power</span><span style="font-size:.88rem;font-weight:800;font-family:monospace;color:#E8760A">${e.os.add}</span></div>` : ''}
             </div>
           </div>
         </div>
@@ -6044,7 +6184,6 @@ function viewPrescriptionModal(patientId, examId) {
             <div style="font-size:.82rem;font-weight:700;color:#1C1C1C">${e.lensType}</div>
           </div>` : ''}
         </div>` : ''}
-        </div>
 
         ${e.prescriptionDetails ? `
         <div>
@@ -7899,14 +8038,15 @@ window._doClearAllLogs = async function () {
 
 function exportLog() {
   if (!activityLog.length) { toast('No log entries to export.', 'error'); return }
-  const header = ['#', 'User', 'Role', 'Action', 'Timestamp', 'Type']
+  const header = ['#', 'User', 'Role', 'Action', 'Timestamp', 'Type', 'IP Address']
   const rows   = activityLog.map((l, i) => [
     i + 1,
     `"${(l.user   || '').replace(/"/g, '""')}"`,
     `"${(l.role   || '').replace(/"/g, '""')}"`,
     `"${(l.action || '').replace(/"/g, '""')}"`,
     `"${(l.timestamp || '').replace(/"/g, '""')}"`,
-    l.type || ''
+    l.type || '',
+    l.ip || ''
   ])
   const csv = [header, ...rows].map(r => r.join(',')).join('\n')
   const a   = document.createElement('a')

@@ -2,7 +2,7 @@
 // ================================================================
 //  CANAOPTICALCLINIC — api/patients/create.php
 //  Admin/Staff only. Registers a new patient from the dashboard.
-//  POST { firstName, lastName, gender, dob, contact, email?,
+//  POST { firstName, middleName?, lastName, gender, dob, contact, email?,
 //         address?, occupation?, medicalHistory?, opticalHistory?,
 //         bloodType? }
 //  → { success:true, patient, tempPassword? }
@@ -23,6 +23,7 @@ if (!in_array($_SESSION['role'], ['admin', 'staff'], true)) {
 
 $b      = getBody();
 $first  = trim($b['firstName']      ?? '');
+$middle = trim($b['middleName']     ?? '');
 $last   = trim($b['lastName']       ?? '');
 $gender = trim($b['gender']         ?? '');
 $dob    = trim($b['dob']            ?? '');
@@ -90,13 +91,13 @@ try {
 
     $pdo->prepare(
         'INSERT INTO patients
-         (id, user_id, first_name, last_name, gender, dob, age,
+         (id, user_id, first_name, middle_name, last_name, gender, dob, age,
           contact, address, blood_type, occupation,
           medical_history, optical_history,
           qr_data, registered_date, status)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     )->execute([
-        $pid, $uid, $first, $last, $gender, $dob, $age,
+        $pid, $uid, $first, $middle ?: null, $last, $gender, $dob, $age,
         $contact, $addr, $blood ?: 'Unknown', $occ,
         $medHx, $optHx,
         $qrData, $today, 'active',
@@ -115,6 +116,7 @@ try {
     $patientObj = [
         'id'             => $pid,
         'firstName'      => $first,
+        'middleName'     => $middle,
         'lastName'       => $last,
         'name'           => "$first $last",
         'gender'         => $gender,

@@ -35,9 +35,19 @@ try {
         jsonResponse(['success' => false, 'message' => 'Reset link is invalid or has expired.']);
     }
 
+    $userStmt = $pdo->prepare('SELECT id, password_hash FROM users WHERE LOWER(email) = ? LIMIT 1');
+    $userStmt->execute([strtolower($row['email'])]);
+    $userRow = $userStmt->fetch();
+
+    if ($userRow && passwordWasUsedBefore($pdo, (int)$userRow['id'], $password)) {
+        jsonResponse(['success' => false, 'message' => 'You can\'t reuse a previous password. Please choose a different one.']);
+    }
+
     $hash = password_hash($password, PASSWORD_DEFAULT);
 
     $pdo->beginTransaction();
+
+    if ($userRow) recordPasswordHistory($pdo, (int)$userRow['id'], $userRow['password_hash']);
 
     // Update password on the users table
     $pdo->prepare('UPDATE users SET password_hash = ? WHERE LOWER(email) = ?')

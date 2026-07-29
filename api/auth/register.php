@@ -19,8 +19,9 @@ rateLimit('register', 10, 3600);
 
 $b = getBody();
 
-$first   = trim($b['firstName'] ?? '');
-$last    = trim($b['lastName']  ?? '');
+$first   = trim($b['firstName']  ?? '');
+$middle  = trim($b['middleName'] ?? '');
+$last    = trim($b['lastName']   ?? '');
 $dob     = trim($b['dob']       ?? '');
 $gender  = trim($b['gender']    ?? '');
 $address = trim($b['address']   ?? '');
@@ -60,11 +61,12 @@ try {
     // for the same email so the user gets a fresh OTP on retry.
     $pdo->prepare(
         'INSERT INTO pending_registrations
-           (email, first_name, last_name, dob, gender, address, contact,
+           (email, first_name, middle_name, last_name, dob, gender, address, contact,
             blood_type, password_hash, otp, expires_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?, NOW() + INTERVAL 5 MINUTE)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?, NOW() + INTERVAL 5 MINUTE)
          ON DUPLICATE KEY UPDATE
            first_name    = VALUES(first_name),
+           middle_name   = VALUES(middle_name),
            last_name     = VALUES(last_name),
            dob           = VALUES(dob),
            gender        = VALUES(gender),
@@ -75,7 +77,7 @@ try {
            otp           = VALUES(otp),
            attempts      = 0,
            expires_at    = VALUES(expires_at)'
-    )->execute([$email, $first, $last, $dob, $gender, $address, $contact, $blood, $hash, $otp]);
+    )->execute([$email, $first, $middle ?: null, $last, $dob, $gender, $address, $contact, $blood, $hash, $otp]);
 
     try {
         sendVerificationEmail($email, $otp, $first);

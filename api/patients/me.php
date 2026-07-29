@@ -26,10 +26,16 @@ if ($role !== 'patient' || !$profileId) {
 try {
     $pdo = getDB();
 
+    // Doctor names are built in PHP (not SQL CONCAT) so they include the
+    // middle initial via _mi() and stay in sync with doctors/index.php's
+    // `name` field — the frontend matches doctors by this exact string
+    // (see generateClearance's doctors.find(d => d.name === e.doctor)).
+    $doctorName = fn($row) => empty($row['doctor_first']) ? '' : trim('Dr. ' . $row['doctor_first'] . _mi($row['doctor_middle'] ?? '') . ' ' . $row['doctor_last']);
+
     // ── Examinations ──────────────────────────────────────────────
     $examStmt = $pdo->prepare(
         'SELECT e.*,
-                CONCAT("Dr. ", d.first_name, " ", d.last_name) AS doctor_name
+                d.first_name AS doctor_first, d.middle_name AS doctor_middle, d.last_name AS doctor_last
          FROM examinations e
          LEFT JOIN doctors d ON d.id = e.doctor_id
          WHERE e.patient_id = ?
@@ -41,7 +47,7 @@ try {
     $examinations = array_map(fn($e) => [
         'id'                  => $e['id'],
         'date'                => $e['date'],
-        'doctor'              => $e['doctor_name'] ?? '',
+        'doctor'              => $doctorName($e),
         'od'                  => ['sph' => $e['od_sph'] ?? '', 'cyl' => $e['od_cyl'] ?? '', 'axis' => $e['od_axis'] ?? '', 'va' => $e['od_va'] ?? '', 'add' => $e['od_add'] ?? ''],
         'os'                  => ['sph' => $e['os_sph'] ?? '', 'cyl' => $e['os_cyl'] ?? '', 'axis' => $e['os_axis'] ?? '', 'va' => $e['os_va'] ?? '', 'add' => $e['os_add'] ?? ''],
         'iop'                 => ['od' => $e['iop_od'] ?? '', 'os' => $e['iop_os'] ?? ''],
@@ -61,7 +67,7 @@ try {
     // ── Prescriptions ─────────────────────────────────────────────
     $rxStmt = $pdo->prepare(
         'SELECT rx.*,
-                CONCAT("Dr. ", d.first_name, " ", d.last_name) AS doctor_name
+                d.first_name AS doctor_first, d.middle_name AS doctor_middle, d.last_name AS doctor_last
          FROM prescriptions rx
          LEFT JOIN doctors d ON d.id = rx.doctor_id
          WHERE rx.patient_id = ?
@@ -73,7 +79,7 @@ try {
     $prescriptions = array_map(fn($rx) => [
         'id'       => $rx['id'],
         'date'     => $rx['date'],
-        'doctor'   => $rx['doctor_name'] ?? '',
+        'doctor'   => $doctorName($rx),
         'od'       => ['sph' => $rx['od_sph'] ?? '', 'cyl' => $rx['od_cyl'] ?? '', 'axis' => $rx['od_axis'] ?? ''],
         'os'       => ['sph' => $rx['os_sph'] ?? '', 'cyl' => $rx['os_cyl'] ?? '', 'axis' => $rx['os_axis'] ?? ''],
         'lensType' => $rx['lens_type'] ?? '',
@@ -83,7 +89,7 @@ try {
     // ── Consultations ─────────────────────────────────────────────
     $conStmt = $pdo->prepare(
         'SELECT c.*,
-                CONCAT("Dr. ", d.first_name, " ", d.last_name) AS doctor_name
+                d.first_name AS doctor_first, d.middle_name AS doctor_middle, d.last_name AS doctor_last
          FROM consultations c
          LEFT JOIN doctors d ON d.id = c.doctor_id
          WHERE c.patient_id = ?
@@ -95,7 +101,7 @@ try {
     $consultations = array_map(fn($c) => [
         'id'           => $c['id'],
         'date'         => $c['date'],
-        'doctor'       => $c['doctor_name'] ?? '',
+        'doctor'       => $doctorName($c),
         'type'         => $c['type']         ?? '',
         'diagnosis'    => $c['diagnosis']    ?? '',
         'prescription' => $c['prescription'] ?? '',

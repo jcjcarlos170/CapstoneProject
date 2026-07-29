@@ -165,6 +165,7 @@ const PAGE_LABELS = {
   'doctor-settings':       'Settings',
   'examination':           'Optical Examination',
   'new-examination':       'New Examination',
+  'edit-examination':      'Edit Examination',
   'exam-records':          'Examination Records',
   'doctor-schedule':       'My Schedule',
   'doctor-settings':       'Settings',
@@ -233,7 +234,7 @@ function navigate(page, params = {}) {
   }
 
   // Staff/admin patient data pages
-  if (page === 'patient-list' || page === 'new-examination') {
+  if (page === 'patient-list' || page === 'new-examination' || page === 'edit-examination') {
     if (window._syncPatients) window._syncPatients()
   }
 
@@ -287,6 +288,7 @@ function renderPage() {
     'doctor-appointments':   Pages.pageDoctorAppointments,
     'examination':           Pages.pageExamination,
     'new-examination':       Pages.pageNewExamination,
+    'edit-examination':      Pages.pageNewExamination,
     'exam-records':          Pages.pageExamRecords,
     'doctor-schedule':       Pages.pageDoctorSchedule,
     'doctor-settings':       Pages.pageDoctorSettings,
@@ -359,7 +361,10 @@ function renderSidebar() {
       : `window.navigate('${item.key}')`
 
     if (hasChildren) {
-      const isChildActive = item.children.some(c => c.key === state.page && (c.filter === undefined || state.filter === c.filter))
+      // 'edit-examination' isn't its own sidebar link (only reached contextually
+      // from a patient's exam record), but it should still highlight the
+      // "Optical Examination" parent, same as its 'new-examination' sibling.
+      const isChildActive = item.children.some(c => (c.key === state.page || (c.key === 'new-examination' && state.page === 'edit-examination')) && (c.filter === undefined || state.filter === c.filter))
       const isParentSelf  = state.page === item.key && !isChildActive
       const isOpen        = isChildActive || isParentSelf
       const pBadgeCount = item.badgeKey ? (window[item.badgeKey] || 0) : 0

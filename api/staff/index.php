@@ -36,7 +36,7 @@ try {
 
     // Staff
     $staffRows = $pdo->query(
-        'SELECT s.id, s.first_name, s.last_name, s.contact, s.status, u.id AS user_id, u.email
+        'SELECT s.id, s.first_name, s.middle_name, s.last_name, s.contact, s.status, u.id AS user_id, u.email
          FROM staff s
          JOIN users u ON u.id = s.user_id
          WHERE s.archived_at IS NULL
@@ -44,19 +44,20 @@ try {
     )->fetchAll();
 
     $staffResult = array_map(fn($r) => [
-        'id'        => $r['id'],
-        'name'      => $r['first_name'] . ' ' . $r['last_name'],
-        'firstName' => $r['first_name'],
-        'lastName'  => $r['last_name'],
-        'email'     => $r['email'],
-        'contact'   => $r['contact'] ?? '',
-        'status'    => $r['status'] ?? 'active',
-        'photoUrl'  => $photoMap[(int)$r['user_id']] ?? null,
+        'id'         => $r['id'],
+        'name'       => trim($r['first_name'] . _mi($r['middle_name']) . ' ' . $r['last_name']),
+        'firstName'  => $r['first_name'],
+        'middleName' => $r['middle_name'] ?? '',
+        'lastName'   => $r['last_name'],
+        'email'      => $r['email'],
+        'contact'    => $r['contact'] ?? '',
+        'status'     => $r['status'] ?? 'active',
+        'photoUrl'   => $photoMap[(int)$r['user_id']] ?? null,
     ], $staffRows);
 
     // Admins
     $adminRows = $pdo->query(
-        'SELECT a.id, a.first_name, a.last_name, a.contact, a.status, u.id AS user_id, u.email
+        'SELECT a.id, a.first_name, a.middle_name, a.last_name, a.contact, a.status, u.id AS user_id, u.email
          FROM admins a
          JOIN users u ON u.id = a.user_id
          WHERE a.archived_at IS NULL
@@ -64,14 +65,15 @@ try {
     )->fetchAll();
 
     $adminResult = array_map(fn($r) => [
-        'id'        => $r['id'],
-        'name'      => $r['first_name'] . ' ' . $r['last_name'],
-        'firstName' => $r['first_name'],
-        'lastName'  => $r['last_name'],
-        'email'     => $r['email'],
-        'contact'   => $r['contact'] ?? '',
-        'status'    => $r['status'] ?? 'active',
-        'photoUrl'  => $photoMap[(int)$r['user_id']] ?? null,
+        'id'         => $r['id'],
+        'name'       => trim($r['first_name'] . _mi($r['middle_name']) . ' ' . $r['last_name']),
+        'firstName'  => $r['first_name'],
+        'middleName' => $r['middle_name'] ?? '',
+        'lastName'   => $r['last_name'],
+        'email'      => $r['email'],
+        'contact'    => $r['contact'] ?? '',
+        'status'     => $r['status'] ?? 'active',
+        'photoUrl'   => $photoMap[(int)$r['user_id']] ?? null,
     ], $adminRows);
 
     jsonResponse(['success' => true, 'staff' => $staffResult, 'admins' => $adminResult]);

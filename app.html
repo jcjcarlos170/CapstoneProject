@@ -410,8 +410,14 @@
           <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         </div>
       </div>
-      <h2 class="fp-title">Verify Your Email</h2>
-      <p class="fp-desc">We've sent a 6-digit code to <strong id="ev-email-display"></strong>. Enter it below to activate your account.</p>
+      <div id="ev-header-otp">
+        <h2 class="fp-title">Verify Your Email</h2>
+        <p class="fp-desc">We've sent a 6-digit code to <strong id="ev-email-display"></strong>. Enter it below to activate your account.</p>
+      </div>
+      <div id="ev-header-edit" style="display:none">
+        <h2 class="fp-title">Update Your Email</h2>
+        <p class="fp-desc">Enter the correct email address below. We'll send a new verification code to it.</p>
+      </div>
       <div style="text-align:center;margin-bottom:16px" id="ev-edit-email-trigger-row">
         <button class="fp-resend-link" id="ev-edit-email-btn" onclick="evStartEditEmail()">Wrong email? Edit it</button>
       </div>
@@ -443,19 +449,22 @@
       </div>
 
       <!-- Inline "edit email" form — swapped in over the OTP entry above -->
-      <div id="ev-edit-email-group" style="display:none">
-        <div class="reg-group" style="margin-bottom:14px">
-          <label class="reg-label" for="ev-new-email-input">New Email Address</label>
+      <div id="ev-edit-email-group" style="display:none;margin-top:18px">
+        <div class="fp-group">
+          <label class="fp-label" for="ev-new-email-input">New Email Address</label>
           <input type="email" id="ev-new-email-input" class="fp-input" placeholder="you@email.com" autocomplete="email">
           <div class="fp-field-error" id="ev-edit-email-error"></div>
         </div>
-        <div class="fp-btn-row" style="margin-bottom:14px">
-          <button class="fp-back-link" onclick="evCancelEditEmail()">Cancel</button>
+        <div class="fp-btn-row">
+          <button class="fp-back-link" onclick="evCancelEditEmail()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+            Cancel
+          </button>
           <button class="fp-btn-primary" id="ev-save-email-btn" onclick="evSaveEditEmail()">Save &amp; Resend Code</button>
         </div>
       </div>
 
-      <div style="text-align:center">
+      <div style="text-align:center" id="ev-back-login-row">
         <button class="fp-back-link" onclick="showLogin()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
           Back to Login
@@ -557,9 +566,19 @@
             <input type="text" id="reg-last" class="reg-input" placeholder="Dela Cruz">
           </div>
 
+          <div class="reg-group reg-full">
+            <label class="reg-label">Middle Name</label>
+            <input type="text" id="reg-middle" class="reg-input" placeholder="Santos">
+          </div>
+
           <div class="reg-group">
             <label class="reg-label">Date of Birth <span class="reg-req">*</span></label>
-            <input type="date" id="reg-dob" class="reg-input">
+            <div class="reg-date-field">
+              <input type="date" id="reg-dob" class="reg-input"
+                     oninput="this.parentElement.classList.toggle('has-value', !!this.value)">
+              <span class="reg-date-placeholder">mm/dd/yyyy</span>
+              <svg class="reg-date-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
             <div class="reg-hint">Must be 18 years old or above to register</div>
           </div>
           <div class="reg-group">

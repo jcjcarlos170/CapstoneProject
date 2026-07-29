@@ -115,9 +115,9 @@ try {
     $fullName = ($role === 'doctor' ? 'Dr. ' : '') . trim(($result['profile']['first_name'] ?? '') . ' ' . ($result['profile']['last_name'] ?? ''));
     $logId    = 'L' . date('YmdHis') . substr((string)microtime(true), -3);
     $pdo->prepare(
-        'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type)
-         VALUES (?,?,?,?,\'Logged in to the system\',NOW(),\'login\')'
-    )->execute([substr($logId, 0, 20), (int)$user['id'], $fullName, ucfirst($role)]);
+        'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type, ip_address)
+         VALUES (?,?,?,?,\'Logged in to the system\',NOW(),\'login\',?)'
+    )->execute([substr($logId, 0, 20), (int)$user['id'], $fullName, ucfirst($role), clientIp()]);
 } catch (PDOException $e) { /* non-critical */ }
 
 jsonResponse(['success' => true, 'role' => $role, 'user' => $userObj]);

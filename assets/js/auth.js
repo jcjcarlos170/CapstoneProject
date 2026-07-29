@@ -97,6 +97,7 @@ async function logout() {
 // ── Register ─────────────────────────────────────────────────────
 async function handleRegister() {
   const first   = document.getElementById('reg-first').value.trim()
+  const middle  = document.getElementById('reg-middle').value.trim()
   const last    = document.getElementById('reg-last').value.trim()
   const dob     = document.getElementById('reg-dob').value
   const gender  = document.getElementById('reg-gender').value
@@ -136,7 +137,7 @@ async function handleRegister() {
     const res  = await fetch('api/auth/register.php', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ firstName: first, lastName: last, dob, gender, address, contact, bloodType: blood, email, password: pass }),
+      body:    JSON.stringify({ firstName: first, middleName: middle, lastName: last, dob, gender, address, contact, bloodType: blood, email, password: pass }),
     })
     const data = await res.json()
 
@@ -478,6 +479,7 @@ function showRegister() {
     const t = new Date()
     const maxDob = new Date(t.getFullYear() - 18, t.getMonth(), t.getDate())
     dobEl.max = maxDob.toISOString().slice(0, 10)
+    dobEl.parentElement.classList.remove('has-value')
   }
   const genderEl = document.getElementById('reg-gender'); if (genderEl) genderEl.value = ''
   const bloodEl  = document.getElementById('reg-blood');  if (bloodEl)  bloodEl.value  = ''
@@ -1056,6 +1058,15 @@ function evStartEditEmail() {
   document.getElementById('ev-otp-group').style.display = 'none'
   document.getElementById('ev-edit-email-group').style.display = 'block'
   document.getElementById('ev-edit-email-trigger-row').style.display = 'none'
+  // Cancel (inside the edit form's own button row) is now the one back-style
+  // action on screen — hide the standalone Back to Login link so there
+  // aren't two competing exits shown at once.
+  document.getElementById('ev-back-login-row').style.display = 'none'
+  // Swap the heading too — otherwise it keeps describing the OTP step
+  // ("We've sent a code to...") while the form on screen is for editing
+  // the address that code was sent to.
+  document.getElementById('ev-header-otp').style.display = 'none'
+  document.getElementById('ev-header-edit').style.display = ''
 
   const input = document.getElementById('ev-new-email-input')
   const errEl = document.getElementById('ev-edit-email-error')
@@ -1073,6 +1084,9 @@ function evCancelEditEmail() {
 
   editGroup.style.display = 'none'
   otpGroup.style.display  = ''
+  document.getElementById('ev-back-login-row').style.display = ''
+  document.getElementById('ev-header-edit').style.display = 'none'
+  document.getElementById('ev-header-otp').style.display  = ''
   if (_evFromReg) document.getElementById('ev-edit-email-trigger-row').style.display = ''
 }
 window.evCancelEditEmail = evCancelEditEmail
@@ -1508,7 +1522,7 @@ async function _systemPollTick() {
   }
   _pollFailStreak = 0
 
-  const examInProgress = page === 'new-examination' && window.state?.params?.patientId
+  const examInProgress = (page === 'new-examination' || page === 'edit-examination') && window.state?.params?.patientId
 
   // Appointments badge matters for admin/staff/doctor; patients have no badge
   // and their nav triggers already refresh appointment data on page open

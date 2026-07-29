@@ -593,8 +593,23 @@ input[type="date"].reg-input {
      white background set by .reg-input. */
   color-scheme: light;
 }
+/* Some Android WebView builds render this native icon invisible (white-on-
+   white) no matter what color-scheme says, so it's hidden in favor of the
+   always-visible custom .reg-date-icon drawn over it. Stretched to cover
+   the whole field (not left at its small default size/position) so a click
+   anywhere opens the picker on desktop too — otherwise desktop only opens
+   it via that tiny icon's exact original spot, which no longer lines up
+   with where the fake icon is drawn. Mobile already opens on any tap
+   regardless of icon size, so this just brings desktop in line with it. */
 input[type="date"].reg-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
+  opacity: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
 }
 /* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
    remain visible even when the system prefers dark mode. */
@@ -606,6 +621,31 @@ input[type="date"].reg-input::-webkit-datetime-edit-day-field,
 input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   color: #1C1C1C;
   -webkit-text-fill-color: #1C1C1C;
+}
+/* Same reasoning as the icon above: some browsers render the empty-state
+   "mm/dd/yyyy" hint invisibly too, so it's hidden (transparent, not the
+   dark color above) until a real value is chosen, and .reg-date-placeholder
+   below shows our own hint text in its place. */
+.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit,
+.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-fields-wrapper,
+.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-text,
+.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-month-field,
+.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-day-field,
+.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-year-field {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.reg-date-field { position: relative; }
+.reg-date-field input[type="date"].reg-input { padding-right: 38px; }
+.reg-date-placeholder {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: #9CA3AF; font-size: 0.85rem; font-family: 'Poppins', sans-serif;
+  pointer-events: none;
+}
+.reg-date-field.has-value .reg-date-placeholder { display: none; }
+.reg-date-icon {
+  position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+  pointer-events: none;
 }
 .reg-input:focus {
   border-color: #E8891C;
@@ -2204,7 +2244,7 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
 
 /* ── Patient profile card responsive layout ── */
 .patient-profile-row  { display: flex; gap: 24px; padding: 24px; flex-wrap: wrap; align-items: stretch; }
-.patient-avatar-col   { display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 140px; }
+.patient-avatar-col   { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-width: 140px; }
 .patient-info-col     { flex: 1; min-width: 200px; display: flex; flex-direction: column; justify-content: center; }
 .patient-stats-col    { display: flex; flex-direction: column; gap: 8px; min-width: 110px; justify-content: center; }
 .profile-two-col      { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -3264,8 +3304,11 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
    Clearance certificate). Iframe-based prints (exam
    records, prescriptions, QR) set their own @page
    rule inside their own generated document instead.
+   margin:0 so Chrome has no page-margin band left to draw its own print
+   header/footer (URL, date, page number) into — the same visual margin is
+   restored via .clearance-document's own print padding below instead.
 ══════════════════════════════════════════════ */
-@page { size: A4; margin: 15mm; }
+@page { size: A4; margin: 0; }
 
 /* ══════════════════════════════════════════════
    PRINT — Ophthalmic Clearance isolation
@@ -3279,13 +3322,20 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   body:has(.clearance-document) .clearance-document,
   body:has(.clearance-document) .clearance-document * { visibility: visible; }
 
-  /* Position certificate at top-left of page */
+  /* Center the certificate vertically on the page. It's pulled out of
+     normal flow (position:absolute) because its ancestors are only
+     visibility:hidden, not display:none, so they'd otherwise still
+     reserve their normal layout space and push/misplace it. top:50% +
+     translateY(-50%) centers it against the page box itself (the
+     containing block for an absolutely-positioned element with no
+     positioned ancestors), regardless of how tall the content is. */
   .clearance-document {
     position: absolute;
     left: 0;
-    top: 0;
+    top: 50%;
+    transform: translateY(-50%);
     width: 100%;
-    padding: 20mm 25mm;
+    padding: 35mm 40mm;
     font-size: 12pt;
     background: #fff !important;
   }

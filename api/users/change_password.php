@@ -38,6 +38,11 @@ try {
         jsonResponse(['success' => false, 'message' => 'Current password is incorrect.']);
     }
 
+    if (passwordWasUsedBefore($pdo, $userId, $newPw)) {
+        jsonResponse(['success' => false, 'message' => 'You can\'t reuse a previous password. Please choose a different one.']);
+    }
+
+    recordPasswordHistory($pdo, $userId, $user['password_hash']);
     $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
         ->execute([password_hash($newPw, PASSWORD_DEFAULT), $userId]);
 

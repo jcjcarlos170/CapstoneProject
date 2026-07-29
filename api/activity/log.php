@@ -40,6 +40,7 @@ if ($method === 'GET') {
             'timestamp' => $r['timestamp'] ?? '',
             'type'      => $r['type']      ?? 'info',
             'photoUrl'  => $r['photo_url'] ?? null,
+            'ip'        => $r['ip_address'] ?? '',
         ], $rows);
 
         jsonResponse(['success' => true, 'logs' => $logs]);
@@ -69,8 +70,8 @@ if ($method === 'POST') {
     try {
         $pdo = getDB();
         $pdo->prepare(
-            'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT IGNORE INTO activity_log (id, users_id, user_name, role, action, timestamp, type, ip_address)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         )->execute([
             $id,
             $usersId,
@@ -79,6 +80,7 @@ if ($method === 'POST') {
             $action,
             $timestamp ?: date('Y-m-d H:i:s'),
             $type,
+            clientIp(),
         ]);
         jsonResponse(['success' => true]);
     } catch (PDOException $e) {

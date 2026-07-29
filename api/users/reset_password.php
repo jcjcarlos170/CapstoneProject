@@ -52,10 +52,20 @@ try {
     if (!$row || !$row['user_id']) {
         jsonResponse(['success' => false, 'message' => 'User account not found.']);
     }
+    $targetUserId = (int)$row['user_id'];
+
+    if (passwordWasUsedBefore($pdo, $targetUserId, $newPass)) {
+        jsonResponse(['success' => false, 'message' => 'That was one of this user\'s previous passwords. Please choose a different one.']);
+    }
+
+    $curHashStmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+    $curHashStmt->execute([$targetUserId]);
+    $curHash = $curHashStmt->fetchColumn();
+    if ($curHash) recordPasswordHistory($pdo, $targetUserId, $curHash);
 
     $hash = password_hash($newPass, PASSWORD_DEFAULT);
     $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
-        ->execute([$hash, (int)$row['user_id']]);
+        ->execute([$hash, $targetUserId]);
 
     jsonResponse(['success' => true]);
 

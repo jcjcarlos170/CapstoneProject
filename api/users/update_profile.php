@@ -24,10 +24,11 @@ if (!array_key_exists($role, $tableMap)) {
 
 $userId = (int)$_SESSION['user_id'];
 $b      = getBody();
-$fn     = trim($b['firstName'] ?? '');
-$ln     = trim($b['lastName']  ?? '');
-$phone  = trim($b['phone']     ?? '');
-$email  = trim($b['email']     ?? '');
+$fn     = trim($b['firstName']  ?? '');
+$mn     = trim($b['middleName'] ?? '');
+$ln     = trim($b['lastName']   ?? '');
+$phone  = trim($b['phone']      ?? '');
+$email  = trim($b['email']      ?? '');
 
 if (!$fn || !$ln) {
     jsonResponse(['success' => false, 'message' => 'First and last name are required.']);
@@ -39,8 +40,8 @@ try {
     $pdo = getDB();
 
     $pdo->prepare(
-        "UPDATE `{$table}` SET first_name = ?, last_name = ?, contact = ? WHERE user_id = ?"
-    )->execute([$fn, $ln, $phone, $userId]);
+        "UPDATE `{$table}` SET first_name = ?, middle_name = ?, last_name = ?, contact = ? WHERE user_id = ?"
+    )->execute([$fn, $mn ?: null, $ln, $phone, $userId]);
 
     if ($email && filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $chk = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1');

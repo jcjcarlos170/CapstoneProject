@@ -264,7 +264,11 @@ function navigate(page, params = {}) {
 }
 
 // ── renderPage ──────────────────────────────────────────────────
-function renderPage() {
+// opts.silent: skip the fade-up entrance animation — used by background
+// polling so a data refresh the user didn't ask for doesn't visibly blink
+// the whole page. Real navigation (the default) keeps the animation.
+function renderPage(opts) {
+  const silent = !!(opts && opts.silent)
   const { page, role } = state
   const Pages = window._pages
 
@@ -310,8 +314,13 @@ function renderPage() {
   const el = document.getElementById('main-content')
   if (!fn || !el) return
 
+  // Silent refresh: preserve scroll position and skip the entrance
+  // animation entirely, since this is a background data update the user
+  // didn't initiate, not a page change.
+  const scrollTop = silent ? el.scrollTop : 0
   el.innerHTML = fn()
-  el.className = 'fade-up'
+  el.className = silent ? '' : 'fade-up'
+  if (silent) el.scrollTop = scrollTop
 
   wrapTableScroll()
   renderTopbar()

@@ -1257,6 +1257,14 @@ function _bootAfterAuth(role, user) {
   if (['admin', 'staff'].includes(role)) _syncContactMessages()
 }
 
+// Cheap deep-equality check used by the background poll sync functions
+// below to skip re-rendering (and its scroll/animation reset) when a poll
+// comes back with data identical to what's already on screen.
+function _pollDataChanged(prev, next) {
+  try { return JSON.stringify(prev) !== JSON.stringify(next) }
+  catch (_) { return true } // fail open — render rather than silently miss a real change
+}
+
 // Pages that show appointments list — need full re-render when data changes
 const _APPT_PAGES = new Set([
   'appointments','patient-appts','doctor-appointments'
@@ -1273,17 +1281,19 @@ async function _syncAppointments(rerender = true) {
     if (!r.ok) return
     const d = await r.json()
     if (!d.success || !Array.isArray(d.appointments)) return
+    const changed = _pollDataChanged(appointments, d.appointments)
     // Replace the mock array in-place so all existing references stay valid
     appointments.splice(0, appointments.length, ...d.appointments)
     _recomputeApptCounts()
     if (window._updateSidebarBadges) window._updateSidebarBadges()
+    if (!changed) return
     const page = window.state?.page
-    if (rerender && _APPT_PAGES.has(page)) { window.renderPage(); return }
+    if (rerender && _APPT_PAGES.has(page)) { window.renderPage({ silent: true }); return }
     // Update dashboard stat cards and charts without a full re-render
     if (page === 'admin-dashboard' && window.updateAdminDashboard) window.updateAdminDashboard()
     if (page === 'staff-dashboard' && window.updateStaffDashboard) window.updateStaffDashboard()
-    if (page === 'doctor-dashboard' && window.renderPage) window.renderPage()
-    if (page === 'patient-dashboard' && window.renderPage) window.renderPage()
+    if (page === 'doctor-dashboard' && window.renderPage) window.renderPage({ silent: true })
+    if (page === 'patient-dashboard' && window.renderPage) window.renderPage({ silent: true })
   } catch (_) { /* keep mock data on network failure */ }
 }
 window._syncAppointments = _syncAppointments
@@ -1295,15 +1305,17 @@ async function _syncPatients() {
     if (!r.ok) return
     const d = await r.json()
     if (!d.success || !Array.isArray(d.patients)) return
+    const changed = _pollDataChanged(patients, d.patients)
     patients.splice(0, patients.length, ...d.patients)
+    if (!changed) return
     // Re-render page if it shows patients list
     const p = window.state?.page
-    if (p === 'patient-list') { window.renderPage(); return }
-    if (p === 'new-examination' && !window.state?.params?.patientId) { window.renderPage(); return }
+    if (p === 'patient-list') { window.renderPage({ silent: true }); return }
+    if (p === 'new-examination' && !window.state?.params?.patientId) { window.renderPage({ silent: true }); return }
     // Update dashboard stat without full re-render
     if (p === 'admin-dashboard' && window.updateAdminDashboard) window.updateAdminDashboard()
     if (p === 'staff-dashboard' && window.updateStaffDashboard) window.updateStaffDashboard()
-    if (p === 'admin-users' && window.renderPage) window.renderPage()
+    if (p === 'admin-users' && window.renderPage) window.renderPage({ silent: true })
   } catch (_) {}
 }
 window._syncPatients = _syncPatients
@@ -1319,6 +1331,10 @@ async function _syncMyRecords() {
     const exams = d.examinations  || []
     const rxs   = d.prescriptions || []
     const cons  = d.consultations || []
+    const changed = _pollDataChanged(
+      { examinations: window.state.user?.examinations, prescriptions: window.state.user?.prescriptions, consultations: window.state.user?.consultations },
+      { examinations: exams, prescriptions: rxs, consultations: cons }
+    )
     // Update state.user so the exam-history/prescriptions/consultations pages (which read user.examinations etc. directly) work
     if (window.state.user) {
       window.state.user.examinations  = exams
@@ -1339,7 +1355,7 @@ async function _syncMyRecords() {
     }
     const page = window.state?.page
     const dataPages = new Set(['patient-dashboard','patient-prescriptions','patient-exam-history','patient-consultations'])
-    if (dataPages.has(page)) window.renderPage()
+    if (changed && dataPages.has(page)) window.renderPage({ silent: true })
   } catch (_) {}
 }
 window._syncMyRecords = _syncMyRecords
@@ -1403,10 +1419,11 @@ async function _syncContactMessages() {
     if (!r.ok) return
     const d = await r.json()
     if (!d.success || !Array.isArray(d.messages)) return
+    const changed = _pollDataChanged(contactMessages, d.messages)
     contactMessages.splice(0, contactMessages.length, ...d.messages)
     window._contactUnreadCount = d.unread_count || 0
     if (window._updateSidebarBadges) window._updateSidebarBadges()
-    if (window.state?.page === 'contact-messages' && window.renderPage) window.renderPage()
+    if (changed && window.state?.page === 'contact-messages' && window.renderPage) window.renderPage({ silent: true })
   } catch (_) {}
 }
 window._syncContactMessages = _syncContactMessages
@@ -1582,9 +1599,10 @@ async function _syncActivityLog() {
     if (!r.ok) return
     const d = await r.json()
     if (!d.success || !Array.isArray(d.logs)) return
+    const changed = _pollDataChanged(activityLog, d.logs)
     activityLog.splice(0, activityLog.length, ...d.logs)
     const page = window.state?.page
-    if (page === 'activity-log') window.renderPage()
+    if (changed && page === 'activity-log') window.renderPage({ silent: true })
     else if (page === 'admin-dashboard' && window.updateAdminDashboard) window.updateAdminDashboard()
   } catch (_) {}
 }

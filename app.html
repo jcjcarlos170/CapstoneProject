@@ -574,7 +574,7 @@
           <div class="reg-group">
             <label class="reg-label">Date of Birth <span class="reg-req">*</span></label>
             <div class="reg-date-field">
-              <input type="date" id="reg-dob" class="reg-input"
+              <input type="date" id="reg-dob" class="reg-input" autocomplete="off"
                      oninput="this.parentElement.classList.toggle('has-value', !!this.value)"
                      onclick="if(this.showPicker){try{this.showPicker()}catch(e){}}"
                      onfocus="if(this.showPicker){try{this.showPicker()}catch(e){}}">

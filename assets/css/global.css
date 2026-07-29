@@ -636,6 +636,21 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   pointer-events: none;
 }
 .reg-date-field.has-value .reg-date-placeholder { display: none; }
+/* Some Android Chrome builds keep rendering the native calendar icon (or a
+   fallback chevron) regardless of opacity/display CSS on the pseudo-element
+   itself — this happens to bypass normal CSS suppression on at least one
+   confirmed device. Rather than fight that further, this opaque patch
+   simply paints over wherever the browser insists on drawing it, matching
+   the field's own background so it reads as part of the field, not a
+   visible box. .reg-date-icon (below, later in DOM order) paints on top
+   of it with our own clean icon. pointer-events:none on both lets clicks
+   fall through to the real input underneath. */
+.reg-date-icon-mask {
+  position: absolute; right: 1px; top: 1px; bottom: 1px; width: 40px;
+  background: #fff;
+  border-radius: 0 7px 7px 0;
+  pointer-events: none;
+}
 .reg-date-icon {
   position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
   pointer-events: none;

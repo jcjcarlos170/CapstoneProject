@@ -621,6 +621,18 @@ input[type="date"].reg-input::-webkit-calendar-picker-indicator {
     margin: 0;
   }
 }
+/* Touch devices: some Android Chrome builds still render a fallback
+   chevron for this indicator even with opacity:0 (confirmed — this isn't
+   caused by the desktop stretch above, it happens without it too).
+   display:none removes it outright instead of just hiding it, which is
+   safe here specifically because touch devices already open the date
+   picker on a tap anywhere on the field — they never depended on this
+   indicator remaining its own clickable target the way desktop does. */
+@media (pointer: coarse) {
+  input[type="date"].reg-input::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+}
 /* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
    remain visible even when the system prefers dark mode. */
 input[type="date"].reg-input::-webkit-datetime-edit,

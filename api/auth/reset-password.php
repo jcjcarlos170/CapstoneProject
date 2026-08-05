@@ -15,8 +15,11 @@ $b        = getBody();
 $token    = trim($b['token']    ?? '');
 $password = $b['password'] ?? '';
 
-if (!$token || strlen($password) < 8) {
+if (!$token) {
     jsonResponse(['success' => false, 'message' => 'Invalid request.']);
+}
+if ($pwError = validatePasswordPolicy($password)) {
+    jsonResponse(['success' => false, 'message' => $pwError]);
 }
 
 try {

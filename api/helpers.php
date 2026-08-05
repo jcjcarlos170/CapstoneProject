@@ -9,12 +9,105 @@
 // end up 8 hours behind the actual local time.
 date_default_timezone_set('Asia/Manila');
 
+// ── Default registration Terms & Conditions / Data Privacy Notice ──
+// Served whenever clinic_settings.terms_content is NULL (fresh install,
+// not yet migrated, or admin hasn't customized it) so the registration
+// page never shows blank legal text. Convention parsed by the shared
+// renderTermsMarkdown() (db.js): "## " = heading, blank line = new
+// paragraph, "- " = bullet list item. Keep this in sync with the
+// content an admin would see pre-filled in Settings > Terms & Conditions.
+const DEFAULT_TERMS_MD = <<<'TERMS'
+## 1. Acceptance of Terms
+By creating a patient account with Cana Optical Clinic ("the Clinic"), you agree to be bound by these Terms & Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.
+
+## 2. Account Registration
+You must provide accurate, current, and complete information during registration. You are responsible for keeping your password confidential and for all activity under your account. Notify the Clinic immediately if you suspect unauthorized use.
+
+## 3. Your Patient QR Code
+Upon registration, a unique QR code is generated and linked to your patient record. Present this QR code at the clinic for fast, accurate check-in. Do not share it with anyone else — it provides access to your health information.
+
+## 4. Appointments
+Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The Clinic reserves the right to reschedule or decline requests when necessary.
+
+## 5. Use of the Platform
+You agree to use this system only for legitimate healthcare purposes related to your own care. Misuse — including attempting to access another patient's records or interfering with the system's normal operation — may result in account suspension.
+
+## 6. Data Privacy Act Notice (Republic Act No. 10173)
+In compliance with the Data Privacy Act of 2012 (RA 10173) and its Implementing Rules and Regulations, the Clinic collects the personal and sensitive personal information you provide during registration (e.g. name, date of birth, address, contact details) and through your subsequent care (e.g. examination results, diagnoses, prescriptions). This information is collected and processed solely for:
+- Creating and maintaining your patient record
+- Scheduling and managing appointments
+- Providing optical examination, diagnosis, and treatment
+- Generating your patient identification QR code
+- Communicating with you regarding your account, appointments, or care
+- Complying with legal and regulatory requirements
+
+## 7. Storage and Security
+Your data is stored on secured servers with access restricted to authorized clinic personnel (admin, staff, and your attending doctor) who need it to perform their duties. We apply reasonable organizational, physical, and technical safeguards to protect your information against unauthorized access, alteration, disclosure, or destruction.
+
+## 8. Data Sharing
+The Clinic does not sell or rent your personal information. Your data may only be shared with third parties when required by law, when necessary to provide your care (e.g. referrals), or with your explicit consent.
+
+## 9. Data Retention
+Your personal and health records are retained for as long as your account is active, and for the period required by applicable healthcare record-keeping regulations afterward, after which they are securely disposed of.
+
+## 10. Your Rights as a Data Subject
+Under the Data Privacy Act, you have the right to:
+- Be informed of how your data is collected and processed
+- Access the personal data the Clinic holds about you
+- Request correction of inaccurate or outdated data
+- Object to or withdraw consent for processing, subject to legal or contractual restrictions
+- Request deletion of your data, where applicable
+- File a complaint with the National Privacy Commission (NPC)
+
+To exercise any of these rights, please contact the clinic directly using the contact details on our website.
+
+## 11. Consent
+By checking "I agree" and completing registration, you acknowledge that you have read and understood this notice, and you consent to the collection, use, storage, and processing of your personal and sensitive personal information as described above, for the purpose of receiving care from Cana Optical Clinic — and you are entrusting your credentials and personal information to the Clinic on that basis.
+
+## 12. Changes to this Notice
+The Clinic may update these Terms & Conditions and this Data Privacy Notice from time to time. Continued use of your account after changes are posted constitutes acceptance of the revised terms.
+TERMS;
+
+// ── Default booking-wizard Appointment Policy ──────────────────────
+// Served whenever clinic_settings.appointment_policy_content is NULL.
+// Same renderTermsMarkdown() convention as DEFAULT_TERMS_MD above. Section 4
+// uses "> " so it keeps rendering as the original amber callout box instead
+// of a plain paragraph.
+const DEFAULT_APPT_POLICY_MD = <<<'POLICY'
+## 1. Appointment Requests
+Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The clinic reserves the right to reschedule or decline requests when necessary.
+
+## 2. Cancellations
+If you can no longer make it to your appointment, please cancel as early as possible. This keeps the slot open for someone else who may need it.
+
+## 3. Repeated No-Shows
+If you miss multiple approved appointments without cancelling, online booking may be temporarily restricted for your account. In that case, please contact the clinic directly by phone or in person to schedule your next visit.
+
+## 4. Appointment Reminders and Confirmation
+> For approved appointments, we send a reminder at noon the day before your visit. Please confirm you'll be attending by 9:00 PM that same day. If we don't hear from you by then, the appointment is automatically cancelled so the slot can be offered to another patient.
+
+## 5. Waitlist
+If your preferred slot is fully booked, you can join the waitlist for it. If that slot opens up, you'll be notified with a limited time to claim it. If you don't respond in time, or choose to decline, the slot is offered to the next patient in line. You can only be on one waitlist at a time.
+POLICY;
+
 // Middle initial as displayed on formal names/documents ("Juan D. Dela Cruz") —
 // the standard PH convention — leading space included so callers can just
 // concatenate it between first and last name.
 function _mi(?string $middleName): string {
     $middleName = trim((string)$middleName);
     return $middleName !== '' ? ' ' . mb_strtoupper(mb_substr($middleName, 0, 1)) . '.' : '';
+}
+
+// ── Password strength policy ───────────────────────────────────────
+// Mirrors the client-side checklist (auth.js's PW_POLICY_RULES) so a direct
+// API call can't bypass what the UI already promises. Returns an error
+// message string when the password fails, or null when it passes.
+function validatePasswordPolicy(string $password): ?string {
+    if (strlen($password) < 8)        return 'Password must be at least 8 characters.';
+    if (!preg_match('/[a-z]/', $password)) return 'Password must include at least one lowercase letter.';
+    if (!preg_match('/[A-Z]/', $password)) return 'Password must include at least one uppercase letter.';
+    if (!preg_match('/[0-9]/', $password)) return 'Password must include at least one number.';
+    return null;
 }
 
 // ── Password reuse prevention ──────────────────────────────────────
@@ -287,6 +380,8 @@ function buildUserObject(string $role, array $p, string $email, array $days = []
             'qrData'         => $p['qr_data']          ?? '',
             'registeredDate' => $p['registered_date']  ?? '',
             'lastVisit'      => $p['last_visit'] ?: '—',
+            'noShowCount'    => (int)($p['no_show_count'] ?? 0),
+            'bookingRestricted' => (bool)($p['booking_restricted'] ?? false),
             'consultations'  => [],
             'examinations'   => [],
             'prescriptions'  => [],
@@ -294,6 +389,167 @@ function buildUserObject(string $role, array $p, string $email, array $days = []
     }
 
     return $base;
+}
+
+// ── No-show tracking ───────────────────────────────────────────────
+// Patients past this many no-shows lose self-service booking (see
+// api/appointments/create.php) until an admin/staff clears the flag.
+const NO_SHOW_RESTRICTION_THRESHOLD = 3;
+
+// Increments a patient's no-show count by one and applies the booking
+// restriction once they cross the threshold. Returns true if this call is
+// what pushed them over the threshold (i.e. the restriction is new), so
+// callers can mention it in a notification/log without re-mentioning it
+// on every subsequent no-show.
+function recordNoShow(PDO $pdo, string $patientId): bool {
+    if (!$patientId) return false;
+    try {
+        $pdo->prepare('UPDATE patients SET no_show_count = no_show_count + 1 WHERE id = ?')->execute([$patientId]);
+        $stmt = $pdo->prepare('SELECT no_show_count, booking_restricted FROM patients WHERE id = ? LIMIT 1');
+        $stmt->execute([$patientId]);
+        $row = $stmt->fetch();
+        if (!$row) return false;
+        if ((int)$row['no_show_count'] >= NO_SHOW_RESTRICTION_THRESHOLD && !$row['booking_restricted']) {
+            $pdo->prepare('UPDATE patients SET booking_restricted = 1 WHERE id = ?')->execute([$patientId]);
+            return true;
+        }
+    } catch (PDOException) { /* non-critical */ }
+    return false;
+}
+
+// ── Appointment reminders, confirmation & waitlist ─────────────────
+// The reminder is sent at REMINDER_HOUR the day before the appointment;
+// if the patient hasn't confirmed by CONFIRM_DEADLINE_HOUR that same day,
+// api/cron/appointment_reminders.php auto-cancels it. Both are checked
+// against the clinic's local time (Asia/Manila, set in this file above).
+const REMINDER_HOUR         = 12; // noon, day before the appointment
+const CONFIRM_DEADLINE_HOUR = 21; // 9:00 PM, same day as the reminder
+
+// How long a waitlist offer stays claimable — a flat number, deliberately
+// not scaled by how far out the appointment is. A longer window for distant
+// appointments sounds more lenient, but it also means every other patient
+// behind the first one in the FIFO queue has to wait out that same long
+// window before the offer can cascade down to them if it's ignored — with
+// several people in line, that compounds fast. A single short window bounds
+// that worst case regardless of queue length or appointment distance. Also
+// doubles as the minimum runway a slot needs before it's even offered (see
+// waitlistHasEnoughLeadTime below) — there's no point offering a window
+// longer than what could ever fit before the appointment happens.
+const WAITLIST_OFFER_HOURS = 3;
+
+// True if a doctor+date+time slot has enough runway left to bother offering
+// it via the waitlist. This is purely an hours-based feasibility check —
+// can the patient realistically see the notification, respond, and get to
+// the clinic — not the day-level minimum-advance-booking policy (Minimum
+// Advance Booking exists to stop a brand-new *self-service* booking from
+// being made with too little planning lead-time; a waitlisted patient
+// already opted in to be notified about this exact slot in advance, so
+// applying that same "no same-day" rule here just blocks a same-day
+// cancellation from ever being offered to them, even with hours of runway
+// still left — the hours floor below already covers the real constraint).
+function waitlistHasEnoughLeadTime(PDO $pdo, string $date, string $time): bool {
+    $apptAt = strtotime("$date $time");
+    if ($apptAt === false) return false;
+    return ($apptAt - time()) / 3600 >= WAITLIST_OFFER_HOURS;
+}
+
+// Claim-window length for a specific doctor+date+time slot — a flat
+// WAITLIST_OFFER_HOURS, only ever called after waitlistHasEnoughLeadTime()
+// has confirmed that much runway actually exists. The cap here is just a
+// safety net for the sliver of time right at that boundary (e.g. exactly
+// 3.0 hours left rounding down a touch due to fractional seconds).
+function waitlistOfferHours(string $date, string $time): int {
+    $apptAt = strtotime("$date $time");
+    if ($apptAt === false) return WAITLIST_OFFER_HOURS;
+
+    $hoursUntil = ($apptAt - time()) / 3600;
+    return max(1, min(WAITLIST_OFFER_HOURS, (int)floor($hoursUntil)));
+}
+
+// Builds the next A00N id and inserts the appointment row. Shared by
+// api/appointments/create.php (normal booking, status usually 'pending')
+// and api/waitlist/respond.php (claiming an offer, status 'approved' —
+// the slot was already implicitly vetted when it was first offered).
+function createAppointmentRecord(PDO $pdo, array $data): string {
+    $last = $pdo->query("SELECT id FROM appointments ORDER BY id DESC LIMIT 1")->fetchColumn();
+    $next = 1;
+    if ($last && preg_match('/^A(\d+)$/i', $last, $m)) {
+        $next = (int)$m[1] + 1;
+    }
+    $newId = 'A' . str_pad($next, 3, '0', STR_PAD_LEFT);
+    // Ensure uniqueness in case of gaps
+    $dup = $pdo->prepare('SELECT id FROM appointments WHERE id = ?');
+    while (true) {
+        $dup->execute([$newId]);
+        if (!$dup->fetch()) break;
+        $next++;
+        $newId = 'A' . str_pad($next, 3, '0', STR_PAD_LEFT);
+    }
+
+    $pdo->prepare(
+        'INSERT INTO appointments
+           (id, patient_id, patient_name, doctor_id, doctor_name, date, time, type, status, notes, terms_agreed)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    )->execute([
+        $newId, $data['patientId'], $data['patientName'], $data['doctorId'], $data['doctorName'],
+        $data['date'], $data['time'], $data['type'], $data['status'], $data['notes'] ?? '',
+        !empty($data['termsAgreed']) ? 1 : 0,
+    ]);
+
+    return $newId;
+}
+
+// Exact-match check (unlike checkApptConflict's fuzzy duration-window
+// overlap) for whether this precise doctor+date+time is currently held
+// by an active, unexpired waitlist offer to a different patient.
+function checkWaitlistHold(PDO $pdo, string $doctorId, string $date, string $time, string $excludePatientId = ''): bool {
+    $q = "SELECT id FROM appointment_waitlist
+          WHERE doctor_id = ? AND date = ? AND time = ? AND status = 'offered' AND offer_expires_at > NOW()"
+       . ($excludePatientId ? ' AND patient_id != ?' : '');
+    $params = $excludePatientId ? [$doctorId, $date, $time, $excludePatientId] : [$doctorId, $date, $time];
+    $stmt = $pdo->prepare($q);
+    $stmt->execute($params);
+    return (bool)$stmt->fetch();
+}
+
+// Offers a freshly-opened slot to the next patient in line, if anyone is
+// waiting for that exact doctor+date+time. Call this any time an
+// appointment for that slot is cancelled/no-showed, a waitlist offer is
+// declined, or a stale offer expires. No-op if nobody's waiting.
+function offerNextWaitlistSlot(PDO $pdo, string $doctorId, string $date, string $time): void {
+    // Claiming an offer is functionally a new booking — a patient can't be
+    // expected to see the notification, respond, and travel to the clinic
+    // if the slot doesn't leave enough runway. Don't manufacture an offer
+    // nobody could realistically act on — leave the entry as 'waiting'
+    // (a no-op here, same as if nobody were in line).
+    if (!waitlistHasEnoughLeadTime($pdo, $date, $time)) return;
+
+    $stmt = $pdo->prepare(
+        "SELECT id, patient_id, doctor_name FROM appointment_waitlist
+         WHERE doctor_id = ? AND date = ? AND time = ? AND status = 'waiting'
+         ORDER BY created_at ASC LIMIT 1"
+    );
+    $stmt->execute([$doctorId, $date, $time]);
+    $row = $stmt->fetch();
+    if (!$row) return;
+
+    $expiresAt = date('Y-m-d H:i:s', time() + waitlistOfferHours($date, $time) * 3600);
+    $pdo->prepare(
+        "UPDATE appointment_waitlist SET status = 'offered', offered_at = NOW(), offer_expires_at = ?
+         WHERE id = ? AND status = 'waiting'"
+    )->execute([$expiresAt, $row['id']]);
+
+    $ps = $pdo->prepare('SELECT user_id FROM patients WHERE id = ? LIMIT 1');
+    $ps->execute([$row['patient_id']]);
+    $userId = $ps->fetchColumn();
+    if ($userId) {
+        $fmtDate      = date('M j, Y', strtotime($date));
+        $expiresLabel = date('g:i A', strtotime($expiresAt));
+        createNotification($pdo, (int)$userId, 'waitlist_offer', 'A Waitlisted Slot Is Open',
+            "The slot with {$row['doctor_name']} on {$fmtDate} at {$time} you were waitlisted for is now available. "
+          . "Claim it by {$expiresLabel} or it will be offered to the next patient in line."
+        );
+    }
 }
 
 // ── Notification helpers ─────────────────────────────────────────

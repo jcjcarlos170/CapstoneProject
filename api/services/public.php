@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 try {
     $pdo  = getDB();
     $rows = $pdo->query(
-        "SELECT id, name, description, icon FROM clinic_services
+        "SELECT id, name, description, duration, icon FROM clinic_services
          WHERE status = 'active' ORDER BY sort_order ASC, id ASC"
     )->fetchAll();
 
@@ -23,6 +23,7 @@ try {
         'id'          => (int)$r['id'],
         'name'        => $r['name'],
         'description' => $r['description'] ?? '',
+        'duration'    => (int)($r['duration'] ?? 0),
         'icon'        => $r['icon'] ?? 'eye',
     ], $rows);
 

@@ -220,6 +220,245 @@ body { overflow-x: hidden; }
 .about-stat-num { font-size: 1.4rem; font-weight: 700; color: var(--orange); line-height: 1; letter-spacing: -0.02em; }
 .about-stat-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; font-weight: 500; }
 
+/* Video section — hidden by default; index.html only reveals it once the
+   admin has actually set a Clinic Video URL in Clinic Settings. */
+#video-section { background: #f9fafb; padding: 80px 48px; border-top: 1px solid var(--border); text-align: center; }
+.video-inner { max-width: 840px; margin: 0 auto; }
+.video-inner .about-eyebrow { text-align: center; }
+.video-inner .about-heading { text-align: center; }
+.video-embed-wrap {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 16px;
+  overflow: hidden; margin-top: 28px; background: #050505;
+  border: 1px solid rgba(232,137,28,0.18);
+  box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -6px rgba(232,137,28,0.10), 0 1px 0 rgba(255,255,255,0.03) inset;
+}
+.video-embed-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; cursor: pointer; }
+
+/* Center play button — shown only before the video has ever started playing
+   (classic "poster + play" affordance). Once playback has begun, all
+   further play/pause feedback goes through the ghost-icon flash instead. */
+.vid-center-btn {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 78px; height: 78px; border-radius: 50%;
+  background: var(--orange); border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 16px 34px -8px rgba(0,0,0,0.5), 0 4px 18px rgba(232,137,28,0.4), 0 0 0 5px rgba(255,255,255,0.08);
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), background-color 0.15s ease, box-shadow 0.2s ease;
+  z-index: 3;
+}
+.vid-center-btn::before {
+  content: ''; position: absolute; inset: -12px; border-radius: 50%;
+  border: 2px solid rgba(232,137,28,0.4); pointer-events: none;
+  animation: vidPulseRing 2.6s ease-out infinite;
+}
+@keyframes vidPulseRing {
+  0%   { transform: scale(0.92); opacity: 0.65; }
+  70%  { transform: scale(1.32); opacity: 0; }
+  100% { opacity: 0; }
+}
+.vid-center-btn svg { width: 30px; height: 30px; }
+/* The play triangle's bounding box is now geometrically centered in its
+   viewBox, but a hard flat edge on the left vs. a fading point on the
+   right still reads as "left-heavy" to the eye — the standard optical
+   fix is a small rightward nudge. Expressed as a % of the icon's own
+   size (not a fixed px) so it scales consistently across every size
+   this triangle is used at. */
+.vid-center-btn svg, .ic-play, .ic-g-play { transform: translateX(6%); }
+.vid-center-btn:hover { background: var(--orange-dk); transform: translate(-50%, -50%) scale(1.08); }
+.vid-center-btn:active { transform: translate(-50%, -50%) scale(0.94); }
+.vid-center-btn:focus-visible { outline: 3px solid rgba(232,137,28,0.55); outline-offset: 4px; }
+
+/* Ghost play/pause flash — pops in centered then fades, exactly like
+   YouTube's own click/space-bar feedback. */
+.vid-ghost {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.7);
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(10,10,12,0.6); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; z-index: 3;
+}
+.vid-ghost svg { width: 30px; height: 30px; }
+.vid-ghost.show { animation: vidGhostPop 0.65s ease forwards; }
+@keyframes vidGhostPop {
+  0%   { opacity: 0;   transform: translate(-50%, -50%) scale(0.7); }
+  18%  { opacity: 1;   transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0;   transform: translate(-50%, -50%) scale(1.15); }
+}
+
+/* Skip-feedback bubble ("+10s" / "−10s") — brief, spring-eased pop */
+.vid-flash {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85);
+  background: rgba(10,10,12,0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  color: #fff; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.01em;
+  padding: 10px 20px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1);
+  opacity: 0; pointer-events: none; z-index: 4; white-space: nowrap;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+.vid-flash.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+/* Bottom chrome — classic YouTube layout: thin progress bar flush above a
+   minimal, icon-only control row (no button chrome at rest), full width. */
+.vid-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px 10px 8px;
+  background: rgba(8,8,10,0.62);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.vid-bar-hidden { opacity: 0; transform: translateY(10px); pointer-events: none; }
+
+.vid-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vid-row-left, .vid-row-right { display: flex; align-items: center; gap: 2px; min-width: 0; }
+
+.vid-btn {
+  appearance: none; border: none; background: transparent; color: #fff;
+  width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0; position: relative;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  opacity: 0.9; transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.vid-btn svg { width: 18px; height: 18px; }
+.vid-btn:hover { opacity: 1; }
+.vid-btn:active { transform: scale(0.9); }
+.vid-btn:focus-visible { outline: 2px solid var(--orange); outline-offset: 1px; opacity: 1; }
+.vid-skip-n {
+  position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  font-size: 8px; font-weight: 700; color: #fff; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+
+.vid-vol-group { display: flex; align-items: center; }
+
+/* Volume slider — same div-based two-tone fill technique as the seek bar
+   (colored fill for the current level, no gradient function involved),
+   collapsed to 0 width until the group is hovered/focused. */
+.vid-vol-wrap {
+  position: relative; width: 0; height: 13px; display: flex; align-items: center;
+  margin-left: 0; overflow: visible;
+  transition: width 0.18s ease, margin-left 0.18s ease;
+}
+.vid-vol-group:hover .vid-vol-wrap,
+.vid-vol-group:focus-within .vid-vol-wrap { width: 56px; margin-left: 6px; }
+.vid-vol-track, .vid-vol-fill {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 3px; border-radius: 2px; pointer-events: none;
+}
+.vid-vol-track { width: 100%; background: rgba(255,255,255,0.3); }
+.vid-vol-fill  { width: 100%; background: var(--orange); }
+.vid-vol-slider {
+  position: absolute; inset: 0; width: 100%; margin: 0; appearance: none;
+  background: transparent; cursor: pointer; opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.vid-vol-group:hover .vid-vol-slider,
+.vid-vol-group:focus-within .vid-vol-slider { opacity: 1; }
+.vid-vol-slider::-webkit-slider-runnable-track { background: transparent; height: 13px; }
+.vid-vol-slider::-moz-range-track { background: transparent; height: 13px; border: none; }
+.vid-vol-slider::-webkit-slider-thumb {
+  appearance: none; width: 11px; height: 11px; border-radius: 50%; margin-top: 0;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.vid-vol-slider::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+.vid-vol-slider:focus-visible { outline: none; }
+
+/* Playback speed menu */
+.vid-speed-wrap { position: relative; }
+.vid-speed-menu {
+  position: absolute; bottom: calc(100% + 10px); right: -6px;
+  background: rgba(18,18,20,0.95); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 6px; min-width: 96px;
+  box-shadow: 0 16px 34px -8px rgba(0,0,0,0.55);
+  display: flex; flex-direction: column; gap: 1px;
+  opacity: 0; transform: translateY(6px) scale(0.96); pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s cubic-bezier(.34,1.56,.64,1);
+  z-index: 5;
+}
+.vid-speed-menu.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+.vid-speed-opt {
+  appearance: none; border: none; background: transparent; color: #fff;
+  font-size: 0.78rem; text-align: left; padding: 7px 10px; border-radius: 6px; cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.vid-speed-opt:hover { background: rgba(255,255,255,0.1); }
+.vid-speed-opt:focus-visible { outline: 2px solid var(--orange); outline-offset: -2px; }
+.vid-speed-opt.active { color: var(--orange); font-weight: 700; }
+
+.vid-time {
+  color: #fff; font-size: 0.72rem; opacity: 0.85; white-space: nowrap;
+  margin-left: 6px; user-select: none; font-variant-numeric: tabular-nums;
+}
+
+.vid-seek-wrap { position: relative; width: 100%; height: 13px; display: flex; align-items: center; cursor: pointer; }
+.vid-seek-track, .vid-seek-buffered, .vid-seek-fill {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 3px; border-radius: 2px; pointer-events: none; transition: height 0.12s ease;
+}
+.vid-seek-track    { width: 100%; background: rgba(255,255,255,0.28); }
+.vid-seek-buffered { width: 0%;   background: rgba(255,255,255,0.46); }
+.vid-seek-fill     { width: 0%;   background: var(--orange); }
+.vid-seek-wrap:hover .vid-seek-track,
+.vid-seek-wrap:hover .vid-seek-buffered,
+.vid-seek-wrap:hover .vid-seek-fill { height: 5px; }
+.vid-seek {
+  position: absolute; inset: 0; width: 100%; margin: 0; appearance: none;
+  background: transparent; cursor: pointer;
+}
+.vid-seek::-webkit-slider-runnable-track { background: transparent; height: 13px; }
+.vid-seek::-moz-range-track { background: transparent; height: 13px; border: none; }
+.vid-seek::-webkit-slider-thumb {
+  appearance: none; width: 0; height: 0; border-radius: 50%;
+  background: var(--orange); box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  transition: width 0.12s ease, height 0.12s ease, margin-top 0.12s ease;
+}
+.vid-seek::-moz-range-thumb { width: 0; height: 0; border-radius: 50%; background: var(--orange); border: none; }
+.vid-seek-wrap:hover .vid-seek::-webkit-slider-thumb,
+.vid-seek:focus-visible::-webkit-slider-thumb { width: 13px; height: 13px; margin-top: 0; }
+.vid-seek-wrap:hover .vid-seek::-moz-range-thumb,
+.vid-seek:focus-visible::-moz-range-thumb { width: 13px; height: 13px; }
+.vid-seek:focus-visible { outline: none; }
+
+@media (max-width: 640px) {
+  #video-section { padding: 48px 20px; }
+  .vid-center-btn { width: 58px; height: 58px; }
+  .vid-center-btn svg { width: 24px; height: 24px; }
+  .vid-ghost { width: 54px; height: 54px; }
+  .vid-ghost svg { width: 24px; height: 24px; }
+  .vid-bar { padding: 5px 6px 7px; }
+  .vid-row { gap: 2px; }
+  .vid-time { display: none; }
+
+  /* Bigger, thumb-friendly tap targets — 32px is under the ~40px+ touch
+     target size that's comfortable on a phone. */
+  .vid-btn { width: 38px; height: 38px; }
+  .vid-btn svg { width: 19px; height: 19px; }
+  .vid-skip-n { font-size: 7.5px; }
+
+  /* Touch devices have no :hover, so a slider that only reveals itself on
+     hover can never be reached — keep volume always reachable and the
+     seek thumb always visible instead of hover-gated. */
+  .vid-vol-group:hover .vid-vol-wrap, .vid-vol-group:focus-within .vid-vol-wrap,
+  .vid-vol-wrap { width: 38px; margin-left: 4px; }
+  .vid-vol-slider { opacity: 1; }
+
+  .vid-seek-wrap { height: 22px; }
+  .vid-seek::-webkit-slider-runnable-track { height: 22px; }
+  .vid-seek::-moz-range-track { height: 22px; }
+  /* Webkit range thumbs need manual vertical centering via margin-top —
+     unlike Firefox, which centers automatically. (track height − thumb
+     height) / 2 = (22 − 12) / 2 = 5px; margin-top:0 pinned it to the top. */
+  .vid-seek::-webkit-slider-thumb { width: 12px; height: 12px; margin-top: 5px; }
+  .vid-seek::-moz-range-thumb { width: 12px; height: 12px; }
+
+  .vid-flash { font-size: 0.82rem; padding: 8px 16px; }
+  .vid-speed-menu { right: -34px; min-width: 88px; }
+}
+
+@media (max-width: 380px) {
+  .vid-btn { width: 34px; height: 34px; }
+  .vid-btn svg { width: 17px; height: 17px; }
+  .vid-vol-group:hover .vid-vol-wrap, .vid-vol-group:focus-within .vid-vol-wrap,
+  .vid-vol-wrap { width: 30px; }
+  .vid-bar { padding: 4px 4px 6px; }
+}
+
 /* Doctors section (unused on current landing page markup, kept for reuse) */
 #doctors-section { background: #f9fafb; padding: 80px 48px; border-top: 1px solid var(--border); }
 .landing-doctors-wrap { max-width: 1200px; margin: 0 auto; }

@@ -40,17 +40,47 @@ function mapRow(array $r): array {
         'disapprovalReason'   => $r['disapproval_reason']   ?? null,
         'rescheduleNote'      => $r['reschedule_note']      ?? null,
         'rescheduleRequest'   => is_array($rr) ? $rr : null,
+        'reminderSentAt'      => $r['reminder_sent_at'] ?? null,
+        'confirmedAt'         => $r['confirmed_at']     ?? null,
     ];
 }
 
 try {
     $pdo = getDB();
 
-    // Auto-transition approved appointments whose date has passed to 'no-show'
-    $pdo->exec(
-        "UPDATE appointments SET status = 'no-show'
+    // Auto-transition approved appointments whose date has passed to 'no-show'.
+    // Read the affected rows first (not just the count) so each one can be
+    // charged against its patient's no-show tally — the WHERE clause only
+    // ever matches a row once (it flips out of 'approved' immediately after),
+    // so this can't double-count a patient across repeated poll requests.
+    $dueNoShow = $pdo->query(
+        "SELECT id, patient_id, doctor_id, doctor_name, date, time FROM appointments
          WHERE status = 'approved' AND date < CURDATE()"
-    );
+    )->fetchAll();
+    if ($dueNoShow) {
+        $pdo->exec(
+            "UPDATE appointments SET status = 'no-show'
+             WHERE status = 'approved' AND date < CURDATE()"
+        );
+        foreach ($dueNoShow as $missed) {
+            if ($missed['doctor_id']) {
+                offerNextWaitlistSlot($pdo, $missed['doctor_id'], $missed['date'], $missed['time']);
+            }
+            if (!$missed['patient_id']) continue;
+            $justRestricted = recordNoShow($pdo, $missed['patient_id']);
+            $ps = $pdo->prepare('SELECT user_id FROM patients WHERE id = ? LIMIT 1');
+            $ps->execute([$missed['patient_id']]);
+            $puid = $ps->fetchColumn();
+            if ($puid) {
+                $fmtDate = date('M j, Y', strtotime($missed['date']));
+                $msg = "You were marked as a no-show for your appointment with {$missed['doctor_name']} on {$fmtDate} at {$missed['time']}.";
+                if ($justRestricted) {
+                    $msg .= ' Due to repeated missed appointments, online booking has been temporarily restricted for your account. Please contact the clinic directly to schedule.';
+                }
+                createNotification($pdo, (int)$puid, 'no_show', 'Missed Appointment', $msg);
+            }
+        }
+    }
 
     if (in_array($role, ['admin', 'staff'], true)) {
         $stmt = $pdo->query('SELECT * FROM appointments ORDER BY date DESC, time ASC');

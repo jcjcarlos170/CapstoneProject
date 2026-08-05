@@ -3,7 +3,7 @@ html, body { color: var(--text); background: var(--white); }
 #content { padding: 94px 0 80px; }
 
 /* Page header */
-.contact-page-header { max-width: 1200px; margin: 0 auto; padding: 48px 48px 40px; }
+.contact-page-header { max-width: 1200px; margin: 0 auto; padding: 0 48px 36px; }
 .section-eyebrow { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--orange); margin-bottom: 10px; display: block; }
 .contact-page-title { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1.15; letter-spacing: -0.03em; margin-bottom: 12px; }
 .contact-page-sub { font-size: 0.9rem; color: var(--muted); line-height: 1.7; max-width: 520px; }
@@ -78,7 +78,7 @@ html, body { color: var(--text); background: var(--white); }
 
 @media (max-width: 991.98px) {
   #content { padding: 94px 0 56px; }
-  .contact-page-header { padding: 32px 24px 28px; }
+  .contact-page-header { padding: 0 24px 28px; }
   .contact-wrap { padding: 0 24px; }
   .mini-map { height: 240px; margin: 0 20px 20px; }
   .contact-col { padding-left: 0; padding-right: 0; }
@@ -90,7 +90,7 @@ html, body { color: var(--text); background: var(--white); }
   .info-card-banner { padding: 20px; }
 }
 @media (max-width: 480px) {
-  .contact-page-header { padding: 24px 18px 20px; }
+  .contact-page-header { padding: 0 18px 20px; }
   .contact-wrap { padding: 0 18px; }
   .contact-page-title { font-size: 1.5rem; }
   .mini-map { margin: 0 16px 16px; }

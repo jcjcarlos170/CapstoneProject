@@ -84,6 +84,29 @@
 --    ALTER TABLE `admins` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
 --    ALTER TABLE `pending_registrations` ADD COLUMN `middle_name` VARCHAR(100) NULL DEFAULT NULL AFTER `first_name`;
 --    ALTER TABLE `activity_log` ADD COLUMN `ip_address` VARCHAR(45) NULL DEFAULT NULL AFTER `type`;
+--    ALTER TABLE `appointments` ADD COLUMN `terms_agreed` TINYINT(1) NOT NULL DEFAULT 0 AFTER `reschedule_request`;
+--    ALTER TABLE `patients` ADD COLUMN `no_show_count` INT UNSIGNED NOT NULL DEFAULT 0 AFTER `status`;
+--    ALTER TABLE `patients` ADD COLUMN `booking_restricted` TINYINT(1) NOT NULL DEFAULT 0 AFTER `no_show_count`;
+--    ALTER TABLE `appointments` ADD COLUMN `reminder_sent_at` DATETIME NULL DEFAULT NULL AFTER `terms_agreed`;
+--    ALTER TABLE `appointments` ADD COLUMN `confirmed_at` DATETIME NULL DEFAULT NULL AFTER `reminder_sent_at`;
+--    CREATE TABLE IF NOT EXISTS `appointment_waitlist` (
+--      `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+--      `patient_id`       VARCHAR(10)  NOT NULL,
+--      `patient_name`     VARCHAR(200) DEFAULT NULL,
+--      `doctor_id`        VARCHAR(10)  NOT NULL,
+--      `doctor_name`      VARCHAR(200) DEFAULT NULL,
+--      `date`             DATE         NOT NULL,
+--      `time`             VARCHAR(20)  NOT NULL,
+--      `type`             VARCHAR(100) DEFAULT NULL,
+--      `terms_agreed`     TINYINT(1)   NOT NULL DEFAULT 0,
+--      `status`           ENUM('waiting','offered','claimed','expired','declined','cancelled') NOT NULL DEFAULT 'waiting',
+--      `offered_at`       DATETIME     NULL DEFAULT NULL,
+--      `offer_expires_at` DATETIME     NULL DEFAULT NULL,
+--      `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--      PRIMARY KEY (`id`),
+--      INDEX `idx_slot` (`doctor_id`, `date`, `time`, `status`),
+--      FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE
+--    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- ================================================================
 
 SET NAMES utf8mb4;
@@ -199,6 +222,8 @@ CREATE TABLE IF NOT EXISTS `patients` (
   `registered_date` DATE         DEFAULT NULL,
   `last_visit`      DATE         DEFAULT NULL,
   `status`          ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  `no_show_count`      INT UNSIGNED NOT NULL DEFAULT 0,
+  `booking_restricted` TINYINT(1)   NOT NULL DEFAULT 0,
   `archived_at`     DATETIME     NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_patient_user` (`user_id`),
@@ -221,9 +246,36 @@ CREATE TABLE IF NOT EXISTS `appointments` (
   `disapproval_reason`   TEXT         DEFAULT NULL,
   `reschedule_note`      TEXT         DEFAULT NULL,
   `reschedule_request`   TEXT         DEFAULT NULL,   -- JSON: {reason,preferredDate,requestedAt}
+  `terms_agreed`         TINYINT(1)   NOT NULL DEFAULT 0, -- patient accepted the booking policy at request time
+  `reminder_sent_at`     DATETIME     NULL DEFAULT NULL, -- day-before-noon reminder was sent
+  `confirmed_at`         DATETIME     NULL DEFAULT NULL, -- patient confirmed attendance after the reminder
   PRIMARY KEY (`id`),
   FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`doctor_id`)  REFERENCES `doctors`(`id`)  ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ── Appointment Waitlist ─────────────────────────────────────────
+-- One row per patient waiting for a specific doctor+date+time slot that
+-- was full at request time. When that exact slot frees up, the oldest
+-- 'waiting' row is offered it for a limited window before moving on to
+-- the next patient in line.
+CREATE TABLE IF NOT EXISTS `appointment_waitlist` (
+  `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `patient_id`       VARCHAR(10)  NOT NULL,
+  `patient_name`     VARCHAR(200) DEFAULT NULL,
+  `doctor_id`        VARCHAR(10)  NOT NULL,
+  `doctor_name`      VARCHAR(200) DEFAULT NULL,
+  `date`             DATE         NOT NULL,
+  `time`             VARCHAR(20)  NOT NULL,
+  `type`             VARCHAR(100) DEFAULT NULL,
+  `terms_agreed`     TINYINT(1)   NOT NULL DEFAULT 0,
+  `status`           ENUM('waiting','offered','claimed','expired','declined','cancelled') NOT NULL DEFAULT 'waiting',
+  `offered_at`       DATETIME     NULL DEFAULT NULL,
+  `offer_expires_at` DATETIME     NULL DEFAULT NULL,
+  `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_slot` (`doctor_id`, `date`, `time`, `status`),
+  FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ── Optical Examinations ──────────────────────────────────────────
@@ -382,6 +434,8 @@ CREATE TABLE IF NOT EXISTS `clinic_settings` (
   `clinic_days`                   VARCHAR(255)      NOT NULL DEFAULT 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday',
   `gallery_max_photos`            TINYINT UNSIGNED  NULL     DEFAULT NULL,
   `founded_year`                  SMALLINT          NULL     DEFAULT NULL,
+  `terms_content`                 MEDIUMTEXT        NULL     DEFAULT NULL,
+  `appointment_policy_content`    MEDIUMTEXT        NULL     DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -490,11 +544,14 @@ CREATE TABLE IF NOT EXISTS `about_gallery` (
 -- ── Migrations (run once on existing databases) ───────────────────
 --    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `gallery_max_photos` TINYINT UNSIGNED NULL DEFAULT NULL AFTER `clinic_days`;
 --    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `founded_year` SMALLINT NULL DEFAULT NULL AFTER `gallery_max_photos`;
+--    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `terms_content` MEDIUMTEXT NULL DEFAULT NULL AFTER `founded_year`;
+--    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `appointment_policy_content` MEDIUMTEXT NULL DEFAULT NULL AFTER `terms_content`;
 --    ALTER TABLE `clinic_services` ADD COLUMN IF NOT EXISTS `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `icon`;
 --    UPDATE `clinic_services` SET sort_order = id WHERE sort_order = 0;
 --    ALTER TABLE `about_gallery` ADD COLUMN `filename` VARCHAR(255) NOT NULL DEFAULT '' AFTER `caption`, DROP COLUMN `image_data`, DROP COLUMN `mime_type`;
 --    ALTER TABLE `doctors` ADD COLUMN IF NOT EXISTS `degree` VARCHAR(30) NOT NULL DEFAULT 'OD' AFTER `specialization`;
 --    ALTER TABLE `doctors` ADD COLUMN IF NOT EXISTS `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER `work_hours`;
 --    ALTER TABLE `appointments` MODIFY COLUMN `status` ENUM('pending','approved','cancelled','disapproved','completed','no-show') NOT NULL DEFAULT 'pending';
+--    ALTER TABLE `clinic_settings` ADD COLUMN IF NOT EXISTS `video_url` VARCHAR(500) NULL DEFAULT NULL AFTER `map_embed_url`;
 
 SET FOREIGN_KEY_CHECKS = 1;

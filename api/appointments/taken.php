@@ -59,6 +59,18 @@ try {
         'duration' => (int)$r['duration'],
     ], $rows);
 
+    // Slots currently held by an active (unexpired) waitlist offer to
+    // someone else aren't in `appointments` yet — fold them in too so the
+    // picker greys them out instead of only bouncing at submit time.
+    $held = $pdo->prepare(
+        "SELECT time FROM appointment_waitlist
+         WHERE doctor_id = ? AND date = ? AND status = 'offered' AND offer_expires_at > NOW()"
+    );
+    $held->execute([$doctorId, $date]);
+    foreach ($held->fetchAll(PDO::FETCH_COLUMN) as $heldTime) {
+        $taken[] = ['time' => $heldTime, 'duration' => $defaultDuration];
+    }
+
     jsonResponse(['success' => true, 'taken' => array_values($taken), 'defaultDuration' => $defaultDuration]);
 
 } catch (PDOException $e) {

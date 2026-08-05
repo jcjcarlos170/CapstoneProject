@@ -19,6 +19,7 @@ function icon(name, cls = 'icon') {
     calendar:      '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     users:         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
     user:          '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    'user-x':      '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/>',
     'file-text':   '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
     settings:      '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     'bar-chart':   '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>',
@@ -113,7 +114,7 @@ window.handleRegister        = handleRegister
 window.showRegister          = showRegister
 window.showLogin             = showLogin
 window._charts               = { initAppointmentsChart, initPatientGrowthChart, initReportStatusChart, initReportMonthlyChart, updateAppointmentsChart, updatePatientGrowthChart, initAnalyticsDoughnut, initAnalyticsStacked, initGenderChart, initAgeChart, initDoctorUtilChart, updateAnalyticsCharts, initStaffOverviewChart, updateStaffOverviewChart }
-window._pages                = { pageAdminDashboard, pageAdminUsers, pageAppointments, pagePatientList, pagePatientView, pageContactMessages, pageQRScanner, pageSchedule, pageAdminReports, pageAdminSettings, pageActivityLog, pageStaffDashboard, pageStaffSettings, pageDoctorDashboard, pageDoctorAppointments, pageDoctorSchedule, pageDoctorSettings, pageExamination, pageExamRecords, pageNewExamination, pagePatientExamHistory, pagePatientDashboard, pagePatientAppts, pagePatientConsultations, pagePatientQR, pagePatientPrescriptions, pagePatientNotifications, pagePatientSettings, pageComingSoon, pagePatientDoctorAvail, pageScanQR }
+window._pages                = { pageAdminDashboard, pageAdminUsers, pageAppointments, pageCreateAppointment, pageWaitlist, pagePatientList, pagePatientView, pageContactMessages, pageQRScanner, pageSchedule, pageAdminReports, pageAdminSettings, pageActivityLog, pageStaffDashboard, pageStaffSettings, pageDoctorDashboard, pageDoctorAppointments, pageDoctorSchedule, pageDoctorSettings, pageExamination, pageExamRecords, pageNewExamination, pagePatientExamHistory, pagePatientDashboard, pagePatientAppts, pagePatientConsultations, pagePatientQR, pagePatientPrescriptions, pagePatientNotifications, pagePatientSettings, pageComingSoon, pagePatientDoctorAvail, pageScanQR }
 window.toggleNotifyDropdown  = toggleNotifyDropdown
 window.toggleUserDropdown    = toggleUserDropdown
 window.closeAllDropdowns     = closeAllDropdowns
@@ -164,16 +165,16 @@ function toast(msg, type = 'success', duration = 3000) {
   const isError   = type === 'error'
   el.style.cssText = `
     position:fixed;bottom:24px;right:24px;z-index:9999;
-    display:flex;align-items:center;gap:10px;
+    display:flex;align-items:flex-start;gap:10px;
     background:${isError ? '#FEE2E2' : isSuccess ? '#D1FAE5' : '#FFF8F0'};
     color:${isError ? '#991B1B' : isSuccess ? '#065F46' : '#92400E'};
     border:1px solid ${isError ? '#FECACA' : isSuccess ? '#A7F3D0' : '#FFD9A8'};
-    padding:12px 18px;border-radius:10px;font-size:.85rem;font-weight:600;
+    padding:12px 18px;border-radius:10px;font-size:.85rem;font-weight:600;line-height:1.5;
     box-shadow:0 8px 24px rgba(0,0,0,.12);
     animation:fadeUp .2s ease forwards;
     max-width:340px;`
   el.innerHTML = `
-    ${icon(isError ? 'alert-circle' : 'check-circle', 'icon-sm')}
+    <span style="flex-shrink:0;display:flex;margin-top:2px">${icon(isError ? 'alert-circle' : 'check-circle', 'icon-sm')}</span>
     <span>${msg}</span>`
   document.body.appendChild(el)
   setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(8px)'; el.style.transition = 'opacity .2s,transform .2s'; setTimeout(() => el.remove(), 200) }, duration)
@@ -428,6 +429,34 @@ function _qrBoxSizeFn(viewfinderWidth, viewfinderHeight) {
   return { width: size, height: size }
 }
 
+// Progressively looser camera configs to try in order. Safari/WebKit
+// validates combined facingMode+exact-resolution constraints far more
+// strictly than Chromium does — a request that Chrome happily loosens on
+// its own can throw OverconstrainedError outright in Safari. Each fallback
+// here drops one more constraint rather than giving up after the first
+// (ideal-resolution) attempt fails.
+function _qrCameraConfigs() {
+  return [
+    // 1) Preferred: rear camera, higher resolution for scanning off a
+    //    screen at a distance.
+    {
+      cameraIdOrConfig: { facingMode: 'environment' },
+      videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    },
+    // 2) Rear camera, no resolution preference — let the browser pick.
+    {
+      cameraIdOrConfig: { facingMode: 'environment' },
+      videoConstraints: undefined
+    },
+    // 3) Any camera at all (helps devices/browsers that don't resolve
+    //    "environment" the way this code expects, e.g. some laptops/tablets).
+    {
+      cameraIdOrConfig: {},
+      videoConstraints: undefined
+    }
+  ]
+}
+
 async function startQRCamera(containerId, onResult, onStatus) {
   if (!window.Html5Qrcode) {
     toast('QR scanner library failed to load.', 'error'); return
@@ -442,33 +471,44 @@ async function startQRCamera(containerId, onResult, onStatus) {
   _h5qr = instance
   let handled = false
 
-  try {
-    await instance.start(
-      // cameraIdOrConfig must have exactly one key — facingMode here.
-      { facingMode: 'environment' },
-      // Request a higher-resolution stream via videoConstraints — scanning
-      // a QR off another screen (e.g. a phone) from a distance needs more
-      // pixels per QR module than a typical default-resolution stream gives.
-      { fps: 12, qrbox: _qrBoxSizeFn, aspectRatio: 1.333334,
-        videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
-      (decodedText) => {
-        if (handled) return
-        handled = true
-        _qrKillStream().then(() => { if (onResult) onResult(decodedText) })
-      },
-      () => { /* fires continuously while no QR is in frame — expected, ignore */ }
-    )
-    if (onStatus) onStatus()
-  } catch (err) {
-    const msg = /NotAllowedError|Permission/i.test(String(err)) ? 'Camera permission denied. Please allow camera access and try again.'
-              : /NotFoundError/i.test(String(err))               ? 'No camera found on this device.'
-              : /NotReadableError/i.test(String(err))             ? 'Camera is in use by another application.'
-              : /OverconstrainedError/i.test(String(err))         ? 'Camera does not support the requested resolution. Retrying with defaults…'
-              : 'Camera error: ' + err
-    toast(msg, 'error')
-    _h5qr = null
-    _qrStopUI()
+  const onDecoded = (decodedText) => {
+    if (handled) return
+    handled = true
+    _qrKillStream().then(() => { if (onResult) onResult(decodedText) })
   }
+  const onScanFailure = () => { /* fires continuously while no QR is in frame — expected, ignore */ }
+
+  const configs = _qrCameraConfigs()
+  let lastErr = null
+  for (let i = 0; i < configs.length; i++) {
+    const cfg = configs[i]
+    try {
+      const configuration = { fps: 12, qrbox: _qrBoxSizeFn, aspectRatio: 1.333334 }
+      if (cfg.videoConstraints) configuration.videoConstraints = cfg.videoConstraints
+      await instance.start(cfg.cameraIdOrConfig, configuration, onDecoded, onScanFailure)
+      if (onStatus) onStatus()
+      return // success — stop trying further fallbacks
+    } catch (err) {
+      lastErr = err
+      // NotAllowedError (permission denied) and NotFoundError (no camera at
+      // all) won't be fixed by loosening constraints — stop immediately
+      // instead of prompting for camera permission repeatedly.
+      if (/NotAllowedError|Permission|NotFoundError/i.test(String(err))) break
+      // Otherwise (OverconstrainedError, NotReadableError, etc.) try the
+      // next looser config.
+    }
+  }
+
+  // Every attempt failed.
+  const err = lastErr
+  const msg = /NotAllowedError|Permission/i.test(String(err)) ? 'Camera permission denied. Please allow camera access and try again.'
+            : /NotFoundError/i.test(String(err))               ? 'No camera found on this device.'
+            : /NotReadableError/i.test(String(err))             ? 'Camera is in use by another application.'
+            : /OverconstrainedError/i.test(String(err))         ? 'Camera does not support the requested settings on this device.'
+            : 'Camera error: ' + err
+  toast(msg, 'error')
+  _h5qr = null
+  _qrStopUI()
 }
 
 // Belt-and-suspenders: html5-qrcode's own stop() can silently fail to
@@ -745,37 +785,168 @@ async function disapproveAppt(id, reason) {
   renderPage()
 }
 
+// Taken-slot state for the staff reschedule modal — mirrors the patient
+// reschedule modal's _rsTakenSlotTimes/_rsSlotConflicts, kept separate so
+// the two modals never share/clobber each other's fetched data.
+let _reTakenSlotTimes = []
+let _reTakenSlotDur   = 30
+
+function _reSlotConflicts(slotTime, slotDur) {
+  const sm = _clockToMinutes(slotTime)
+  if (sm == null) return false
+  return _reTakenSlotTimes.some(bt => {
+    const bm = _clockToMinutes(bt.time), bd = bt.duration || _reTakenSlotDur
+    return sm < bm + bd && sm + slotDur > bm
+  })
+}
+
+// Builds the real slot grid from Consultation Settings (respecting lunch
+// break) instead of a hardcoded, sparse list — so every slot the clinic
+// actually offers shows up here, not just an arbitrary subset of them.
+function _reBuildTimeOptions(keepTime) {
+  const stepMin = _durationMinutes(consultationSettings.defaultDuration)
+  const slots = consultationSettings.lunchBreak
+    ? [..._buildSessionSlots(consultationSettings.morningStart, consultationSettings.morningEnd, stepMin),
+       ..._buildSessionSlots(consultationSettings.afternoonStart, consultationSettings.afternoonEnd, stepMin)]
+    : _buildSessionSlots(consultationSettings.morningStart, consultationSettings.afternoonEnd, stepMin)
+  // The current/requested time might fall on a mark outside the clinic's
+  // normal grid (e.g. a legacy appointment) — keep it selectable regardless.
+  if (keepTime && !slots.includes(keepTime)) slots.push(keepTime)
+  slots.sort((x, y) => _clockToMinutes(x) - _clockToMinutes(y))
+  return slots
+}
+
+// Re-renders the #re-time-slots button grid, split into Morning/Afternoon
+// sections — the exact same chunking/heading convention as the booking
+// wizard's wizBuildTimeSlots() — so slots that conflict with this doctor's
+// other appointments on the selected date show as booked. A real <button>
+// gets a real CSS strikethrough, unlike a native <option> (which is drawn
+// by the browser's own list widget and ignores text-decoration entirely
+// regardless of inline style).
+function _reRenderTimeSlots() {
+  const el = document.getElementById('re-time-slots')
+  if (!el) return
+  const hidden  = document.getElementById('re-time')
+  const current = hidden?.value || ''
+  const stepMin = _durationMinutes(consultationSettings.defaultDuration)
+  const slots   = _reBuildTimeOptions(current)
+
+  const slotBtn = t => {
+    const taken = _reSlotConflicts(t, stepMin)
+    const isSel = t === current && !taken
+    const cls   = 'time-slot' + (taken ? ' taken' : isSel ? ' selected' : '')
+    const attrs = taken ? `disabled title="This slot is already booked for this doctor."` : `onclick="window.reSelectTime('${t}',this)"`
+    return `<button type="button" class="${cls}" ${attrs}>${t}</button>`
+  }
+
+  const morning   = slots.filter(t => _clockToMinutes(t) < 720)
+  const afternoon = slots.filter(t => _clockToMinutes(t) >= 720)
+
+  // Exact same flex-wrap convention as the main booking wizard's
+  // wizBuildTimeSlots() — the modal itself is widened (modal-xl) so all 8
+  // slots per row actually fit on one line instead of wrapping.
+  el.innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">${afternoon.length ? 'Morning' : 'Available Times'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${morning.map(slotBtn).join('')}</div>
+    </div>
+    ${afternoon.length ? `
+    <div>
+      <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:8px">Afternoon</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${afternoon.map(slotBtn).join('')}</div>
+    </div>` : ''}`
+}
+
+function reSelectTime(time, btnEl) {
+  const hidden = document.getElementById('re-time')
+  if (hidden) hidden.value = time
+  document.querySelectorAll('#re-time-slots .time-slot').forEach(b => b.classList.remove('selected'))
+  btnEl.classList.add('selected')
+}
+window.reSelectTime = reSelectTime
+
+// Fetches taken slots for the doctor on the newly-selected date (excluding
+// this appointment's own current slot) and refreshes the time-slot grid.
+async function reOnDateChange(doctorId, apptId) {
+  const date = document.getElementById('re-date')?.value || ''
+  _reTakenSlotTimes = []
+  _reTakenSlotDur   = _durationMinutes(consultationSettings.defaultDuration)
+  if (date && doctorId) {
+    try {
+      const r = await fetch(`api/appointments/taken.php?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(date)}&excludeId=${encodeURIComponent(apptId)}`)
+      const d = await r.json()
+      _reTakenSlotTimes = d.taken           || []
+      _reTakenSlotDur   = d.defaultDuration || _reTakenSlotDur
+    } catch (_) {}
+  }
+  _reRenderTimeSlots()
+}
+window.reOnDateChange = reOnDateChange
+
 function rescheduleAppt(id) {
   const a = appointments.find(a => a.id === id)
   if (!a) return
   const fulfillingRequest = !!a.rescheduleRequest
   const defaultDate = a.rescheduleRequest?.preferredDate || a.date
+  const defaultTime = a.rescheduleRequest?.preferredTime || a.time
+
+  // Show what the patient actually asked for as its own plain-language line,
+  // separate from the (possibly since-adjusted) form fields below it.
+  const prefDateLabel = a.rescheduleRequest?.preferredDate ? fmtDate(a.rescheduleRequest.preferredDate) : ''
+  const prefTimeLabel = a.rescheduleRequest?.preferredTime || ''
+  let prefText = ''
+  if (prefDateLabel && prefTimeLabel) prefText = `${prefDateLabel} at ${prefTimeLabel}`
+  else if (prefDateLabel) prefText = prefDateLabel
+  else if (prefTimeLabel) prefText = prefTimeLabel
+
   showModal(`
     <div class="modal-header">
       <div class="modal-title">Reschedule Appointment</div>
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
+      <style>
+        /* modal-lg (720px) isn't wide enough to fit all 8 same-sized slots
+           per row like the booking wizard does — widen just this modal
+           rather than shrinking the buttons to fit the smaller size. */
+        .modal-box.modal-xl { max-width:840px; }
+        .time-slot { padding:9px 14px; border-radius:8px; border:1.5px solid #e5e7eb; background:#fff;
+          font-family:'Poppins',sans-serif; font-size:.82rem; cursor:pointer; transition:all .15s; white-space:nowrap; }
+        .time-slot:hover:not(.taken) { border-color:#E8760A; }
+        .time-slot.selected { background:#E8760A; color:#fff; border-color:#E8760A; }
+        .time-slot.taken { background:#F3F4F6; color:#9CA3AF; cursor:not-allowed; text-decoration:line-through; }
+        .time-slot-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-family:'Poppins',sans-serif; font-size:.72rem; color:#6B7280; }
+        .time-slot-legend-item { display:flex; align-items:center; gap:6px; }
+        .time-slot-legend-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
+      </style>
       ${fulfillingRequest ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.8rem;color:#9A3412">
-        Fulfilling the patient's reschedule request${a.rescheduleRequest.preferredDate ? ' — preferred date pre-filled below' : ''}.
+        Fulfilling the patient's reschedule request.${prefText ? ` They asked for <strong>${prefText}</strong>, already pre-filled below.` : ' No specific date or time was requested.'}
       </div>` : ''}
       <div class="form-group"><label class="form-label">Patient</label>
         <input class="form-input" value="${a.patientName}" disabled></div>
       <div class="form-group"><label class="form-label">New Date</label>
         <input type="date" id="re-date" class="form-input" value="${defaultDate}"
-               min="${localDateStr()}"></div>
+               min="${localDateStr()}" onchange="window.reOnDateChange('${a.doctorId}','${id}')"></div>
       <div class="form-group"><label class="form-label">New Time</label>
-        <select id="re-time" class="form-select">
-          ${['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM']
-            .map(t=>`<option${t===a.time?' selected':''}>${t}</option>`).join('')}
-        </select></div>
+        <div id="re-time-slots"></div>
+        <div class="time-slot-legend">
+          <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#fff;border:1.5px solid #e5e7eb"></span>Available</div>
+          <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#E8760A"></span>Selected</div>
+          <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#F3F4F6;border:1.5px solid #e5e7eb"></span>Booked</div>
+        </div>
+        <input type="hidden" id="re-time" value="${defaultTime}"></div>
       <div class="form-group" style="margin-bottom:0"><label class="form-label">Note <span style="font-size:.75rem;color:#9CA3AF">(optional)</span></label>
         <textarea id="re-note" class="form-textarea" rows="2" placeholder="e.g. Doctor unavailable on original date, patient requested earlier slot…" style="resize:none">${a.rescheduleNote || ''}</textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
       <button class="btn-primary" onclick="window.doReschedule('${id}',${fulfillingRequest})">Confirm Reschedule</button>
-    </div>`)
+    </div>`, 'modal-xl')
+
+  // Populate the initial slot grid/booked states for today's default date too
+  // (fire-and-forget — same pattern used by the main wizard's own async
+  // slot-loading calls), not just after the reviewer changes the date.
+  reOnDateChange(a.doctorId, id)
 }
 
 async function doReschedule(id, fulfillRequest = false) {
@@ -825,31 +996,27 @@ function _rsSlotConflicts(slotTime, slotDur) {
   })
 }
 
-function _rsFilterSlots() {
-  const dateSel = document.getElementById('rs-date')
-  const timeSel = document.getElementById('rs-time')
-  if (!dateSel || !timeSel) return
-  const today  = localDateStr()
-  const nowMin = dateSel.value === today ? new Date().getHours() * 60 + new Date().getMinutes() : -1
-  const slotDur = _durationMinutes(consultationSettings.defaultDuration)
-  Array.from(timeSel.options).forEach(opt => {
-    if (!opt.value) return
-    const past  = nowMin >= 0 && _clockToMinutes(opt.value) <= nowMin
-    const taken = _rsSlotConflicts(opt.value, slotDur)
-    opt.disabled    = past || taken
-    opt.style.color = past || taken ? '#9CA3AF' : ''
-  })
-  const sel = timeSel.options[timeSel.selectedIndex]
-  if (sel && sel.disabled) {
-    const first = Array.from(timeSel.options).find(o => o.value && !o.disabled)
-    if (first) timeSel.value = first.value
-  }
-}
+// Doctor-scoped calendar state for the reschedule modal — same shape/
+// classification logic as the booking wizard's _wiz/amcRender (main.js),
+// but scoped to the one doctor already on the appointment (the doctor
+// can't change mid-reschedule, unlike Step 1 of the main wizard). The date
+// itself now comes from a native date picker (matching the staff/admin
+// reschedule modal's format) rather than a custom month-grid calendar.
+let _rsCal = { doctorId: '', apptId: '', selectedDate: '', time: '' }
 
+// Fetches taken slots for the doctor on the newly-picked date (excluding
+// this appointment's own current slot) and rebuilds the time-slot grid.
 async function rsOnDateChange(doctorId, apptId) {
+  const date = document.getElementById('rs-date')?.value || ''
+  _rsCal.selectedDate = date
+  _rsCal.time = ''
+  const timeInp = document.getElementById('rs-time')
+  if (timeInp) timeInp.value = ''
+  const grp = document.getElementById('rs-time-group')
+  if (grp) grp.style.display = date ? '' : 'none'
+
   _rsTakenSlotTimes = []
   _rsTakenSlotDur   = _durationMinutes(consultationSettings.defaultDuration)
-  const date = document.getElementById('rs-date')?.value || ''
   if (date && doctorId) {
     try {
       const r = await fetch(`api/appointments/taken.php?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(date)}&excludeId=${encodeURIComponent(apptId)}`)
@@ -858,21 +1025,96 @@ async function rsOnDateChange(doctorId, apptId) {
       _rsTakenSlotDur   = d.defaultDuration || _rsTakenSlotDur
     } catch (_) {}
   }
-  _rsFilterSlots()
+  rsBuildTimeSlots()
 }
+window.rsOnDateChange = rsOnDateChange
+
+// ── Time-slot grid — same Available/Fully-booked/Selected/Past convention
+// as the main booking wizard's wizBuildTimeSlots() (main.js), scoped to the
+// appointment's fixed doctor via the already-fetched _rsTakenSlotTimes.
+function rsBuildTimeSlots() {
+  const el = document.getElementById('rs-time-slots')
+  if (!el) return
+
+  const stepMin = _durationMinutes(consultationSettings.defaultDuration)
+  const _toMin  = t => {
+    const [time, period] = t.split(' ')
+    let [h, m] = time.split(':').map(Number)
+    if (period === 'PM' && h !== 12) h += 12
+    if (period === 'AM' && h === 12) h = 0
+    return h * 60 + m
+  }
+  let morning, afternoon
+  if (consultationSettings.lunchBreak) {
+    morning   = _buildSessionSlots(consultationSettings.morningStart,   consultationSettings.morningEnd,   stepMin)
+    afternoon = _buildSessionSlots(consultationSettings.afternoonStart, consultationSettings.afternoonEnd, stepMin)
+  } else {
+    const allSlots = _buildSessionSlots(consultationSettings.morningStart, consultationSettings.afternoonEnd, stepMin)
+    morning   = allSlots.filter(t => _toMin(t) < 720)
+    afternoon = allSlots.filter(t => _toMin(t) >= 720)
+  }
+
+  const today   = localDateStr()
+  const isToday = _rsCal.selectedDate === today
+  const nowMin  = isToday ? new Date().getHours() * 60 + new Date().getMinutes() : -1
+
+  // Unlike the main booking wizard, a fully-booked slot here is just
+  // disabled (not selectable) — this modal only records a preferred slot
+  // for staff to review, so there's no waitlist to offer it into.
+  const slotBtn = t => {
+    const isFull = _rsSlotConflicts(t, _rsTakenSlotDur)
+    const isPast = isToday && _toMin(t) <= nowMin
+    const isSel  = t === _rsCal.time && !isPast
+    const cls    = 'time-slot' + (isPast || isFull ? ' taken' : isSel ? ' selected' : '')
+    const tip    = isPast ? 'This time slot has already passed.'
+                 : isFull ? 'This slot is fully booked.'
+                 : ''
+    const disabled = (isPast || isFull) ? `disabled title="${tip}"` : ''
+    return `<button type="button" class="${cls}" ${disabled} onclick="window.rsSelectTime('${t}',this)">${t}</button>`
+  }
+
+  el.innerHTML = `
+    <div style="margin-bottom:10px">
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:6px">${afternoon.length ? 'Morning' : 'Available Times'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${morning.map(slotBtn).join('')}</div>
+    </div>
+    ${afternoon.length ? `
+    <div>
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#9CA3AF;font-weight:700;margin-bottom:6px">Afternoon</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${afternoon.map(slotBtn).join('')}</div>
+    </div>` : ''}`
+
+  // If the previously selected time is now past (e.g. picking "today" after
+  // the clock moved on), clear it — mirrors wizBuildTimeSlots()'s same guard.
+  if (_rsCal.time && isToday && _toMin(_rsCal.time) <= nowMin) {
+    _rsCal.time = ''
+    const inp = document.getElementById('rs-time')
+    if (inp) inp.value = ''
+  }
+}
+
+function rsSelectTime(time, btnEl) {
+  _rsCal.time = time
+  document.querySelectorAll('#rs-time-slots .time-slot').forEach(b => b.classList.remove('selected'))
+  btnEl.classList.add('selected')
+  const inp = document.getElementById('rs-time')
+  if (inp) inp.value = time
+}
+window.rsSelectTime = rsSelectTime
 
 function requestReschedule(id) {
   const a = appointments.find(a => a.id === id)
   if (!a) return
   _rsTakenSlotTimes = []
   _rsTakenSlotDur   = _durationMinutes(consultationSettings.defaultDuration)
+  _rsCal = { doctorId: a.doctorId, apptId: id, selectedDate: '', time: '' }
 
-  const fmtD    = d => { const dt = new Date(d); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) }
-  const stepMin = _durationMinutes(consultationSettings.defaultDuration)
-  const rsSlots = consultationSettings.lunchBreak
-    ? [..._buildSessionSlots(consultationSettings.morningStart, consultationSettings.morningEnd, stepMin),
-       ..._buildSessionSlots(consultationSettings.afternoonStart, consultationSettings.afternoonEnd, stepMin)]
-    : _buildSessionSlots(consultationSettings.morningStart, consultationSettings.afternoonEnd, stepMin)
+  const fmtD = d => { const dt = new Date(d); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) }
+  // Same advance-booking window patients are held to everywhere else —
+  // a native date picker can't show per-day availability the way the old
+  // calendar did, but it can still keep them inside the valid range.
+  const minD = (() => { const d = new Date(); d.setDate(d.getDate() + minAdvanceDays()); return localDateStr(d) })()
+  const maxD = localDateStr(maxAdvanceDate(new Date()))
 
   showModal(`
     <div class="modal-header">
@@ -880,44 +1122,57 @@ function requestReschedule(id) {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
+      <style>
+        .modal-box.modal-xl { max-width:840px; }
+        .time-slot { padding:9px 14px; border-radius:8px; border:1.5px solid #e5e7eb; background:#fff;
+          font-family:'Poppins',sans-serif; font-size:.82rem; cursor:pointer; transition:all .15s; white-space:nowrap; }
+        .time-slot:hover:not(.taken) { border-color:#E8760A; }
+        .time-slot.selected { background:#E8760A; color:#fff; border-color:#E8760A; }
+        .time-slot.taken { background:#F3F4F6; color:#9CA3AF; cursor:default; text-decoration:line-through; }
+        .time-slot-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-family:'Poppins',sans-serif; font-size:.72rem; color:#6B7280; }
+        .time-slot-legend-item { display:flex; align-items:center; gap:6px; }
+        .time-slot-legend-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
+      </style>
       <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.84rem">
         <div style="font-weight:600;color:#1a1a1a">${a.type}</div>
-        <div style="color:#6B7280;margin-top:2px">${fmtD(a.date)} at ${a.time} · ${a.doctorName}</div>
+        <div style="color:#6B7280;margin-top:2px">Currently: ${fmtD(a.date)} at ${a.time} · ${a.doctorName}</div>
       </div>
       <div class="form-group">
         <label class="form-label">Reason for Reschedule <span style="color:#DC2626">*</span></label>
         <textarea id="rs-reason" class="form-textarea" rows="3" placeholder="e.g. Schedule conflict, unable to attend, medical emergency…" style="resize:none"></textarea>
       </div>
-      <div class="form-row-2">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Preferred New Date <span style="color:#DC2626">*</span></label>
-          <input type="date" id="rs-date" class="form-input" min="${localDateStr()}"
-            onchange="window.rsOnDateChange('${a.doctorId}','${id}')">
+      <div class="form-group">
+        <label class="form-label">Preferred New Date <span style="color:#DC2626">*</span></label>
+        <input type="date" id="rs-date" class="form-input" min="${minD}" max="${maxD}"
+               onchange="window.rsOnDateChange('${a.doctorId}','${id}')">
+      </div>
+      <div class="form-group" id="rs-time-group" style="display:none">
+        <label class="form-label">Preferred Time <span style="color:#DC2626">*</span></label>
+        <div id="rs-time-slots"></div>
+        <div class="time-slot-legend">
+          <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#fff;border:1.5px solid #e5e7eb"></span>Available</div>
+          <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#E8760A"></span>Selected</div>
+          <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#F3F4F6;border:1.5px solid #e5e7eb"></span>Unavailable</div>
         </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="form-label">Preferred Time <span style="color:#DC2626">*</span></label>
-          <select id="rs-time" class="form-select">
-            <option value="">Select time</option>
-            ${rsSlots.map(t => `<option value="${t}">${t}</option>`).join('')}
-          </select>
-        </div>
+        <input type="hidden" id="rs-time" value="">
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
       <button class="btn-primary" onclick="window.doRequestReschedule('${id}')">Submit Request</button>
-    </div>`)
+    </div>`, 'modal-xl')
 }
 
 async function doRequestReschedule(id) {
   const a = appointments.find(a => a.id === id)
   if (!a) return
-  const reason        = (document.getElementById('rs-reason')?.value || '').trim()
+  const reason = (document.getElementById('rs-reason')?.value || '').trim()
   if (!reason) { toast('Please enter a reason for rescheduling.', 'error'); return }
-  const preferredDate = document.getElementById('rs-date')?.value  || ''
-  const preferredTime = document.getElementById('rs-time')?.value  || ''
+  const preferredDate = document.getElementById('rs-date')?.value || ''
+  const preferredTime = document.getElementById('rs-time')?.value || ''
   if (!preferredDate) { toast('Please select a preferred date.', 'error'); return }
   if (!preferredTime) { toast('Please select a preferred time.', 'error'); return }
+
   const ok = await _apptUpdate({ id, action: 'request_reschedule', reason, preferredDate, preferredTime })
   if (!ok) return
   a.rescheduleRequest = { reason, preferredDate, preferredTime, requestedAt: nowTimestamp().slice(0,16) }
@@ -976,6 +1231,7 @@ function viewAppt(id) {
       <button class="btn-disapprove" onclick="window.confirmDisapproveAppt('${a.id}')">Disapprove</button>` : ''}
     ${a.status === 'approved' && isAdmin ? `
       <button class="btn-primary" onclick="window.markApptCompleted('${a.id}')">Mark Completed</button>
+      <button class="btn-ghost"   onclick="window.confirmMarkNoShow('${a.id}')">Mark No-Show</button>
       <button class="btn-ghost"   onclick="window.rescheduleAppt('${a.id}')">Reschedule</button>
       <button class="btn-danger"  onclick="window.confirmCancelAppt('${a.id}')">Cancel</button>` : ''}` :
     isActive ? (patientCanCancel
@@ -1039,12 +1295,20 @@ function viewAppt(id) {
         <div style="font-size:.72rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Reschedule Note</div>
         <div style="font-size:.84rem;color:#374151">${a.rescheduleNote}</div>
       </div>` : ''}
-      ${isPatient && isActive && !patientCanCancel ? `<div style="display:flex;gap:8px;align-items:center;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px;margin-bottom:14px">
-        <span style="flex-shrink:0;display:flex">${icon('alert-circle','icon-sm')}</span>
+      ${isPatient && isActive && !patientCanCancel ? `<div style="display:flex;gap:8px;align-items:flex-start;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px;margin-bottom:14px">
+        <span style="flex-shrink:0;display:flex;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
         <div style="font-size:.82rem;color:#92400E;line-height:1.5">
           <strong>This appointment can no longer be cancelled online.</strong><br>
           Cancellations must be made at least ${CANCEL_DEADLINE_HOURS} hours in advance. Please call the clinic directly if you need to cancel.
         </div>
+      </div>` : ''}
+      ${isPatient && a.status === 'approved' && a.reminderSentAt && !a.confirmedAt ? `<div style="display:flex;gap:10px;align-items:flex-start;background:#FFF7ED;border:1px solid #FDBA74;border-radius:8px;padding:12px;margin-bottom:14px;flex-wrap:wrap">
+        <span style="flex-shrink:0;display:flex;color:#E8760A;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
+        <div style="font-size:.82rem;color:#92400E;line-height:1.5;flex:1;min-width:200px">
+          <strong>Please confirm you'll be attending this appointment.</strong><br>
+          If we don't hear from you by 9:00 PM today, it will be automatically cancelled.
+        </div>
+        <button class="btn-primary" style="font-size:.78rem;padding:6px 14px;flex-shrink:0" onclick="window.confirmMyAppointment('${a.id}')">Confirm Appointment</button>
       </div>` : ''}
       ${a.rescheduleRequest ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:700;color:#C2410C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
@@ -1069,125 +1333,6 @@ function viewAppt(id) {
     </div>`, 'modal-lg')
 }
 window.viewAppt = viewAppt
-
-// ════════════════════════════════════════════════════════════════
-//  APPOINTMENT DOCTOR HELPERS
-// ════════════════════════════════════════════════════════════════
-
-/**
- * Populate a doctor <select> using branch-data.js getAvailableDoctors().
- * Option value format: "id|name"
- */
-function populateDoctorOptions(doctorSelectId, dateVal) {
-  const sel = document.getElementById(doctorSelectId)
-  if (!sel) return
-  const filtered = typeof getAvailableDoctors === 'function'
-    ? getAvailableDoctors(dateVal || null)
-    : []
-  if (!filtered.length) {
-    sel.innerHTML = '<option value="">No doctors have consultations scheduled on this date — select another day</option>'
-    sel.disabled = false
-    return
-  }
-  sel.innerHTML = '<option value="">Select a doctor...</option>' +
-    filtered.map(d => `<option value="${d.id}|${d.name}">${d.name}</option>`).join('')
-  sel.disabled = false
-}
-window.populateDoctorOptions = populateDoctorOptions
-
-// ── Admin Create Appointment slot state ───────────────────────
-let _caTakenSlotTimes = []
-let _caTakenSlotDur   = 30
-
-function _caSlotConflicts(slotTime, slotDur) {
-  const slotMins = _clockToMinutes(slotTime)
-  if (slotMins == null) return false
-  return _caTakenSlotTimes.some(bt => {
-    const btMins = _clockToMinutes(bt.time)
-    const btDur  = bt.duration || _caTakenSlotDur
-    if (btMins == null) return false
-    return slotMins < btMins + btDur && slotMins + slotDur > btMins
-  })
-}
-
-// Filter past + conflicting time slots in the admin modal
-function filterCaTimeSlots() {
-  const dateSel = document.getElementById('ca-date')
-  const timeSel = document.getElementById('ca-time')
-  if (!dateSel || !timeSel) return
-  const today   = localDateStr()
-  const isToday = dateSel.value === today
-  const nowMin  = isToday ? new Date().getHours() * 60 + new Date().getMinutes() : -1
-  const selType = document.getElementById('ca-type')?.value || ''
-  const newDur  = CLINIC_SERVICES.find(s => s.name === selType)?.duration || _caTakenSlotDur
-  Array.from(timeSel.options).forEach(opt => {
-    if (!opt.value) return
-    const slotMins = _clockToMinutes(opt.value)
-    const isPast   = isToday && slotMins != null && slotMins <= nowMin
-    const isTaken  = _caSlotConflicts(opt.value, newDur)
-    opt.disabled   = isPast || isTaken
-    opt.style.color = (isPast || isTaken) ? '#9CA3AF' : ''
-  })
-  const selected = timeSel.options[timeSel.selectedIndex]
-  if (selected && selected.disabled) {
-    const first = Array.from(timeSel.options).find(o => !o.disabled)
-    if (first) timeSel.value = first.value
-  }
-}
-window.filterCaTimePast  = filterCaTimeSlots  // keep old alias
-window.filterCaTimeSlots = filterCaTimeSlots
-
-// Fetch taken slots for current doctor+date in admin modal, then re-filter
-async function refreshCaSlots() {
-  const dateSel   = document.getElementById('ca-date')
-  const doctorSel = document.getElementById('ca-doctor')
-  if (!dateSel) return
-  _caTakenSlotTimes = []
-  _caTakenSlotDur   = _durationMinutes(consultationSettings.defaultDuration)
-  const date     = dateSel.value
-  const doctorId = (doctorSel?.value || '').split('|')[0]
-  if (date && doctorId) {
-    try {
-      const r = await fetch(`api/appointments/taken.php?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(date)}`)
-      const d = await r.json()
-      _caTakenSlotTimes = d.taken           || []
-      _caTakenSlotDur   = d.defaultDuration || _durationMinutes(consultationSettings.defaultDuration)
-    } catch (_) {}
-  }
-  filterCaTimeSlots()
-}
-window.refreshCaSlots = refreshCaSlots
-
-// Admin Create Appointment modal — date changed
-function onCaDateChange() {
-  const date = document.getElementById('ca-date')?.value || null
-  const prev = document.getElementById('ca-doctor')?.value || ''
-  populateDoctorOptions('ca-doctor', date)
-  const doctorSel = document.getElementById('ca-doctor')
-  if (doctorSel && prev) {
-    const opt = Array.from(doctorSel.options).find(o => o.value === prev)
-    if (opt) doctorSel.value = prev
-  }
-  refreshCaSlots()
-}
-window.onCaDateChange = onCaDateChange
-
-// Admin Create Appointment modal — doctor changed
-function onCaDoctorChange() { refreshCaSlots() }
-window.onCaDoctorChange = onCaDoctorChange
-
-// Patient Request Appointment form — date changed
-function onApptDateChange() {
-  const date = document.getElementById('appt-date')?.value || null
-  const prev = document.getElementById('appt-doctor')?.value || ''
-  populateDoctorOptions('appt-doctor', date)
-  const doctorSel = document.getElementById('appt-doctor')
-  if (doctorSel && prev) {
-    const opt = Array.from(doctorSel.options).find(o => o.value === prev)
-    if (opt) doctorSel.value = prev
-  }
-}
-window.onApptDateChange = onApptDateChange
 
 // Mark individual notification as read (notifications page + topbar badge)
 function markNotifRead(id) {
@@ -1300,10 +1445,10 @@ async function validateSettingsPassword(newId, confId, errId, curId) {
   const newPw   = document.getElementById(newId)?.value   || ''
   const confPw  = document.getElementById(confId)?.value  || ''
   const errEl   = document.getElementById(errId)
-  if (newPw !== confPw) { if (errEl) errEl.style.display = 'block'; return }
-  if (errEl) errEl.style.display = 'none'
+  if (newPw !== confPw) { if (errEl) errEl.classList.add('show'); return }
+  if (errEl) errEl.classList.remove('show')
   if (!curPw || !newPw) { toast('Please fill in all password fields.', 'error'); return }
-  if (newPw.length < 8)  { toast('New password must be at least 8 characters.', 'error'); return }
+  if (!window.pwPolicyValid(newPw)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return }
 
   try {
     const r = await fetch('api/users/change_password.php', {
@@ -1447,138 +1592,12 @@ function filterApptTable(input) {
 window.filterApptTable = filterApptTable
 
 // ════════════════════════════════════════════════════════════════
-//  CREATE APPOINTMENT (Admin/Staff)
-// ════════════════════════════════════════════════════════════════
-function openCreateApptModal(prefilledPatientId) {
-  const today   = localDateStr()
-  const stepMin = _durationMinutes(consultationSettings.defaultDuration)
-  let caSlots
-  if (consultationSettings.lunchBreak) {
-    caSlots = [
-      ..._buildSessionSlots(consultationSettings.morningStart,   consultationSettings.morningEnd,   stepMin),
-      ..._buildSessionSlots(consultationSettings.afternoonStart, consultationSettings.afternoonEnd, stepMin)
-    ]
-  } else {
-    caSlots = _buildSessionSlots(consultationSettings.morningStart, consultationSettings.afternoonEnd, stepMin)
-  }
-  if (!caSlots.length) caSlots = ['8:00 AM','9:00 AM','10:00 AM','11:00 AM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM']
-
-  showModal(`
-    <div class="modal-header">
-      <div class="modal-title">Create Appointment</div>
-      <button class="modal-close" onclick="window.closeModal()">&times;</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
-      <div class="form-row-2">
-        <div class="form-group">
-          <label class="form-label">Patient <span class="req">*</span></label>
-          <select id="ca-patient" class="form-select" ${prefilledPatientId ? 'disabled' : ''}>
-            <option value="">Select patient</option>
-            ${patients.map(p => `<option value="${p.id}|${p.name}" ${prefilledPatientId === p.id ? 'selected' : ''}>${p.name} (${p.id})</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Appointment Type <span class="req">*</span></label>
-          <select id="ca-type" class="form-select" onchange="window.filterCaTimeSlots()">
-            ${CLINIC_SERVICES.filter(s => s.status === 'active').map(s => `<option>${s.name}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <div class="form-row-2">
-        <div class="form-group">
-          <label class="form-label">Date <span class="req">*</span></label>
-          <input type="date" id="ca-date" class="form-input" min="${today}"
-                 onchange="window.onCaDateChange()">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Time <span class="req">*</span></label>
-          <select id="ca-time" class="form-select">
-            ${caSlots.map(t => `<option>${t}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-      <div class="form-row-2">
-        <div class="form-group">
-          <label class="form-label">Doctor <span class="req">*</span></label>
-          <select id="ca-doctor" class="form-select" onchange="window.onCaDoctorChange()">
-            <option value="">Select a date first...</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Initial Status</label>
-          <select id="ca-status" class="form-select">
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Notes</label>
-        <textarea id="ca-notes" class="form-textarea" placeholder="Optional notes or reason for visit…" style="height:38px;resize:vertical"></textarea>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button id="ca-save-btn" class="btn-primary" onclick="window.doCreateAppt()">
-        ${icon('plus','icon-sm')} Create Appointment
-      </button>
-    </div>`, 'modal-lg')
-  requestAnimationFrame(() => window.refreshCaSlots())
-}
-
-async function doCreateAppt() {
-  const patientVal = document.getElementById('ca-patient').value
-  const doctorVal  = document.getElementById('ca-doctor').value
-  const date       = document.getElementById('ca-date').value
-  const time       = document.getElementById('ca-time').value
-  const type       = document.getElementById('ca-type').value
-  const status     = document.getElementById('ca-status').value
-  const notes      = document.getElementById('ca-notes').value
-
-  if (!patientVal || !doctorVal || !date) {
-    toast('Please complete all required fields before proceeding.', 'error'); return
-  }
-
-  const [patientId, patientName] = patientVal.split('|')
-  const [doctorId,  doctorName]  = doctorVal.split('|')
-
-  const btn = document.getElementById('ca-save-btn')
-  if (btn) { btn.disabled = true; btn.innerHTML = icon('clock','icon-sm') + ' Saving…' }
-
-  try {
-    const r = await fetch('api/appointments/create.php', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ patientId, patientName, doctorId, doctorName, date, time, type, status, notes })
-    })
-    const d = await r.json()
-    if (!d.success) { toast(d.message || 'Failed to create appointment.', 'error'); return }
-
-    const newId = d.id
-    addAppointment({ id: newId, patientId, patientName, doctorId, doctorName, date, time, type, status, notes })
-    addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
-      action: `Created appointment ${newId} for ${patientName}`,
-      timestamp: nowTimestamp(), type:'appointment' })
-    closeModal()
-    toast('Appointment created successfully. The patient will be notified.')
-    renderPage()
-  } catch (_) {
-    toast('Network error — please try again.', 'error')
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = icon('plus','icon-sm') + ' Create Appointment' }
-  }
-}
-
-window.openCreateApptModal = openCreateApptModal
-window.doCreateAppt        = doCreateAppt
-
-// ════════════════════════════════════════════════════════════════
 //  CONFIRM CANCEL + MARK COMPLETED
 // ════════════════════════════════════════════════════════════════
 // Shown when a patient tries to cancel an appointment that's already inside
 // the cancellation deadline window (e.g. clicking a disabled cancel button).
 function explainCancelDeadline() {
-  toast(`This appointment can no longer be cancelled online — cancellations require at least ${CANCEL_DEADLINE_HOURS} hours' notice. Please call the clinic directly.`, 'error')
+  toast(`This appointment can no longer be cancelled online, cancellations require at least ${CANCEL_DEADLINE_HOURS} hours notice. Please message or call the clinic directly.`, 'error')
 }
 window.explainCancelDeadline = explainCancelDeadline
 
@@ -1599,8 +1618,8 @@ function confirmCancelAppt(id) {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:8px;padding:12px;display:flex;gap:8px;align-items:center;margin-bottom:14px">
-        <span style="flex-shrink:0;display:flex">${icon('alert-circle','icon-sm')}</span>
+      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:8px;padding:12px;display:flex;gap:8px;align-items:flex-start;margin-bottom:14px">
+        <span style="flex-shrink:0;display:flex;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
         <span style="font-size:.84rem;line-height:1.4">${isPatient ? 'Are you sure you want to cancel this appointment? This action cannot be undone.' : 'Cancel this appointment? The patient will be notified of the cancellation.'}</span>
       </div>
       <div style="background:#F9FAFB;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.84rem">
@@ -1626,6 +1645,45 @@ async function doCancelAppt(id) {
   closeModal()
 }
 
+// ── Waitlist removal (admin/staff, e.g. a patient calls asking to be
+// taken off) — mirrors confirmCancelAppt's modal, no reason required. ──
+function confirmRemoveWaitlistEntry(id) {
+  const e = waitlistEntries.find(e => e.id === id)
+  if (!e) return
+  const fmtD = d => { const dt = new Date(d + 'T00:00:00'); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) }
+  showModal(`
+    <div class="modal-header">
+      <div class="modal-title">Remove from Waitlist</div>
+      <button class="modal-close" onclick="window.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:8px;padding:12px;display:flex;gap:8px;align-items:flex-start">
+        <span style="flex-shrink:0;display:flex;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
+        <span style="font-size:.84rem;line-height:1.4">Remove <strong>${esc(e.patientName)}</strong> from the waitlist for ${esc(e.doctorName)} on ${fmtD(e.date)} at ${e.time}?</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
+      <button class="btn-danger" onclick="window.doRemoveWaitlistEntry(${e.id})">Confirm Remove</button>
+    </div>`)
+}
+window.confirmRemoveWaitlistEntry = confirmRemoveWaitlistEntry
+
+async function doRemoveWaitlistEntry(id) {
+  try {
+    const r = await fetch('api/waitlist/leave.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not remove from waitlist.', 'error'); return }
+    closeModal()
+    toast('Removed from waitlist.', 'success')
+    _syncWaitlist()
+  } catch (_) { toast('Network error. Please try again.', 'error') }
+}
+window.doRemoveWaitlistEntry = doRemoveWaitlistEntry
+
 async function markApptCompleted(id) {
   const ok = await _apptUpdate({ id, action: 'status', status: 'completed' })
   if (!ok) return
@@ -1638,6 +1696,68 @@ async function markApptCompleted(id) {
   toast('Appointment marked as completed. The record has been updated.')
   renderPage()
 }
+
+// Confirmation step since this counts against the patient's no-show tally
+// and can eventually restrict their online booking — not something to
+// trigger by an accidental click.
+function confirmMarkNoShow(id) {
+  const a = appointments.find(a => a.id === id)
+  if (!a) return
+  showModal(`
+    <div class="modal-header">
+      <div class="modal-title">Mark as No-Show</div>
+      <button class="modal-close" onclick="window.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:8px;padding:12px;display:flex;gap:8px;align-items:flex-start;margin-bottom:14px">
+        <span style="flex-shrink:0;display:flex;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
+        <span style="font-size:.84rem;line-height:1.4">This counts against ${a.patientName}'s no-show record and may eventually restrict their online booking. This action cannot be undone.</span>
+      </div>
+      <div style="background:#F9FAFB;border-radius:8px;padding:10px 12px;font-size:.84rem">
+        <div style="font-weight:600;color:#1a1a1a">${a.type}</div>
+        <div style="color:#6B7280;margin-top:2px">${a.date} at ${a.time} · ${a.doctorName}</div>
+        <div style="color:#6B7280;margin-top:1px">Patient: <strong>${a.patientName}</strong></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
+      <button class="btn-danger" onclick="window.markApptNoShow('${id}')">Confirm No-Show</button>
+    </div>`)
+}
+window.confirmMarkNoShow = confirmMarkNoShow
+
+async function markApptNoShow(id) {
+  const ok = await _apptUpdate({ id, action: 'status', status: 'no-show' })
+  if (!ok) return
+  updateAppointmentStatus(id, 'no-show')
+  const a = appointments.find(a => a.id === id)
+  if (a) addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
+    action: `Marked appointment ${id} as no-show for ${a.patientName}`,
+    timestamp: nowTimestamp(), type:'appointment' })
+  closeModal()
+  toast('Appointment marked as no-show.')
+  renderPage()
+}
+window.markApptNoShow = markApptNoShow
+
+async function confirmMyAppointment(id) {
+  try {
+    const r = await fetch('api/appointments/confirm.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not confirm your appointment.', 'error'); return }
+    const a = appointments.find(a => a.id === id)
+    if (a) a.confirmedAt = new Date().toISOString()
+    closeModal()
+    toast('Appointment confirmed. See you then!', 'success')
+    renderPage()
+  } catch (_) {
+    toast('Network error — please try again.', 'error')
+  }
+}
+window.confirmMyAppointment = confirmMyAppointment
 
 window.confirmCancelAppt  = confirmCancelAppt
 window.doCancelAppt       = doCancelAppt
@@ -1652,8 +1772,8 @@ function confirmDisapproveAppt(id) {
       <button class="modal-close" onclick="window.closeModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:8px;padding:12px;display:flex;gap:8px;align-items:center;margin-bottom:14px">
-        <span style="flex-shrink:0;display:flex">${icon('alert-circle','icon-sm')}</span>
+      <div style="background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:8px;padding:12px;display:flex;gap:8px;align-items:flex-start;margin-bottom:14px">
+        <span style="flex-shrink:0;display:flex;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
         <span style="font-size:.84rem;line-height:1.4">Disapprove this appointment request? The patient will be notified and may submit a new request.</span>
       </div>
       <div style="background:#F9FAFB;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.84rem">
@@ -1699,7 +1819,15 @@ const _wiz = {
   type: 'Eye Examination',
   notes: '',
   calYear: 0,
-  calMonth: 0
+  calMonth: 0,
+  // 'patient' (self-service booking) or 'staff' (admin/staff creating on a
+  // patient's behalf) — the calendar/doctor-cards/time-slots/type steps are
+  // identical either way; only the patient-selection gate and the Review
+  // step's submit behavior differ. See appointmentWizardHtml() in pages.js.
+  mode: 'patient',
+  patientId: '',
+  patientName: '',
+  initialStatus: 'pending'
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1856,7 +1984,7 @@ function wizGo(dir) {
   _wiz.step = nextStep
   wizShowStep(nextStep, dir)
   if (nextStep === 0) { amcRenderPrefillBanner(); amcRender() }
-  if (nextStep === 1) wizBuildDoctorCards()
+  if (nextStep === 1) wizBuildDoctorCards()   // async — fire-and-forget is fine here
   if (nextStep === 2) wizBuildTimeSlots()   // async — fire-and-forget is fine here
   window.scrollTo(0, 0)
 }
@@ -1867,7 +1995,7 @@ function wizJump(targetStep) {
   const dir = targetStep < _wiz.step ? -1 : 1
   _wiz.step = targetStep
   wizShowStep(targetStep, dir)
-  if (targetStep === 1) wizBuildDoctorCards()
+  if (targetStep === 1) wizBuildDoctorCards()   // async — fire-and-forget is fine here
   if (targetStep === 2) wizBuildTimeSlots()   // async — fire-and-forget is fine here
 }
 window.wizJump = wizJump
@@ -1922,6 +2050,30 @@ function amcInit() {
   amcRender()
 }
 window.amcInit = amcInit
+
+// Init for the admin/staff "New Appointment" page — parallel to amcInit()
+// but for a caller booking on a patient's behalf rather than for themselves.
+// No doctor-prefill flow (that's a patient-only entry point from Doctor
+// Availability); the patient is already chosen by the time this runs, via
+// the picker gate in pageCreateAppointment().
+function wizInitStaff(patientId, patientName) {
+  const now = new Date()
+  Object.assign(_wiz, { step:0, selectedDate:'', selectedDateLabel:'', selectedDateShort:'',
+    doctorId:'', doctorName:'', doctorSpec:'', _prefillDays:[], time:'',
+    type: (CLINIC_SERVICES.find(s => s.status === 'active') || {}).name || 'Eye Examination',
+    notes:'', calYear: now.getFullYear(), calMonth: now.getMonth(),
+    mode: 'staff', patientId, patientName, initialStatus: 'pending' })
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val }
+  set('wiz-patient-lbl0', patientName)
+  set('sum-patient', patientName)
+  set('rev-patient', patientName)
+
+  wizShowStep(0, 1)
+  amcRenderPrefillBanner()
+  amcRender()
+}
+window.wizInitStaff = wizInitStaff
 
 // Show/hide the "booking with doctor X" banner on Step 1
 function amcRenderPrefillBanner() {
@@ -1987,10 +2139,22 @@ function amcRender() {
     const tooSoon   = daysOut < minAdvanceDays()
     const isDisabled = isPast || tooSoon || isHoliday || isBlocked
     // If doctor prefilled, restrict to their available days; otherwise fall
-    // back to the clinic-wide Clinic Days setting (Consultation Settings).
+    // back to the clinic-wide Clinic Days setting (Consultation Settings) —
+    // but that's just the clinic's general policy, it doesn't guarantee any
+    // individual doctor actually works this day. Without also checking that,
+    // a day could show as selectable here and then dead-end at Step 2 with
+    // "No doctors are available on this day" after the patient already
+    // picked it. noDoctorThisDay catches that — but only on days the clinic
+    // is actually open; a day the clinic is closed on (e.g. Sunday) is
+    // already blank/blocked for that reason alone and shouldn't also claim
+    // "no doctor" as if it were an open day nobody happens to work.
     const prefillDays = _wiz._prefillDays || []
     const hasPrefill  = prefillDays.length > 0
-    const docAvail    = hasPrefill ? prefillDays.includes(dayNames[dow]) : (consultationSettings.clinicDays || []).includes(dayNamesFull[dow])
+    const isClinicDay = (consultationSettings.clinicDays || []).includes(dayNamesFull[dow])
+    const noDoctorThisDay = !hasPrefill && isClinicDay && !doctors.some(doc =>
+      (doc.days || []).includes(dayNames[dow]) && !(doc.blockedDates || []).some(b => b.date === dateStr)
+    )
+    const docAvail    = hasPrefill ? prefillDays.includes(dayNames[dow]) : isClinicDay && !noDoctorThisDay
     let cls = 'amc-day'
     if (isSel)                                       cls += ' amc-selected'
     else if (isToday)                                cls += ' amc-today'
@@ -1999,14 +2163,18 @@ function amcRender() {
     else if (docAvail && !isDisabled && !isFar)      cls += ' amc-avail'
     if (isDisabled || isSun || (hasPrefill && !docAvail)) cls += ' amc-past'
     if (isFar)                                            cls += ' amc-far'
+    if (noDoctorThisDay && !isPast && !isHoliday)         cls += ' amc-past'
     const clickable = !isDisabled && !isFar && docAvail && !isSun
     const onclick   = clickable ? `onclick="window.amcSelectDate('${dateStr}','${dayNames[dow]}')"` : ''
     const tooltip   = (tooSoon && !isPast) ? `title="${minAdvanceTooltip()}"` :
                       isBlocked ? `title="Doctor unavailable: ${String(blockedReason).replace(/"/g,'&quot;')}"` :
-                      isHoliday ? `title="Clinic closed: ${holidayName}"` : ''
+                      isHoliday ? `title="Clinic closed: ${holidayName}"` :
+                      (noDoctorThisDay && !isPast) ? `title="No doctors are available on this day."` : ''
     const inner     = isHoliday && !isPast
       ? `${d}<span class="amc-holiday-lbl">${holidayName}</span>`
-      : String(d)
+      : (noDoctorThisDay && !isPast)
+        ? `${d}<span class="amc-nodoc-lbl">No Doctor</span>`
+        : String(d)
     cells += `<div class="${cls}" ${onclick} ${tooltip}>${inner}</div>`
   }
   const grid = document.getElementById('amc-cells')
@@ -2057,7 +2225,8 @@ function amcSelectDate(dateStr, dayAbb) {
 window.amcSelectDate = amcSelectDate
 
 // ── Step 2: Doctor cards ──────────────────────────────────────────
-function wizBuildDoctorCards() {
+async function wizBuildDoctorCards() {
+  const requestedDate = _wiz.selectedDate
   const dt       = new Date(_wiz.selectedDate + 'T00:00:00')
   const dayShort = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]
   const availDocs = doctors.filter(d => (d.days || []).includes(dayShort))
@@ -2074,14 +2243,42 @@ function wizBuildDoctorCards() {
     return
   }
 
+  container.innerHTML = `<div style="color:#9CA3AF;font-size:.82rem;padding:8px 0">Loading doctors…</div>`
+
   // A doctor stops being bookable on this date once they hit the clinic's
   // max-appointments-per-doctor-per-day cap (Consultation Settings) — shown
   // as a disabled "Fully booked" card instead of just disappearing, so it's
   // clear why rather than the doctor silently not being there.
+  //
+  // This can't be counted from the client-side `appointments` array: for a
+  // patient, api/appointments/index.php only ever returns THEIR OWN
+  // appointments (by design/privacy), so it has no visibility into how many
+  // other patients a doctor is already booked with that day — the count
+  // would almost always read as 0-1 regardless of the doctor's real load.
+  // A dedicated aggregate-only endpoint (counts, no patient details) is
+  // needed instead.
   const maxPerDay = consultationSettings.maxApptsPerDoctorPerDay || 12
-  const apptCountFor = docId => appointments.filter(a =>
-    a.doctorId === docId && a.date === _wiz.selectedDate && !['cancelled','disapproved'].includes(a.status)
-  ).length
+  let apptCounts = {}
+  try {
+    const r = await fetch(`api/appointments/daily-counts.php?date=${encodeURIComponent(_wiz.selectedDate)}`)
+    const d = await r.json()
+    if (d.success) apptCounts = d.counts || {}
+  } catch (_) { /* fail open — treat as 0 booked rather than block booking entirely */ }
+  // A stale click (user already navigated elsewhere by the time this resolves)
+  // shouldn't paint into a step that's no longer showing.
+  if (!document.getElementById('wiz-doctor-cards') || _wiz.selectedDate !== requestedDate) return
+  const apptCountFor = docId => apptCounts[docId] || 0
+  // Doctor-specific blocked dates (vacation/leave etc, set on Doctor Schedule)
+  // weren't being checked here — a doctor's weekly `days` alone doesn't rule
+  // out a one-off blocked date, so without this a blocked doctor still showed
+  // as a normal, clickable card on that exact date.
+  const blockedReasonFor = docId => {
+    const entry = (doctors.find(x => x.id === docId)?.blockedDates || []).find(b => b.date === _wiz.selectedDate)
+    // A blocked entry with no reason text (NULL in the DB) still means
+    // blocked — don't let an empty-string reason fall through `||` and get
+    // mistaken for "no blocked entry at all".
+    return entry ? (entry.reason || 'Unavailable') : null
+  }
 
   const getInitials = name => name.replace('Dr. ','').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
   const docAvatar = d => d.photoUrl
@@ -2090,6 +2287,15 @@ function wizBuildDoctorCards() {
 
   container.innerHTML = availDocs.map(d => {
     const isFull = apptCountFor(d.id) >= maxPerDay
+    const blockedReason = blockedReasonFor(d.id)
+    if (blockedReason) return `
+      <div class="doc-card" style="opacity:.55;cursor:not-allowed" title="Doctor unavailable: ${blockedReason.replace(/"/g,'&quot;')}">
+        ${docAvatar(d)}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.9rem;font-weight:700;color:#1C1C1C">${d.name}</div>
+          <div style="font-size:.78rem;color:#DC2626;margin-top:2px">Unavailable on this date</div>
+        </div>
+      </div>`
     if (isFull) return `
       <div class="doc-card" style="opacity:.55;cursor:not-allowed" title="This doctor is fully booked on the selected date.">
         ${docAvatar(d)}
@@ -2204,12 +2410,29 @@ async function wizBuildTimeSlots() {
 
   const newSlotDur = CLINIC_SERVICES.find(s => s.name === _wiz.type)?.duration || _takenSlotDur
   const slotBtn = t => {
-    const isTaken  = _slotConflicts(t, newSlotDur)
+    // A "full" slot (booked by someone else, or held by another patient's
+    // waitlist offer — both come back from taken.php) is still selectable:
+    // the patient can pick it and, if they try to submit, create.php offers
+    // them the waitlist for it. Only truly past times are unselectable.
+    const isFull   = _slotConflicts(t, newSlotDur)
     const isPast   = isToday && parseSlotMin(t) <= nowMin
     const isSel    = t === _wiz.time && !isPast
-    const cls      = 'time-slot' + (isTaken || isPast ? ' taken' : isSel ? ' selected' : '')
-    const tip      = isPast ? 'This time slot has already passed.' : 'This time slot is already booked or too close to an existing appointment.'
-    const disabled = (isTaken || isPast) ? `disabled title="${tip}"` : ''
+    // Built additively (not a chained ternary) so a slot that's both the
+    // current pick AND fully-booked keeps BOTH classes on every rebuild —
+    // matching wizSelectTime()'s click-time behavior, which never strips
+    // '.full' when adding '.selected'. A chained ternary would only ever
+    // apply one class, silently dropping '.full' for the selected slot
+    // every time this grid re-renders (e.g. navigating back to this step).
+    let cls = 'time-slot'
+    if (isPast) cls += ' taken'
+    else {
+      if (isFull) cls += ' full'
+      if (isSel)  cls += ' selected'
+    }
+    const tip      = isPast ? 'This time slot has already passed.'
+                   : isFull ? 'This slot is fully booked. You can still select it to join the waitlist.'
+                   : ''
+    const disabled = isPast ? `disabled title="${tip}"` : (tip ? `title="${tip}"` : '')
     return `<button class="${cls}" ${disabled} onclick="window.wizSelectTime('${t}',this)">${t}</button>`
   }
 
@@ -2243,6 +2466,10 @@ async function wizBuildTimeSlots() {
 
 function wizSelectTime(time, btnEl) {
   _wiz.time = time
+  // Only clear 'selected' from other buttons — 'full' reflects the actual
+  // taken/held state from the server and should stay put regardless of
+  // click state, so a selected-but-full slot keeps looking distinct (see
+  // .time-slot.selected.full) instead of looking identical to a normal pick.
   document.querySelectorAll('.time-slot').forEach(b => b.classList.remove('selected'))
   btnEl.classList.add('selected')
   const inp = document.getElementById('appt-time')
@@ -2261,8 +2488,9 @@ function selectApptType(type, btn) {
   _wiz.type = type
   const inp = document.getElementById('appt-type')
   if (inp) inp.value = type
+  const dur = CLINIC_SERVICES.find(s => s.name === type)?.duration
   const st = document.getElementById('sum-type')
-  if (st) st.textContent = type
+  if (st) st.textContent = type + (dur ? ` (~${dur} min)` : '')
 }
 window.selectApptType = selectApptType
 
@@ -2274,7 +2502,8 @@ function wizPopulateReview() {
   set('rev-date',   _wiz.selectedDateLabel)
   set('rev-doctor', _wiz.doctorName + (_wiz.doctorSpec ? ' — ' + _wiz.doctorSpec : ''))
   set('rev-time',   _wiz.time)
-  set('rev-type',   _wiz.type)
+  const revDur = CLINIC_SERVICES.find(s => s.name === _wiz.type)?.duration
+  set('rev-type',   _wiz.type + (revDur ? ` (~${revDur} min)` : ''))
   const notesEl = document.getElementById('rev-notes')
   if (notesEl) {
     notesEl.textContent   = _wiz.notes || 'No notes provided'
@@ -2282,12 +2511,125 @@ function wizPopulateReview() {
     notesEl.style.fontStyle = _wiz.notes ? 'normal' : 'italic'
     notesEl.style.fontWeight = _wiz.notes ? '600' : '400'
   }
+  // Require a fresh re-agreement each time the review step is (re)populated.
+  // This guarantees the checkbox starts locked and unchecked whether this
+  // is the first visit to this step or a return trip via "Edit" on an
+  // earlier step, matching the same read-it-first pattern used on the
+  // registration page's Terms & Conditions checkbox.
+  const agreeEl = document.getElementById('appt-terms-agree')
+  if (agreeEl) { agreeEl.checked = false; agreeEl.disabled = true }
+  const hintEl = document.getElementById('appt-terms-hint')
+  if (hintEl) hintEl.style.display = ''
+  syncApptSubmitState()
 }
+
+// Gate the final submit button — patient mode requires the policy checkbox
+// (called on its onchange and whenever the review step is repopulated);
+// staff mode has no checkbox at all, so it's just always enabled once the
+// review step is reachable (which already requires date/doctor/time set).
+function syncApptSubmitState() {
+  const btn = document.getElementById('appt-submit-btn')
+  if (!btn) return
+  if (_wiz.mode === 'staff') { btn.disabled = false; return }
+  const agree = document.getElementById('appt-terms-agree')
+  btn.disabled = !(agree && agree.checked)
+}
+window.syncApptSubmitState = syncApptSubmitState
+
+// Staff/admin review step — Initial Status pill toggle (replaces the old
+// plain <select>, which was easy to miss/skip past when scanning the page).
+function setInitialStatus(value, btnEl) {
+  _wiz.initialStatus = value
+  const hidden = document.getElementById('ca-initial-status')
+  if (hidden) hidden.value = value
+  document.querySelectorAll('.init-status-pill').forEach(b => b.classList.remove('selected'))
+  btnEl.classList.add('selected')
+}
+window.setInitialStatus = setInitialStatus
+
+// ── Appointment Policy modal ───────────────────────────────────────
+// Same pattern as the registration page's Terms & Conditions modal: the
+// patient must scroll to the bottom before the checkbox unlocks, so
+// agreement isn't just a reflex click.
+// Markdown-source default (mirrors api/helpers.php's DEFAULT_APPT_POLICY_MD)
+// — served only until _syncClinicSettings() resolves post-login. Parsed by
+// renderTermsMarkdown() (db.js). Section 4 uses "> " so it keeps rendering
+// as the original amber callout box instead of a plain paragraph.
+const DEFAULT_APPT_POLICY_MD = `## 1. Appointment Requests
+Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The clinic reserves the right to reschedule or decline requests when necessary.
+
+## 2. Cancellations
+If you can no longer make it to your appointment, please cancel as early as possible. This keeps the slot open for someone else who may need it.
+
+## 3. Repeated No-Shows
+If you miss multiple approved appointments without cancelling, online booking may be temporarily restricted for your account. In that case, please contact the clinic directly by phone or in person to schedule your next visit.
+
+## 4. Appointment Reminders and Confirmation
+> For approved appointments, we send a reminder at noon the day before your visit. Please confirm you'll be attending by 9:00 PM that same day. If we don't hear from you by then, the appointment is automatically cancelled so the slot can be offered to another patient.
+
+## 5. Waitlist
+If your preferred slot is fully booked, you can join the waitlist for it. If that slot opens up, you'll be notified with a limited time to claim it. If you don't respond in time, or choose to decline, the slot is offered to the next patient in line. You can only be on one waitlist at a time.
+`
+
+function openAppointmentPolicyModal() {
+  showModal(`
+    <div class="modal-header">
+      <div class="modal-title">${icon('file-text','icon-sm')} Appointment Policy</div>
+      <button class="modal-close" onclick="window.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="terms-body" id="appt-terms-scroll-body" onscroll="window._checkApptTermsScroll()">
+        ${renderTermsMarkdown(clinicInfo.appointmentPolicyContent || DEFAULT_APPT_POLICY_MD)}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <span class="terms-scroll-hint" id="appt-terms-scroll-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        Scroll to the bottom to continue
+      </span>
+      <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
+      <button class="btn-primary" id="appt-terms-agree-btn" disabled onclick="window.acceptApptTerms()">I Agree &amp; Continue</button>
+    </div>`, 'modal-lg')
+
+  // If the content already fits without scrolling, don't trap the patient
+  // behind an unreachable scroll requirement.
+  setTimeout(() => window._checkApptTermsScroll(), 50)
+}
+window.openAppointmentPolicyModal = openAppointmentPolicyModal
+
+function _checkApptTermsScroll() {
+  const body = document.getElementById('appt-terms-scroll-body')
+  const btn  = document.getElementById('appt-terms-agree-btn')
+  if (!body || !btn) return
+  const reachedBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 24
+  if (reachedBottom && btn.disabled) {
+    btn.disabled = false
+    const hint = document.getElementById('appt-terms-scroll-hint')
+    if (hint) hint.style.display = 'none'
+  }
+}
+window._checkApptTermsScroll = _checkApptTermsScroll
+
+function acceptApptTerms() {
+  const btn = document.getElementById('appt-terms-agree-btn')
+  if (btn && btn.disabled) return
+
+  const cb = document.getElementById('appt-terms-agree')
+  if (cb) { cb.disabled = false; cb.checked = true }
+  const hint = document.getElementById('appt-terms-hint')
+  if (hint) hint.style.display = 'none'
+  syncApptSubmitState()
+  closeModal()
+}
+window.acceptApptTerms = acceptApptTerms
 
 // ── Submit ────────────────────────────────────────────────────────
 async function requestAppointment() {
   if (!_wiz.selectedDate || !_wiz.doctorId || !_wiz.time) {
     toast('Please complete all required fields.', 'error'); return
+  }
+  if (!document.getElementById('appt-terms-agree')?.checked) {
+    toast('Please agree to the appointment policy before submitting.', 'error'); return
   }
   const btn = document.getElementById('appt-submit-btn')
   if (btn) { btn.disabled = true; btn.innerHTML = icon('clock','icon-sm') + ' Submitting…' }
@@ -2305,12 +2647,17 @@ async function requestAppointment() {
         date:        _wiz.selectedDate,
         time:        _wiz.time,
         type:        _wiz.type,
+        termsAgreed: true,
         status:      'pending',
         notes:       _wiz.notes
       })
     })
     const d = await r.json()
-    if (!d.success) { toast(d.message || 'Could not submit appointment.', 'error'); return }
+    if (!d.success) {
+      if (btn) { btn.disabled = false; btn.innerHTML = icon('check','icon-sm') + ' Confirm Appointment' }
+      if (d.waitlistAvailable) { promptJoinWaitlist(d); return }
+      toast(d.message || 'Could not submit appointment.', 'error'); return
+    }
 
     const newId = d.id
     addAppointment({
@@ -2350,6 +2697,241 @@ async function requestAppointment() {
   }
 }
 window.requestAppointment = requestAppointment
+
+// Admin/staff equivalent of requestAppointment() — the patient is already
+// chosen (via the picker gate in pageCreateAppointment()), there's no T&C
+// checkbox to agree to, and the caller sets the initial status directly
+// instead of every request starting as 'pending'. No waitlist handling:
+// the backend only ever returns waitlistAvailable for role==='patient'.
+async function submitStaffAppointment() {
+  if (!_wiz.patientId || !_wiz.selectedDate || !_wiz.doctorId || !_wiz.time) {
+    toast('Please complete all required fields.', 'error'); return
+  }
+  const btn = document.getElementById('appt-submit-btn')
+  if (btn) { btn.disabled = true; btn.innerHTML = icon('clock','icon-sm') + ' Creating…' }
+
+  try {
+    const r = await fetch('api/appointments/create.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        patientId:   _wiz.patientId,
+        patientName: _wiz.patientName,
+        doctorId:    _wiz.doctorId,
+        doctorName:  _wiz.doctorName,
+        date:        _wiz.selectedDate,
+        time:        _wiz.time,
+        type:        _wiz.type,
+        status:      _wiz.initialStatus,
+        notes:       _wiz.notes
+      })
+    })
+    const d = await r.json()
+    if (!d.success) {
+      if (btn) { btn.disabled = false; btn.innerHTML = icon('check','icon-sm') + ' Create Appointment' }
+      toast(d.message || 'Could not create appointment.', 'error'); return
+    }
+
+    const newId = d.id
+    addAppointment({
+      id: newId, patientId: _wiz.patientId, patientName: _wiz.patientName,
+      doctorId: _wiz.doctorId, doctorName: _wiz.doctorName,
+      date: _wiz.selectedDate, time: _wiz.time, type: _wiz.type,
+      status: _wiz.initialStatus, notes: _wiz.notes
+    })
+    addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
+      action: `Created appointment ${newId} for ${_wiz.patientName}`,
+      timestamp: nowTimestamp(), type:'appointment' })
+
+    toast('Appointment created successfully. The patient will be notified.')
+    navigate('appointments', { filter: _wiz.initialStatus })
+  } catch (_) {
+    toast('Network error — please try again.', 'error')
+    if (btn) { btn.disabled = false; btn.innerHTML = icon('check','icon-sm') + ' Create Appointment' }
+  }
+}
+window.submitStaffAppointment = submitStaffAppointment
+
+// Patient-picker gate (pageCreateAppointment, staff/admin) — simple
+// client-side filter over the already-loaded patient list.
+// The onclick target for a patient row on the New Appointment picker —
+// shared between the page's initial full-list render (pages.js) and the
+// filtered re-render below, so both stay in sync automatically.
+function _capPatientOnclick(p) {
+  return `window.navigate('create-appointment',{patientId:'${p.id}',patientName:'${(p.name||'').replace(/'/g,"\\'")}'})`
+}
+window._capPatientOnclick = _capPatientOnclick
+
+// Re-renders the New Appointment patient list from scratch using the exact
+// same _renderPatientResult() row markup as the QR Scanner's Manual Search —
+// a full re-render (rather than hiding/showing pre-built rows) guarantees
+// this list can never drift out of sync with that reference formatting.
+function _filterCapPatientList(query) {
+  const container = document.getElementById('cap-patient-list')
+  if (!container) return
+  const q = query.trim().toLowerCase()
+  const matches = !q ? patients : patients.filter(p =>
+    (p.name || '').toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || (p.qrData || '').toLowerCase().includes(q)
+  )
+  container.innerHTML = matches.length
+    ? matches.map(p => _renderPatientResult(p, _capPatientOnclick(p))).join('')
+    : `<div style="padding:24px;text-align:center;font-size:.85rem;color:#9CA3AF">No matching patients found.</div>`
+}
+window._filterCapPatientList = _filterCapPatientList
+
+function promptJoinWaitlist(d) {
+  const dt = new Date(d.date + 'T00:00:00')
+  const dateShort = dt.toLocaleDateString('en-PH', { month:'long', day:'numeric', year:'numeric' })
+  const esc = s => (s || '').replace(/'/g, "\\'")
+  showModal(`
+    <div class="modal-body" style="text-align:center;padding:32px 24px">
+      <div style="width:56px;height:56px;border-radius:50%;background:#FFF7ED;border:2px solid #FDBA74;
+                  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#E8760A">
+        ${icon('alert-circle','icon-lg')}
+      </div>
+      <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C;margin-bottom:8px">This Slot Is Fully Booked</div>
+      <div style="background:#F9FAFB;border-radius:10px;padding:14px 20px;margin-bottom:16px;text-align:left">
+        <div style="font-size:.85rem;font-weight:600;color:#1C1C1C">${d.doctorName}</div>
+        <div style="font-size:.82rem;color:#6B7280;margin-top:4px">${dateShort} at ${d.time}</div>
+      </div>
+      <div style="font-size:.85rem;color:#6B7280;margin-bottom:20px">Would you like to join the waitlist? We'll notify you if this slot opens up.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="window.closeModal()">No, choose another slot</button>
+        <button class="btn-primary" onclick="window.joinWaitlist('${d.doctorId}','${esc(d.doctorName)}','${d.date}','${d.time}','${esc(d.type)}')">Yes, join waitlist</button>
+      </div>
+    </div>`)
+}
+window.promptJoinWaitlist = promptJoinWaitlist
+
+async function joinWaitlist(doctorId, doctorName, date, time, type) {
+  try {
+    const r = await fetch('api/waitlist/join.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doctorId, doctorName, date, time, type, termsAgreed: true })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not join the waitlist.', 'error'); return }
+    closeModal()
+    toast("You're on the waitlist. We'll notify you if this slot opens up.", 'success')
+    window.navigate('patient-request-appt')
+  } catch (_) {
+    toast('Network error — please try again.', 'error')
+  }
+}
+window.joinWaitlist = joinWaitlist
+
+async function respondWaitlist(id, action) {
+  try {
+    const r = await fetch('api/waitlist/respond.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not process your response.', 'error'); return }
+    if (action === 'claim') {
+      toast('Appointment confirmed!', 'success')
+      window.navigate('patient-appts', { filter: 'approved' })
+    } else {
+      toast("You've declined this slot.", 'info')
+      window.navigate('patient-request-appt')
+    }
+  } catch (_) {
+    toast('Network error — please try again.', 'error')
+  }
+}
+window.respondWaitlist = respondWaitlist
+
+// Declining releases the slot to the next patient in line and can't be
+// undone — worth a confirm step, unlike claiming (the wanted outcome),
+// which stays a single click.
+function confirmDeclineWaitlistOffer(id) {
+  showConfirm({
+    title: 'Choose a Different Slot?',
+    message: "This releases the offered slot to the next patient in line and you won't be able to reclaim it. You'll need to request a new appointment or rejoin the waitlist if you still want this doctor's schedule.",
+    confirmText: 'Choose Different Slot',
+    danger: true,
+    onConfirm: () => window.respondWaitlist(id, 'decline')
+  })
+}
+window.confirmDeclineWaitlistOffer = confirmDeclineWaitlistOffer
+
+async function leaveWaitlist(id) {
+  try {
+    const r = await fetch('api/waitlist/leave.php', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not leave the waitlist.', 'error'); return }
+    toast("You've left the waitlist.", 'info')
+    window.navigate('patient-request-appt')
+  } catch (_) {
+    toast('Network error — please try again.', 'error')
+  }
+}
+window.leaveWaitlist = leaveWaitlist
+
+async function loadMyWaitlistCard(emptyHtml = '') {
+  const el = document.getElementById('my-waitlist-card')
+  if (!el) return
+  try {
+    const r = await fetch('api/waitlist/index.php')
+    const d = await r.json()
+    if (!d.success) return
+    el.innerHTML = d.entry ? waitlistCardHtml(d.entry) : emptyHtml
+    if (d.entry && d.entry.status === 'offered') _startWaitlistCountdown(d.entry.offerExpiresAt)
+  } catch (_) { /* non-critical — booking wizard still works without it */ }
+}
+window.loadMyWaitlistCard = loadMyWaitlistCard
+
+function waitlistCardHtml(entry) {
+  const dt = new Date(entry.date + 'T00:00:00')
+  const dateShort = dt.toLocaleDateString('en-PH', { month:'long', day:'numeric', year:'numeric' })
+  if (entry.status === 'offered') {
+    return `
+      <div class="card" style="background:#FFF7ED;border:1.5px solid #FDBA74;margin-bottom:20px">
+        <div class="card-body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span style="flex-shrink:0;display:flex;color:#E8760A">${icon('alert-circle','icon-lg')}</span>
+          <div style="flex:1;min-width:220px">
+            <div style="font-weight:700;color:#1C1C1C;margin-bottom:4px">A waitlisted slot is open!</div>
+            <div style="font-size:.85rem;color:#6B7280;margin-bottom:6px">${entry.doctorName} on ${dateShort} at ${entry.time}</div>
+            <div style="font-size:.8rem;color:#C2410C;font-weight:600">Claim it in <span id="waitlist-offer-countdown"></span> or it will go to the next patient in line.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <button class="btn-secondary" onclick="window.confirmDeclineWaitlistOffer(${entry.id})">Choose different slot</button>
+            <button class="btn-primary" onclick="window.respondWaitlist(${entry.id},'claim')">Claim Slot</button>
+          </div>
+        </div>
+      </div>`
+  }
+  return `
+    <div class="card" style="background:#F9FAFB;border:1.5px solid #E5E7EB;margin-bottom:20px">
+      <div class="card-body" style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+        <span style="flex-shrink:0;display:flex;color:#6B7280">${icon('clock','icon-lg')}</span>
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:700;color:#1C1C1C;margin-bottom:4px">You're on the waitlist</div>
+          <div style="font-size:.85rem;color:#6B7280">${entry.doctorName} on ${dateShort} at ${entry.time}. We'll notify you if this slot opens up.</div>
+        </div>
+        <button class="btn-secondary" style="flex-shrink:0" onclick="window.leaveWaitlist(${entry.id})">Leave Waitlist</button>
+      </div>
+    </div>`
+}
+
+let _waitlistCountdownInterval = null
+function _startWaitlistCountdown(expiresAtStr) {
+  clearInterval(_waitlistCountdownInterval)
+  const expiresAt = new Date(expiresAtStr.replace(' ', 'T')).getTime()
+  function tick() {
+    const display = document.getElementById('waitlist-offer-countdown')
+    if (!display || !display.isConnected) { clearInterval(_waitlistCountdownInterval); return }
+    const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+    const h = Math.floor(remaining / 3600), m = Math.floor((remaining % 3600) / 60), s = remaining % 60
+    display.textContent = h > 0 ? `${h}h ${m}m` : `${m}:${String(s).padStart(2,'0')}`
+    if (remaining <= 0) clearInterval(_waitlistCountdownInterval)
+  }
+  tick()
+  _waitlistCountdownInterval = setInterval(tick, 1000)
+}
 
 // keyboard nav
 document.addEventListener('keydown', e => {
@@ -2460,59 +3042,6 @@ function printExaminationForm(patientId) {
 window.printExaminationForm = printExaminationForm
 
 // ════════════════════════════════════════════════════════════════
-//  ADD CONSULTATION MODAL
-// ════════════════════════════════════════════════════════════════
-function openAddConsultationModal(patientId) {
-  const p = patients.find(p => p.id === patientId)
-  if (!p) return
-  showModal(`
-    <div class="modal-header">
-      <div class="modal-title">Add Consultation — ${p.name}</div>
-      <button class="modal-close" onclick="window.closeModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group"><label class="form-label">Date</label>
-        <input type="date" id="con-date" class="form-input" value="${localDateStr()}"></div>
-      <div class="form-group"><label class="form-label">Consultation Type</label>
-        <select id="con-type" class="form-select">
-          <option>Eye Examination</option><option>Vision Screening</option>
-          <option>Refraction</option><option>Diagnosis of Refractive Errors</option>
-          <option>Prescription of Corrective Lenses</option><option>Lens Fitting</option>
-          <option>Optical Frame Selection</option><option>Follow-up Consultation</option>
-        </select></div>
-      <div class="form-group"><label class="form-label">Diagnosis</label>
-        <input id="con-diag" class="form-input" placeholder="e.g. Myopia, Astigmatism"></div>
-      <div class="form-group"><label class="form-label">Prescription</label>
-        <input id="con-rx" class="form-input" placeholder="e.g. OD: -1.25 / OS: -1.00"></div>
-      <div class="form-group"><label class="form-label">Remarks</label>
-        <textarea id="con-rem" class="form-textarea" placeholder="Follow-up instructions, observations…"></textarea></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="window.doAddConsultation('${patientId}')">Save Consultation</button>
-    </div>`)
-}
-
-function doAddConsultation(patientId) {
-  const p = patients.find(p => p.id === patientId)
-  if (!p) return
-  const gv = id => (document.getElementById(id) || {}).value || ''
-  p.consultations.unshift({
-    id: 'C' + Date.now(),
-    date: gv('con-date'), doctor: state.user.name,
-    type: gv('con-type'), diagnosis: gv('con-diag'),
-    prescription: gv('con-rx'), remarks: gv('con-rem')
-  })
-  p.lastVisit = gv('con-date')
-  closeModal()
-  toast('Consultation record has been added to the patient\'s history.')
-  renderPage()
-}
-
-window.openAddConsultationModal = openAddConsultationModal
-window.doAddConsultation        = doAddConsultation
-
-// ════════════════════════════════════════════════════════════════
 //  ADD / EDIT USER MODAL
 // ════════════════════════════════════════════════════════════════
 function openAddUserModal() {
@@ -2588,7 +3117,9 @@ function openAddUserModal() {
 
       <div id="nu-pass-group">
         <div class="form-group"><label class="form-label">Temporary Password <span class="req">*</span></label>
-          <input id="nu-pass" type="password" class="form-input" placeholder="Minimum 8 characters"></div>
+          <input id="nu-pass" type="password" class="form-input" placeholder="Minimum 8 characters" oninput="window.updatePwChecklist('nu-pass', this.value)">
+          ${window.pwChecklistHtml('nu-pass')}
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2618,6 +3149,9 @@ async function doAddUser() {
 
   if (!first || !last || !email) { toast('Please fill in all required fields.', 'error'); return }
   if (role !== 'Patient' && !pass) { toast('Password is required.', 'error'); return }
+  if (role !== 'Patient' && !window.pwPolicyValid(pass)) {
+    toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return
+  }
 
   const btn = document.getElementById('nu-save-btn')
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…' }
@@ -2740,10 +3274,11 @@ function editUserModal(id, role) {
         <div id="eu-pw-section" style="display:none;margin-top:12px">
           <div class="form-row-2">
             <div class="form-group"><label class="form-label">New Password</label>
-              <input id="eu-new-pw" type="password" class="form-input" placeholder="Min. 8 characters" autocomplete="new-password"></div>
+              <input id="eu-new-pw" type="password" class="form-input" placeholder="Min. 8 characters" autocomplete="new-password" oninput="window.updatePwChecklist('eu-new-pw', this.value)"></div>
             <div class="form-group"><label class="form-label">Confirm Password</label>
               <input id="eu-confirm-pw" type="password" class="form-input" placeholder="Re-enter password" autocomplete="new-password"></div>
           </div>
+          ${window.pwChecklistHtml('eu-new-pw')}
           <p style="font-size:.74rem;color:#9CA3AF;margin:2px 0 0">Leave blank to keep the existing password.</p>
         </div>
       </div>
@@ -2785,7 +3320,7 @@ async function doEditUser(id, role) {
   const cfPw    = document.getElementById('eu-confirm-pw')?.value || ''
 
   if (newPw) {
-    if (newPw.length < 8) { toast('Password must be at least 8 characters.', 'error'); return }
+    if (!window.pwPolicyValid(newPw)) { toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return }
     if (newPw !== cfPw)   { toast('Passwords do not match.', 'error'); return }
   }
 
@@ -3087,6 +3622,17 @@ function openEditPatientModal(patientId) {
             <option value="inactive"${(p.status||'active')==='inactive'?' selected':''}>Inactive</option>
           </select></div>` : ''}
       </div>
+      ${isAdmin ? `
+      <div style="background:#F9FAFB;border:1px solid #F0F0F2;border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:.7rem;font-weight:700;letter-spacing:.08em;color:#B0B7C3;text-transform:uppercase;margin-bottom:4px">No-Show Record</div>
+          <div style="font-size:.85rem;color:#374151">
+            <strong style="color:${(p.noShowCount||0) >= 3 ? '#DC2626' : '#1C1C1C'}">${p.noShowCount || 0}</strong> missed appointment${(p.noShowCount||0) === 1 ? '' : 's'} on file
+            ${p.bookingRestricted ? `<span style="margin-left:8px;display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:700;color:#991B1B;background:#FEE2E2;border-radius:999px;padding:2px 9px">${icon('alert-circle','icon-xs')} Online booking restricted</span>` : ''}
+          </div>
+        </div>
+        ${p.bookingRestricted ? `<button type="button" class="btn-secondary" style="flex-shrink:0" onclick="window.clearBookingRestriction('${p.id}')">Clear Restriction</button>` : ''}
+      </div>` : ''}
       <div class="form-group"><label class="form-label">Occupation</label>
         <input id="ep-occupation" class="form-input" placeholder="e.g. Teacher, Engineer, Student" value="${p.occupation || ''}"></div>
       <div class="form-group"><label class="form-label">Medical History</label>
@@ -3129,11 +3675,12 @@ function openEditPatientModal(patientId) {
               <div class="form-row-2">
                 <div class="form-group" style="margin-bottom:0"><label class="form-label">New Password</label>
                   <input type="password" id="ep-newpass" class="form-input" placeholder="Min. 8 characters"
-                         autocomplete="new-password" oninput="window.syncEpPassHint()"></div>
+                         autocomplete="new-password" oninput="window.syncEpPassHint();window.updatePwChecklist('ep-newpass', this.value)"></div>
                 <div class="form-group" style="margin-bottom:0"><label class="form-label">Confirm Password</label>
                   <input type="password" id="ep-newpass2" class="form-input" placeholder="Re-enter password"
                          autocomplete="new-password" oninput="window.syncEpPassHint()"></div>
               </div>
+              ${window.pwChecklistHtml('ep-newpass')}
               <p id="ep-pass-hint" style="margin:7px 0 0;font-size:.74rem;color:#9CA3AF">Leave blank to keep the existing password.</p>
             </div>
           </div>
@@ -3159,7 +3706,7 @@ async function doEditPatient(patientId) {
   const np  = (document.getElementById('ep-newpass')  || {}).value || ''
   const np2 = (document.getElementById('ep-newpass2') || {}).value || ''
   if (np || np2) {
-    if (np.length < 8)  { toast('New password must be at least 8 characters.', 'error'); return }
+    if (!window.pwPolicyValid(np)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return }
     if (np !== np2)     { toast('Passwords do not match.', 'error'); return }
   }
 
@@ -3239,14 +3786,14 @@ window.syncEpPassHint = function() {
   if (!np && !np2) {
     hint.textContent = 'Leave blank to keep the existing password.'
     hint.style.color = '#9CA3AF'
-  } else if (np && np2 && np === np2 && np.length >= 8) {
+  } else if (np && np2 && np === np2 && window.pwPolicyValid(np)) {
     hint.textContent = '✓ Passwords match — will update on Save.'
     hint.style.color = '#059669'
   } else if (np2 && np !== np2) {
     hint.textContent = 'Passwords do not match.'
     hint.style.color = '#DC2626'
-  } else if (np.length > 0 && np.length < 8) {
-    hint.textContent = 'Must be at least 8 characters.'
+  } else if (np.length > 0 && !window.pwPolicyValid(np)) {
+    hint.textContent = 'Password does not meet the requirements below.'
     hint.style.color = '#D97706'
   } else {
     hint.textContent = 'Leave blank to keep the existing password.'
@@ -3299,6 +3846,29 @@ window.doAddPatient         = doAddPatient
 window.openEditPatientModal = openEditPatientModal
 window.doEditPatient        = doEditPatient
 
+async function clearBookingRestriction(patientId) {
+  try {
+    const r = await fetch('api/patients/clear_restriction.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id: patientId })
+    })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not clear restriction.', 'error'); return }
+    const p = patients.find(p => p.id === patientId)
+    if (p) p.bookingRestricted = false
+    addActivityLog({ id:'L'+Date.now(), user: state.user.name, role: state.role,
+      action: `Cleared online booking restriction for ${p ? p.name : patientId}`,
+      timestamp: nowTimestamp(), type:'patient' })
+    toast('Booking restriction cleared. The patient can book online again.')
+    closeModal()
+    renderPage()
+  } catch (_) {
+    toast('Network error — please try again.', 'error')
+  }
+}
+window.clearBookingRestriction = clearBookingRestriction
+
 // ════════════════════════════════════════════════════════════════
 //  DELETE PATIENT
 // ════════════════════════════════════════════════════════════════
@@ -3317,8 +3887,8 @@ function confirmArchivePatient(id) {
     </div>
     <div class="modal-body">
       <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#F9FAFB;border-radius:8px;margin-bottom:16px">
-        <div style="width:42px;height:42px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0">
-          ${p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}
+        <div style="width:42px;height:42px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;overflow:hidden">
+          ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}
         </div>
         <div>
           <div style="font-weight:700">${p.name}</div>
@@ -3531,7 +4101,7 @@ function openContactReplyModal(id) {
         <textarea id="cr-reply-text" class="form-textarea" style="border-radius:8px;min-height:120px"
                   placeholder="Type your reply…">${m.reply || ''}</textarea>
       </div>
-      <div id="cr-reply-error" style="display:none;color:#DC2626;font-size:.78rem;margin-top:6px"></div>
+      <div id="cr-reply-error" class="field-error"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.openContactMessageModal(${id})">Back</button>
@@ -3554,7 +4124,7 @@ async function sendContactReply(id) {
   const replyTxt = (ta?.value || '').trim()
 
   if (!replyTxt) {
-    if (errBox) { errBox.textContent = 'Please write a reply before sending.'; errBox.style.display = 'block' }
+    if (errBox) { errBox.textContent = 'Please write a reply before sending.'; errBox.classList.add('show') }
     return
   }
 
@@ -3911,6 +4481,56 @@ function saveClinicInfo() {
   toast('Clinic information updated successfully.', 'success')
 }
 window.saveClinicInfo = saveClinicInfo
+
+// Re-renders a markdown-editor live preview from its textarea's current
+// value — called on load and on every keystroke. Shared by both the
+// Terms & Conditions and Appointment Policy editors (renderTermsMarkdown
+// lives in db.js, loaded before this file).
+function _mdPreviewUpdate(taId, previewId) {
+  const ta  = document.getElementById(taId)
+  const out = document.getElementById(previewId)
+  if (ta && out) out.innerHTML = renderTermsMarkdown(ta.value)
+}
+window._mdPreviewUpdate = _mdPreviewUpdate
+
+function saveTermsContent() {
+  const ta = document.getElementById('terms-md-input')
+  const value = ta ? ta.value : ''
+
+  clinicInfo.termsContent = value
+  window._termsContentMd  = value
+
+  fetch('api/clinic/settings.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ termsContent: value })
+  }).catch(() => {})
+
+  addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
+    action: 'Updated the registration Terms & Conditions',
+    timestamp: nowTimestamp(), type: 'settings' })
+
+  toast('Terms & Conditions updated successfully.', 'success')
+}
+window.saveTermsContent = saveTermsContent
+
+function saveAppointmentPolicyContent() {
+  const ta = document.getElementById('policy-md-input')
+  const value = ta ? ta.value : ''
+
+  clinicInfo.appointmentPolicyContent = value
+
+  fetch('api/clinic/settings.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appointmentPolicyContent: value })
+  }).catch(() => {})
+
+  addActivityLog({ id: 'L' + Date.now(), user: state.user.name, role: state.role,
+    action: 'Updated the Appointment Policy',
+    timestamp: nowTimestamp(), type: 'settings' })
+
+  toast('Appointment Policy updated successfully.', 'success')
+}
+window.saveAppointmentPolicyContent = saveAppointmentPolicyContent
 
 // ════════════════════════════════════════════════════════════════
 //  SETTINGS — SAVE CONSULTATION SETTINGS
@@ -4312,7 +4932,7 @@ function showQRResult(p) {
         ${icon('eye','icon-sm')} Start Consultation
       </button>` : ''}
       <button class="btn-ghost" style="flex:1;justify-content:center;min-width:120px"
-              onclick="window.openCreateApptModal()">
+              onclick="window.navigate('create-appointment',{patientId:'${p.id}',patientName:'${(p.name||'').replace(/'/g,"\\'")}'})">
         ${icon('calendar','icon-sm')} New Appointment
       </button>
     </div>`
@@ -4320,7 +4940,13 @@ function showQRResult(p) {
   card.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
 
-function _renderPatientResult(p) {
+// Shared by the QR Scanner's "Manual Search" and the New Appointment
+// patient-picker (pages.js's pageCreateAppointment()) — one render function
+// means both surfaces are always pixel-identical instead of two near-copies
+// quietly drifting apart. onclickJs defaults to the QR scanner's own
+// select-and-show-result behavior; pass a different JS expression string to
+// reuse this row for a different action (e.g. navigating to book for them).
+function _renderPatientResult(p, onclickJs) {
   const initls = (p.name || '').split(' ').map(n=>n[0]).slice(0,2).join('')
   const avatarHtml = p.photoUrl
     ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
@@ -4328,7 +4954,7 @@ function _renderPatientResult(p) {
   return `
     <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:10px"
          onmouseover="this.style.background='#FFFBF5'" onmouseout="this.style.background=''"
-         onclick="window.selectPatientResult('${p.id}')">
+         onclick="${onclickJs || `window.selectPatientResult('${p.id}')`}">
       <div style="width:32px;height:32px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.72rem;font-weight:700;flex-shrink:0;overflow:hidden">
         ${avatarHtml}
       </div>
@@ -4338,6 +4964,7 @@ function _renderPatientResult(p) {
       </div>
     </div>`
 }
+window._renderPatientResult = _renderPatientResult
 
 function liveSearchPatient(query) {
   const res = document.getElementById('qr-live-results')
@@ -4349,7 +4976,7 @@ function liveSearchPatient(query) {
     p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || (p.qrData || '').toLowerCase().includes(q)
   ).slice(0, 6)
   if (!matches.length) { res.style.display = 'none'; return }
-  res.innerHTML = matches.map(_renderPatientResult).join('')
+  res.innerHTML = matches.map(p => _renderPatientResult(p)).join('')
   res.style.display = ''
 }
 
@@ -4868,8 +5495,10 @@ function updateRxPreview(patientId) {
       ${infoRow('Consultation Date', examDate)}
     </div>
 
-    <!-- Prescription Table -->
-    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+    <!-- Prescription Table — its own horizontal scroll on narrow screens
+         instead of squeezing 5 columns illegibly or overflowing the page. -->
+    <div style="overflow-x:auto;margin-bottom:14px">
+    <table style="width:100%;min-width:360px;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
       <thead>
         <tr>
           ${thCell('Eye', '#6B7280')}
@@ -4881,14 +5510,14 @@ function updateRxPreview(patientId) {
       </thead>
       <tbody>
         <tr>
-          <td style="padding:8px 10px;font-size:.78rem;font-weight:700;color:#16a34a;border-bottom:1px solid #f3f4f6;text-align:center">OD (Right)</td>
+          <td style="padding:8px 10px;font-size:.78rem;font-weight:700;color:#16a34a;border-bottom:1px solid #f3f4f6;text-align:center;white-space:nowrap">OD (Right)</td>
           ${tdCell(gv('ne-od-sph'))}
           ${tdCell(gv('ne-od-cyl'))}
           ${tdCell(gv('ne-od-axis'))}
           ${tdCell(gv('ne-od-va'))}
         </tr>
         <tr>
-          <td style="padding:8px 10px;font-size:.78rem;font-weight:700;color:#E8891C;border-bottom:1px solid #f3f4f6;text-align:center">OS (Left)</td>
+          <td style="padding:8px 10px;font-size:.78rem;font-weight:700;color:#E8891C;border-bottom:1px solid #f3f4f6;text-align:center;white-space:nowrap">OS (Left)</td>
           ${tdCell(gv('ne-os-sph'))}
           ${tdCell(gv('ne-os-cyl'))}
           ${tdCell(gv('ne-os-axis'))}
@@ -4896,22 +5525,24 @@ function updateRxPreview(patientId) {
         </tr>
       </tbody>
     </table>
+    </div>
 
-    <!-- Summary fields -->
+    <!-- Summary fields — flex-wrap so a long value drops to its own line
+         under the label instead of forcing the row wider than its card. -->
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;padding:12px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb">
-      <div style="display:flex;gap:8px;font-size:.8rem">
+      <div style="display:flex;flex-wrap:wrap;gap:4px 8px;font-size:.8rem">
         <span style="font-weight:600;color:#6B7280;min-width:140px">Diagnosis:</span>
         <span style="color:#1C1C1C;font-weight:500">${gv('ne-diagnosis')}</span>
       </div>
-      <div style="display:flex;gap:8px;font-size:.8rem">
+      <div style="display:flex;flex-wrap:wrap;gap:4px 8px;font-size:.8rem">
         <span style="font-weight:600;color:#6B7280;min-width:140px">Final VA:</span>
         <span style="color:#1C1C1C;font-weight:500">${gv('ne-final-va')}</span>
       </div>
-      <div style="display:flex;gap:8px;font-size:.8rem">
+      <div style="display:flex;flex-wrap:wrap;gap:4px 8px;font-size:.8rem">
         <span style="font-weight:600;color:#6B7280;min-width:140px">Recommended Lenses:</span>
         <span style="color:#1C1C1C;font-weight:500">${gv('ne-lens-type')}</span>
       </div>
-      <div style="display:flex;gap:8px;font-size:.8rem">
+      <div style="display:flex;flex-wrap:wrap;gap:4px 8px;font-size:.8rem">
         <span style="font-weight:600;color:#6B7280;min-width:140px">Frame Selection:</span>
         <span style="color:#1C1C1C;font-weight:500">${gv('ne-frame')}</span>
       </div>
@@ -6374,14 +7005,19 @@ function updateStaffDashboard() {
     const monday   = new Date(now)
     monday.setDate(now.getDate() - (weekDay === 0 ? 6 : weekDay - 1))
     monday.setHours(0, 0, 0, 0)
-    const dayLabels    = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const weeklyCounts = dayLabels.map((_, i) => {
+    // Only chart days the clinic is actually configured to be open
+    // (Consultation Settings → Clinic Days) instead of a hardcoded Mon–Sat.
+    const DAY_OFFSET   = { Monday:0, Tuesday:1, Wednesday:2, Thursday:3, Friday:4, Saturday:5, Sunday:6 }
+    const openDays     = (consultationSettings.clinicDays && consultationSettings.clinicDays.length)
+      ? consultationSettings.clinicDays : ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    const dayLabels    = openDays.map(d => d.slice(0, 3))
+    const weeklyCounts = openDays.map(d => {
       const day = new Date(monday)
-      day.setDate(monday.getDate() + i)
+      day.setDate(monday.getDate() + (DAY_OFFSET[d] ?? 0))
       const dateStr = localDateStr(day)
       return appointments.filter(a => a.date === dateStr && !['cancelled', 'disapproved'].includes(a.status)).length
     })
-    window._charts.initStaffOverviewChart('chart-staff-overview', weeklyCounts)
+    window._charts.initStaffOverviewChart('chart-staff-overview', weeklyCounts, dayLabels)
   }
 
   // ── Update pending approvals table ────────────────────────────
@@ -6835,7 +7471,7 @@ function openBlockDateModal(doctorId, doctorName) {
                min="${localDateStr()}">
       </div>
       <div class="form-group">
-        <label class="form-label">Reason</label>
+        <label class="form-label">Reason <span class="req">*</span></label>
         <input id="block-date-reason" type="text" class="form-input"
                placeholder="e.g. Leave, Conference, Holiday…">
       </div>
@@ -6858,7 +7494,8 @@ async function doBlockDate(doctorId, doctorName) {
   const reasonEl = document.getElementById('block-date-reason')
   const date     = dateEl?.value
   const reason   = reasonEl?.value?.trim() || ''
-  if (!date) { toast('Please select a date.', 'error'); return }
+  if (!date)   { toast('Please select a date.', 'error'); return }
+  if (!reason) { toast('Please provide a reason for blocking this date.', 'error'); return }
 
   const btn = document.querySelector('.modal-footer .btn-primary')
   if (btn) { btn.disabled = true; btn.textContent = 'Blocking…' }
@@ -7144,6 +7781,52 @@ async function handleHeroUpload(input) {
 }
 window.handleHeroUpload = handleHeroUpload
 
+async function handleVideoUpload(input) {
+  const file = input.files[0]
+  if (!file) return
+
+  const formData = new FormData()
+  formData.append('video', file)
+
+  try {
+    const r = await fetch('api/clinic/upload_video.php', { method: 'POST', body: formData })
+    // A file that blows past the server's post_max_size/upload_max_filesize
+    // never reaches our PHP script's own JSON error handling — PHP/Apache
+    // reject it first and hand back a plain-text/HTML response (or reset
+    // the connection outright), which r.json() can't parse. Surface that
+    // distinctly instead of a generic "network error" that hides the
+    // actual, fixable cause.
+    if (!r.ok) {
+      toast(r.status === 413
+        ? 'Video is too large for this server\'s upload limit.'
+        : `Upload failed (server error ${r.status}).`, 'error')
+      return
+    }
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not upload video.', 'error'); return }
+    clinicInfo.videoUrl = d.videoUrl + '?t=' + Date.now()
+    toast('Clinic video updated.', 'success')
+    renderPage() // swaps the empty-slot icon for a real preview, button label, and Remove option
+  } catch (_) {
+    toast('Network error, or the video is too large for this server\'s upload limit.', 'error')
+  }
+}
+window.handleVideoUpload = handleVideoUpload
+
+async function removeClinicVideo() {
+  try {
+    const r = await fetch('api/clinic/upload_video.php', { method: 'DELETE' })
+    const d = await r.json()
+    if (!d.success) { toast(d.message || 'Could not remove video.', 'error'); return }
+    clinicInfo.videoUrl = null
+    toast('Clinic video removed.', 'success')
+    renderPage()
+  } catch (_) {
+    toast('Network error — could not remove video.', 'error')
+  }
+}
+window.removeClinicVideo = removeClinicVideo
+
 // ════════════════════════════════════════════════════════════════
 //  ABOUT GALLERY — admin management
 // ════════════════════════════════════════════════════════════════
@@ -7339,6 +8022,7 @@ function loadServicesAdmin() {
         ${icon(s.icon || 'eye', 'icon-sm')}
       </div>
       <div style="font-size:.8rem;font-weight:700;color:#1C1C1C;line-height:1.3">${s.name}</div>
+      ${s.duration ? `<div style="font-size:.66rem;font-weight:600;color:#9CA3AF">~${s.duration} min</div>` : ''}
       <div style="font-size:.7rem;color:#6B7280;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1">${s.description || ''}</div>
       <div class="svc-actions" style="display:flex;gap:4px;margin-top:4px;transition:opacity .15s">
         <button class="btn-icon" title="Edit" onclick="event.stopPropagation();window.editServiceModal(${s.id})"
@@ -7858,7 +8542,7 @@ async function galleryDeletePhoto(id) {
 function galleryMaxAdjust(delta) {
   const inp = document.getElementById('gallery-max-input');
   if (!inp) return;
-  inp.value = Math.min(10, Math.max(1, (parseInt(inp.value, 10) || 1) + delta));
+  inp.value = Math.min(20, Math.max(1, (parseInt(inp.value, 10) || 1) + delta));
 }
 
 async function _doSaveGalleryMax(max) {
@@ -7893,7 +8577,7 @@ async function _doSaveGalleryMax(max) {
 
 async function saveGalleryMax() {
   const val = document.getElementById('gallery-max-input')?.value.trim();
-  const max  = Math.min(10, Math.max(1, parseInt(val, 10) || 1));
+  const max  = Math.min(20, Math.max(1, parseInt(val, 10) || 1));
 
   // Check if saving would remove any existing photos
   try {
@@ -7997,8 +8681,8 @@ function clearAllLogs() {
       <button class="modal-close" onclick="window.closeModal()">×</button>
     </div>
     <div class="modal-body">
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;margin-bottom:12px">
-        <span style="flex-shrink:0;display:flex">${icon('alert-triangle','icon-sm')}</span>
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;margin-bottom:12px">
+        <span style="flex-shrink:0;display:flex;margin-top:2px">${icon('alert-triangle','icon-sm')}</span>
         <div>
           <p style="color:#991B1B;font-size:.88rem;font-weight:600;margin:0 0 2px">This action cannot be undone.</p>
           <p style="color:#B91C1C;font-size:.82rem;margin:0">All activity log entries will be permanently deleted from the database.</p>

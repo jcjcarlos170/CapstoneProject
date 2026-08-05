@@ -34,8 +34,8 @@ $required = [$first, $last, $dob, $gender, $address, $contact, $email, $pass];
 if (in_array('', $required, true)) {
     jsonResponse(['success' => false, 'message' => 'Please complete all required fields.']);
 }
-if (strlen($pass) < 8) {
-    jsonResponse(['success' => false, 'message' => 'Password must be at least 8 characters.']);
+if ($pwError = validatePasswordPolicy($pass)) {
+    jsonResponse(['success' => false, 'message' => $pwError]);
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     jsonResponse(['success' => false, 'message' => 'Please enter a valid email address.']);

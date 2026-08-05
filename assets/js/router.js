@@ -33,6 +33,8 @@ const SIDEBAR_CONFIG = {
         { key: 'appointments', filter: 'no-show',     label: 'No-show' }
       ]
     },
+    { key: 'create-appointment',   label: 'New Appointment',  icon: 'plus-circle' },
+    { key: 'waitlist',             label: 'Waitlist',         icon: 'clock', badgeKey: '_waitlistCount' },
     { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text' },
     { key: 'contact-messages',     label: 'Contact Messages', icon: 'mail', badgeKey: '_contactUnreadCount' },
     { key: 'exam-records',         label: 'Optical Examination', icon: 'eye' },
@@ -56,6 +58,7 @@ const SIDEBAR_CONFIG = {
         { key: 'admin-settings', filter: 'clinic',       label: 'Clinic Information' },
         { key: 'admin-settings', filter: 'services',     label: 'Services' },
         { key: 'admin-settings', filter: 'consultation', label: 'Consultation Settings' },
+        { key: 'admin-settings', filter: 'terms',        label: 'Terms & Policies' },
         { key: 'admin-settings', filter: 'archives',     label: 'Archives' }
       ]
     }
@@ -76,6 +79,8 @@ const SIDEBAR_CONFIG = {
         { key: 'appointments', filter: 'no-show',     label: 'No-show' }
       ]
     },
+    { key: 'create-appointment',   label: 'New Appointment',  icon: 'plus-circle' },
+    { key: 'waitlist',             label: 'Waitlist',         icon: 'clock', badgeKey: '_waitlistCount' },
     { key: 'patient-list',         label: 'Patient Records',  icon: 'file-text' },
     { key: 'contact-messages',     label: 'Contact Messages', icon: 'mail', badgeKey: '_contactUnreadCount' },
     { key: 'schedule',             label: 'Doctor Schedule',  icon: 'clock' },
@@ -143,7 +148,8 @@ const PAGE_LABELS = {
   'admin-dashboard':       'Dashboard',
   'admin-users':           'User Management',
   'appointments':          'Appointments',
-  'create-appointment':    'Create Appointment',
+  'create-appointment':    'New Appointment',
+  'waitlist':              'Waitlist',
   'patient-list':          'Patient Records',
   'add-patient':           'Add Patient',
   'patient-view':          'Patient Profile',
@@ -276,7 +282,8 @@ function renderPage(opts) {
     'admin-dashboard':       Pages.pageAdminDashboard,
     'admin-users':           Pages.pageAdminUsers,
     'appointments':          Pages.pageAppointments,
-    'create-appointment':    Pages.pageComingSoon,
+    'create-appointment':    Pages.pageCreateAppointment,
+    'waitlist':              Pages.pageWaitlist,
     'patient-list':          Pages.pagePatientList,
     'add-patient':           Pages.pageComingSoon,
     'patient-view':          Pages.pagePatientView,
@@ -545,8 +552,8 @@ function _notifTimeAgo(dateStr) {
 }
 window._notifTimeAgo = _notifTimeAgo
 
-const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', info:'info', contact_message:'mail' }
-const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', welcome:'orange', info:'gray', contact_message:'orange' }
+const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', no_show:'alert-circle', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', welcome:'home', info:'info', contact_message:'mail' }
+const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', no_show:'red', reminder:'orange', waitlist_offer:'orange', waitlist_removed:'red', welcome:'orange', info:'gray', contact_message:'orange' }
 const _resolveNotifType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
 // Returns { page, params } so callers always pass an explicit filter,
@@ -558,7 +565,7 @@ function _notifNavTarget(type, role) {
                  :                     'patient-dashboard'
 
   // Route appointment notifications to the correct filter per role and type
-  const apptTypes = new Set(['approved','cancelled','disapproved','rescheduled','new_appointment','reschedule_request','reminder'])
+  const apptTypes = new Set(['approved','cancelled','disapproved','rescheduled','new_appointment','reschedule_request','no_show'])
   if (apptTypes.has(type)) {
     // Patients: go to the filter that matches the status they were notified about
     if (role === 'patient') {
@@ -567,9 +574,9 @@ function _notifNavTarget(type, role) {
         cancelled:           'cancelled',
         disapproved:         'disapproved',
         rescheduled:         'approved',   // rescheduled stays approved
-        reminder:            'approved',
         new_appointment:     'pending',
         reschedule_request:  'all',
+        no_show:             'no-show',
       }[type] || 'all'
       return { page: 'patient-appts', params: { filter: patientFilter } }
     }
@@ -580,9 +587,9 @@ function _notifNavTarget(type, role) {
         cancelled:          'cancelled',
         disapproved:        'disapproved',
         rescheduled:        'approved',
-        reminder:           'approved',
         new_appointment:    'pending',
         reschedule_request: 'pending',
+        no_show:            'no-show',
       }[type] || ''
       return { page: 'doctor-appointments', params: { filter: doctorFilter } }
     }
@@ -594,10 +601,15 @@ function _notifNavTarget(type, role) {
       cancelled:          'cancelled',
       disapproved:        'disapproved',
       rescheduled:        'approved',
-      reminder:           'approved',
+      no_show:            'no-show',
     }[type] || ''
     return { page: 'appointments', params: { filter: staffFilter } }
   }
+
+  // Reminder/waitlist notifications only ever go to patients.
+  if (type === 'reminder')         return { page: 'patient-appts', params: { filter: 'approved' } }
+  if (type === 'waitlist_offer')   return { page: 'patient-request-appt', params: {} }
+  if (type === 'waitlist_removed') return { page: 'patient-request-appt', params: {} }
 
   const map = {
     record:          role === 'patient' ? 'patient-exam-history'  : 'patient-list',

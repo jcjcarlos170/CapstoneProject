@@ -43,8 +43,8 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     jsonResponse(['success' => false, 'message' => 'Please enter a valid email address.']);
 }
 
-if (strlen($pass) < 8) {
-    jsonResponse(['success' => false, 'message' => 'Password must be at least 8 characters.']);
+if ($pwError = validatePasswordPolicy($pass)) {
+    jsonResponse(['success' => false, 'message' => $pwError]);
 }
 
 $tableMap  = ['Admin' => 'admins', 'Staff' => 'staff', 'Doctor' => 'doctors'];

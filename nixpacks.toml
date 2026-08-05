@@ -5,4 +5,8 @@ nixPkgs = ["php83", "php83Extensions.pdo", "php83Extensions.pdo_mysql", "php83Ex
 cmds = ["composer install --no-dev --optimize-autoloader --no-interaction"]
 
 [start]
-cmd = "php -S 0.0.0.0:$PORT -t ."
+# -d flags mirror the local XAMPP php.ini limits (see C:\xampp\php\php.ini)
+# for video uploads (Clinic Settings → Clinic Video) — a generous but real
+# ceiling, not PHP's restrictive stock defaults (2M/8M) that would otherwise
+# apply here since no php.ini is shipped with this deployment.
+cmd = "php -d upload_max_filesize=2048M -d post_max_size=2048M -d max_execution_time=300 -d max_input_time=300 -S 0.0.0.0:$PORT -t ."

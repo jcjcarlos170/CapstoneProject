@@ -24,8 +24,8 @@ $newPw  = $b['newPassword']     ?? '';
 if (!$curPw || !$newPw) {
     jsonResponse(['success' => false, 'message' => 'Current and new password are required.']);
 }
-if (strlen($newPw) < 8) {
-    jsonResponse(['success' => false, 'message' => 'New password must be at least 8 characters.']);
+if ($pwError = validatePasswordPolicy($newPw)) {
+    jsonResponse(['success' => false, 'message' => $pwError]);
 }
 
 try {

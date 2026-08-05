@@ -2,8 +2,11 @@
 // ================================================================
 //  CANAOPTICALCLINIC — api/appointments/create.php
 //  POST { patientId, patientName, doctorId, doctorName,
-//         date, time, type, status, notes }
+//         date, time, type, status, notes, termsAgreed }
 //  → { success:true, id:'A001' }
+//  → { success:false, message, waitlistAvailable:true, doctorId, doctorName,
+//      date, time, type } when the slot is taken/held and the caller is a
+//      patient — frontend offers api/waitlist/join.php for this exact slot.
 // ================================================================
 
 require_once '../../config/db.php';
@@ -33,12 +36,17 @@ $time        = trim($b['time']        ?? '');
 $type        = trim($b['type']        ?? 'Eye Examination');
 $notes       = trim($b['notes']       ?? '');
 $status      = trim($b['status']      ?? 'pending');
+$termsAgreed = !empty($b['termsAgreed']);
 
 // Patient can only book for themselves
 if ($role === 'patient') {
     $profileId = $_SESSION['profile_id'] ?? '';
     $patientId = $profileId;
     $status    = 'pending';
+
+    if (!$termsAgreed) {
+        jsonResponse(['success' => false, 'message' => 'Please agree to the appointment policy before submitting.']);
+    }
 }
 
 if (!$patientId || !$doctorId || !$date || !$time) {
@@ -51,6 +59,18 @@ if (!in_array($status, $allowedStatus, true)) $status = 'pending';
 
 try {
     $pdo = getDB();
+
+    // Patients with repeated no-shows lose self-service booking — they have
+    // to go through the clinic directly instead. Checked first since there's
+    // no point validating anything else if this blocks the request outright.
+    if ($role === 'patient') {
+        $restricted = $pdo->prepare('SELECT booking_restricted FROM patients WHERE id = ? LIMIT 1');
+        $restricted->execute([$patientId]);
+        if ((int)$restricted->fetchColumn() === 1) {
+            jsonResponse(['success' => false, 'message' =>
+                'Online booking is currently unavailable for your account due to repeated missed appointments. Please contact the clinic directly to schedule.']);
+        }
+    }
 
     // Enforce the clinic's minimum-advance-booking rule for self-service patient
     // bookings (admin/staff retain discretion to schedule same-day walk-ins).
@@ -100,34 +120,33 @@ try {
     preg_match('/(\d+)/', $durStr ?: '30', $dm);
     $durationMin = isset($dm[1]) ? (int)$dm[1] : 30;
 
-    $conflict = checkApptConflict($pdo, $doctorId, $date, $time, $durationMin);
-    if ($conflict !== null) {
-        jsonResponse(['success' => false, 'message' =>
-            "This time conflicts with an existing appointment at {$conflict}. "
-          . "Please choose a different slot."]);
+    $conflict    = checkApptConflict($pdo, $doctorId, $date, $time, $durationMin);
+    $held        = checkWaitlistHold($pdo, $doctorId, $date, $time, $patientId);
+    if ($conflict !== null || $held) {
+        $message = $conflict !== null
+            ? "This time conflicts with an existing appointment at {$conflict}. Please choose a different slot."
+            : "This slot is currently reserved for another patient. Please choose a different slot.";
+        $response = ['success' => false, 'message' => $message];
+        // Only patients booking for themselves get offered the waitlist —
+        // admin/staff scheduling on a patient's behalf handle this by phone.
+        if ($role === 'patient') {
+            $response['waitlistAvailable'] = true;
+            $response['doctorId']   = $doctorId;
+            $response['doctorName'] = $doctorName;
+            $response['date']       = $date;
+            $response['time']       = $time;
+            $response['type']       = $type;
+        }
+        jsonResponse($response);
     }
 
-    // Generate next ID: A001, A002, …
-    $last = $pdo->query("SELECT id FROM appointments ORDER BY id DESC LIMIT 1")->fetchColumn();
-    $next = 1;
-    if ($last && preg_match('/^A(\d+)$/i', $last, $m)) {
-        $next = (int)$m[1] + 1;
-    }
-    $newId = 'A' . str_pad($next, 3, '0', STR_PAD_LEFT);
-    // Ensure uniqueness in case of gaps
-    $dup = $pdo->prepare('SELECT id FROM appointments WHERE id = ?');
-    while (true) {
-        $dup->execute([$newId]);
-        if (!$dup->fetch()) break;
-        $next++;
-        $newId = 'A' . str_pad($next, 3, '0', STR_PAD_LEFT);
-    }
-
-    $pdo->prepare(
-        'INSERT INTO appointments
-           (id, patient_id, patient_name, doctor_id, doctor_name, date, time, type, status, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    )->execute([$newId, $patientId, $patientName, $doctorId, $doctorName, $date, $time, $type, $status, $notes]);
+    $newId = createAppointmentRecord($pdo, [
+        'patientId' => $patientId, 'patientName' => $patientName,
+        'doctorId'  => $doctorId,  'doctorName'  => $doctorName,
+        'date'      => $date,      'time'        => $time,
+        'type'      => $type,      'status'      => $status,
+        'notes'     => $notes,     'termsAgreed' => $termsAgreed,
+    ]);
 
     // Send notifications about the new appointment
     $fmtDate = date('M j, Y', strtotime($date));

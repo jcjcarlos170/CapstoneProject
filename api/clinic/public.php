@@ -50,8 +50,8 @@ function buildDayRanges(array $openDays): string {
 try {
     $pdo = getDB();
     $r = $pdo->query(
-        'SELECT name, tagline, address, phone, email, hours, logo_url, hero_url, map_lat, map_lng, map_embed_url,
-                clinic_days, morning_start, morning_end, afternoon_start, afternoon_end, founded_year
+        'SELECT name, tagline, address, phone, email, hours, logo_url, hero_url, map_lat, map_lng, map_embed_url, video_url,
+                clinic_days, morning_start, morning_end, afternoon_start, afternoon_end, founded_year, terms_content
          FROM clinic_settings WHERE id = 1 LIMIT 1'
     )->fetch();
 
@@ -89,7 +89,9 @@ try {
         'logoUrl'  => $r['logo_url'],
         'heroUrl'     => $r['hero_url'] ?? null,
         'mapEmbedUrl' => $r['map_embed_url'] ?? null,
+        'videoUrl'    => $r['video_url'] ?? null,
         'foundedYear' => $r['founded_year'] ? (int)$r['founded_year'] : null,
+        'termsContent' => $r['terms_content'] ?: DEFAULT_TERMS_MD,
     ]]);
 
 } catch (PDOException $e) {

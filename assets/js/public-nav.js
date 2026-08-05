@@ -235,11 +235,17 @@
   }
 
   // ── Hide navbar when footer is visible, restore when footer leaves ──
+  // On tall/large-screen viewports the whole page (hero → footer) can fit
+  // without any scrolling, so the footer is already "visible" the instant
+  // the page loads — folding the navbar right away with no scroll at all.
+  // Only fold once the page has actually been scrolled down from the top.
   var navbar = document.getElementById('navbar')
   var footer = document.getElementById('footer')
   if (navbar && footer && 'IntersectionObserver' in window) {
     new IntersectionObserver(function (entries) {
-      navbar.classList.toggle('navbar-folded', entries[0].isIntersecting)
+      var footerVisible = entries[0].isIntersecting
+      var atTop = window.scrollY < 24
+      navbar.classList.toggle('navbar-folded', footerVisible && !atTop)
     }, { threshold: 0.05 }).observe(footer)
   }
 

@@ -79,7 +79,9 @@ var clinicInfo = {
   hours: 'Monday – Saturday: 9:00 AM – 5:00 PM',
   tinNo: '123-456-789-000',
   phicNo: '01-123456789-0',
-  logoUrl: null
+  logoUrl: null,
+  termsContent: null,
+  appointmentPolicyContent: null
 }
 
 var consultationSettings = {
@@ -126,6 +128,44 @@ function maxAdvanceDate(base) {
   if (unit === 'week') d.setDate(d.getDate() + n * 7)
   else                 d.setMonth(d.getMonth() + n)
   return d
+}
+
+// Converts the admin-editable Terms & Conditions / Appointment Policy
+// markdown (clinicInfo.termsContent / .appointmentPolicyContent) into the
+// same <h4>/<p>/<ul>/callout HTML these modals have always used. Tiny
+// convention only — "## " = heading, a blank line = new paragraph,
+// "- " = bullet list item, "> " = a highlighted amber callout (matches the
+// Appointment Policy's original "Reminders and Confirmation" notice box) —
+// deliberately not full markdown, so the only HTML this can ever emit is
+// headings/paragraphs/list items/callouts, regardless of what an admin
+// types in the Settings textarea.
+function renderTermsMarkdown(md) {
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+  const lines = String(md || '').split('\n')
+  let html = ''
+  let paraBuf = []
+  let listBuf = []
+  let calloutBuf = []
+  const flushPara = () => { if (paraBuf.length) { html += `<p>${esc(paraBuf.join(' '))}</p>`; paraBuf = [] } }
+  const flushList = () => { if (listBuf.length) { html += `<ul>${listBuf.map(li => `<li>${esc(li)}</li>`).join('')}</ul>`; listBuf = [] } }
+  const flushCallout = () => {
+    if (!calloutBuf.length) return
+    const iconSvg = typeof icon === 'function' ? icon('alert-circle', 'icon-sm') : ''
+    html += `<div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:8px;padding:12px 16px;margin:8px 0 4px;display:flex;align-items:flex-start;gap:10px">` +
+      `<span style="flex-shrink:0;display:flex;color:#E8760A;margin-top:4px">${iconSvg}</span>` +
+      `<p style="margin:0;color:#92400E">${esc(calloutBuf.join(' '))}</p></div>`
+    calloutBuf = []
+  }
+  lines.forEach(raw => {
+    const line = raw.trim()
+    if (!line) { flushPara(); flushCallout(); return }
+    if (line.startsWith('## ')) { flushPara(); flushList(); flushCallout(); html += `<h4>${esc(line.slice(3))}</h4>`; return }
+    if (line.startsWith('- ')) { flushPara(); flushCallout(); listBuf.push(line.slice(2)); return }
+    if (line.startsWith('> ')) { flushPara(); flushList(); calloutBuf.push(line.slice(2)); return }
+    flushList(); flushCallout(); paraBuf.push(line)
+  })
+  flushPara(); flushList(); flushCallout()
+  return html
 }
 
 // Helpers that work on the raw data
@@ -217,3 +257,6 @@ function removeArchivedRecord(id) {
 
 // ── Contact Messages (public contact-form submissions) ─────────
 var contactMessages = []
+
+// ── Waitlist entries (admin/staff view — active waiting/offered rows) ──
+var waitlistEntries = []

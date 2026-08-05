@@ -13,20 +13,24 @@ function emptyState(iconName, title, desc) {
   </div>`
 }
 
-function badge(status) {
-  if (status === 'no-show') {
-    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:9999px;font-family:'Poppins',sans-serif;font-size:0.72rem;font-weight:500;white-space:nowrap;background:#EDE9FE;color:#6D28D9">No-show</span>`
-  }
-  const map = {
-    pending:     'badge-pending',     approved:    'badge-approved',
-    cancelled:   'badge-cancelled',   disapproved: 'badge-disapproved',
-    completed:   'badge-completed',   active:      'badge-active',
-    inactive:    'badge-inactive',    admin:       'badge-admin',
-    staff:       'badge-staff',       doctor:      'badge-doctor',
-    patient:     'badge-patient'
-  }
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
-  return `<span class="badge ${map[status] || ''}">${label}</span>`
+// badge() is defined in main.js (loads after this file and wins the global
+// binding anyway) — removed the dead duplicate that used to live here.
+
+// Icon+text label shown as its own row inside the Actions cell, above the
+// row of icon buttons — not squeezed onto the same line as the icons, so it
+// gets the cell's full width to show the complete "Reschedule Requested"
+// label instead of a cramped abbreviation. Stays inside the existing
+// Actions <td> (no new <tr>), so sortable.js/pagination.js are unaffected.
+function rescheduleReqLabel(a) {
+  if (!a.rescheduleRequest) return ''
+  // width:100% + a wrapping text span (min-width:0 lets a flex child shrink
+  // below its content's intrinsic width, which is what actually allows the
+  // text to wrap) keeps this pill from overflowing the narrow Actions
+  // column — it grows to two lines instead of spilling past the table edge.
+  return `<span style="display:flex;align-items:flex-start;gap:4px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:4px 9px;cursor:pointer;width:100%;box-sizing:border-box;line-height:1.3" onclick="window.viewAppt('${a.id}')" title="View reschedule request details">
+    <span style="flex-shrink:0;margin-top:1px">${ic('refresh-cw', 'icon-xs')}</span>
+    <span style="min-width:0;white-space:normal">Reschedule Requested</span>
+  </span>`
 }
 
 function initials(name) {
@@ -49,11 +53,8 @@ function dayPills(days, size = 'md') {
 }
 window.dayPills = dayPills
 
-function fmtDate(d) {
-  if (!d || d === '—') return '—'
-  const dt = new Date(d)
-  return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' })
-}
+// fmtDate() is defined in main.js (loads after this file and wins the
+// global binding anyway) — removed the dead duplicate that used to live here.
 
 // Formats a "YYYY-MM-DD HH:MM[:SS]" (or any Date-parseable) timestamp as a
 // 12-hour clock string for display — e.g. "Jun 25, 2026, 3:05 PM". Naked
@@ -109,19 +110,21 @@ function apptActions(a, role) {
       <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
       <button class="btn-icon" title="Patient Record" onclick="window.navigate('patient-view',{patientId:'${a.patientId}',patientName:'${a.patientName}'})">${ic('user','icon-sm')}</button>
     </div>`
-  const rescheduleFlag = a.rescheduleRequest ? `<span title="Patient requested reschedule" style="display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:999px;padding:1px 7px;white-space:nowrap">${ic('refresh-cw','icon-xs')} Reschedule Req.</span>` : ''
   return `
-    <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
-      ${rescheduleFlag}
-      <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
-      ${a.status === 'pending' ? `
-        <button class="btn-icon" title="Approve" style="color:#059669" onclick="window.approveAppt('${a.id}')">${ic('check','icon-sm')}</button>
-        <button class="btn-icon" title="Disapprove" style="color:#991b1b" onclick="window.confirmDisapproveAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>
-        <button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x','icon-sm')}</button>` : ''}
-      ${a.status === 'approved' ? `
-        <button class="btn-icon" title="Mark Completed" style="color:#059669" onclick="window.markApptCompleted('${a.id}')">${ic('check-circle','icon-sm')}</button>
-        <button class="btn-icon" title="Reschedule" onclick="window.rescheduleAppt('${a.id}')">${ic('refresh-cw','icon-sm')}</button>
-        <button class="btn-icon" title="Cancel" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x','icon-sm')}</button>` : ''}
+    <div style="display:flex;flex-direction:column;gap:4px">
+      ${rescheduleReqLabel(a)}
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+        <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
+        ${a.status === 'pending' ? `
+          <button class="btn-icon" title="Approve" style="color:#059669" onclick="window.approveAppt('${a.id}')">${ic('check','icon-sm')}</button>
+          <button class="btn-icon" title="Disapprove" style="color:#991b1b" onclick="window.confirmDisapproveAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>
+          <button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x','icon-sm')}</button>` : ''}
+        ${a.status === 'approved' ? `
+          <button class="btn-icon" title="Mark Completed" style="color:#059669" onclick="window.markApptCompleted('${a.id}')">${ic('check-circle','icon-sm')}</button>
+          <button class="btn-icon" title="Mark No-Show" style="color:#6D28D9" onclick="window.confirmMarkNoShow('${a.id}')">${ic('user-x','icon-sm')}</button>
+          <button class="btn-icon" title="Reschedule" onclick="window.rescheduleAppt('${a.id}')">${ic('refresh-cw','icon-sm')}</button>
+          <button class="btn-icon" title="Cancel" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x','icon-sm')}</button>` : ''}
+      </div>
     </div>`
 }
 
@@ -545,7 +548,7 @@ function pageAppointments() {
       <h1 class="page-title">${title}</h1>
       <p class="page-subtitle">${subtitle}</p>
     </div>
-    ${role !== 'doctor' ? `<button class="btn-primary" onclick="window.openCreateApptModal()">${ic('plus','icon-sm')} New Appointment</button>` : ''}
+    ${role !== 'doctor' ? `<button class="btn-primary" onclick="window.navigate('create-appointment')">${ic('plus','icon-sm')} New Appointment</button>` : ''}
   </div>
   <div class="page-body">
     <div class="table-wrap">
@@ -767,7 +770,7 @@ function pagePatientView() {
       <button class="btn-secondary" onclick="window.openEditPatientModal('${p.id}')">
         ${ic('edit','icon-sm')} Edit Profile
       </button>
-      <button class="btn-primary" onclick="window.openCreateApptModal('${p.id}')">
+      <button class="btn-primary" onclick="window.navigate('create-appointment',{patientId:'${p.id}',patientName:'${(p.name||'').replace(/'/g,"\\'")}'})">
         ${ic('calendar','icon-sm')} Schedule Appointment
       </button>
     </div>` : ''}
@@ -831,7 +834,8 @@ function pagePatientView() {
             ['Appointments', patientAppts.length, '#E8760A'],
             ['Consultations', p.consultations.length, '#059669'],
             ['Examinations', p.examinations.length, '#2563EB'],
-            ['Prescriptions', (p.prescriptions||[]).length, '#7C3AED']
+            ['Prescriptions', (p.prescriptions||[]).length, '#7C3AED'],
+            ['No-Shows', p.noShowCount || 0, (p.noShowCount||0) >= 3 ? '#DC2626' : (p.noShowCount||0) > 0 ? '#D97706' : '#9CA3AF'],
           ].map(([lbl,val,col]) => `
             <div style="background:#F9FAFB;border-radius:8px;padding:10px 14px;text-align:center">
               <div style="font-size:1.4rem;font-weight:800;color:${col}">${val}</div>
@@ -848,8 +852,8 @@ function pagePatientView() {
         ${[
           ['personal',      'Personal Info'],
           ['history',       'Medical History'],
-          ['consultations', 'Consultations'],
           ['prescriptions', 'Prescriptions'],
+          ['consultations', 'Consultations'],
           ['appointments',  'Appointments']
         ].map(([key, lbl], i) => `
           <button class="filter-tab ptab-btn${i===0?' active':''}" data-tab="${key}"
@@ -872,6 +876,18 @@ function pagePatientView() {
               ['Occupation',      p.occupation || '—'],
               ['Registered',      fmtDate(p.registeredDate)],
               ['Last Visit',      fmtDate(p.lastVisit)],
+              ['No-Shows', (() => {
+                const n = p.noShowCount || 0
+                if (n === 0) return '<span style="color:#059669;font-weight:600">0</span>'
+                const severe = n >= 3
+                const color  = severe ? '#DC2626' : '#D97706'
+                const bg     = severe ? '#FEE2E2' : '#FEF3C7'
+                let html = `<span style="display:inline-flex;align-items:center;gap:5px;background:${bg};color:${color};font-weight:700;font-size:.78rem;padding:4px 11px;border-radius:999px">${ic('alert-circle','icon-xs')} ${n} missed appointment${n===1?'':'s'}</span>`
+                if (p.bookingRestricted) {
+                  html += ` <span style="display:inline-flex;align-items:center;gap:4px;background:#FEE2E2;color:#991B1B;font-weight:700;font-size:.7rem;padding:3px 10px;border-radius:999px">${ic('alert-circle','icon-xs')} Booking Restricted</span>`
+                }
+                return html
+              })()],
             ].map(([k,v]) => `
               <div class="info-item">
                 <div class="info-key">${k}</div>
@@ -902,9 +918,6 @@ function pagePatientView() {
         ${panel('consultations', `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <div style="font-size:.88rem;color:#6B7280">${p.consultations.length} consultation record${p.consultations.length!==1?'s':''}</div>
-            ${canEdit ? `<button class="btn-secondary" onclick="window.openAddConsultationModal('${p.id}')">
-              ${ic('plus','icon-sm')} Add Consultation
-            </button>` : ''}
           </div>
           ${consultationsPanel}`)}
 
@@ -917,7 +930,7 @@ function pagePatientView() {
         ${panel('appointments', `
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <div style="font-size:.88rem;color:#6B7280">${patientAppts.length} appointment${patientAppts.length!==1?'s':''} total</div>
-            ${canEdit ? `<button class="btn-primary" onclick="window.openCreateApptModal('${p.id}')">
+            ${canEdit ? `<button class="btn-primary" onclick="window.navigate('create-appointment',{patientId:'${p.id}',patientName:'${(p.name||'').replace(/'/g,"\\'")}'})">
               ${ic('plus','icon-sm')} New Appointment
             </button>` : ''}
           </div>
@@ -1019,6 +1032,79 @@ function pageContactMessages() {
               </td>
             </tr>`
           }).join('') : emptyRow(5, 'mail', 'No messages', 'Contact messages will appear here.')}
+        </tbody>
+      </table>
+      `}
+    </div>
+  </div>`
+}
+
+// ════════════════════════════════════════════════════════════════
+//  WAITLIST PAGE (Admin + Staff visibility)
+// ════════════════════════════════════════════════════════════════
+function pageWaitlist() {
+  const list = [...waitlistEntries]
+
+  // entry.time is already a formatted string ("9:00 AM") — it's stored
+  // verbatim from the booking wizard's slot label, not a raw SQL TIME.
+  const fmtD = d => { const dt = new Date(d + 'T00:00:00'); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) }
+  const fmtExpiry = dtStr => { const dt = new Date((dtStr || '').replace(' ', 'T')); return isNaN(dt) ? '' : dt.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) }
+
+  window.state.afterRender = () => { window.initPagination('waitlist-tbody') }
+
+  return `
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">Waitlist</h1>
+      <p class="page-subtitle">Patients waiting for a fully-booked slot to open up</p>
+    </div>
+  </div>
+  <div class="page-body">
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <span class="table-title">${list.length} ${list.length !== 1 ? 'entries' : 'entry'}</span>
+        <div class="table-actions">
+          <div class="search-input-wrap">
+            ${ic('search', 'icon-sm')}
+            <input class="search-input" placeholder="Search by patient or doctor…"
+                   oninput="window.filterTable(this,'waitlist-tbody')">
+          </div>
+        </div>
+      </div>
+      ${list.length === 0 ? emptyState('clock', 'No waitlist entries', 'No one is currently waitlisted.') : `
+      <table class="tbl">
+        <colgroup>
+          <col style="width:24%"><col style="width:18%"><col style="width:20%"><col style="width:20%"><col style="width:10%"><col style="width:8%">
+        </colgroup>
+        <thead><tr>
+          <th>Patient</th><th>Doctor</th><th>Requested Slot</th><th>Status</th><th>Joined</th><th></th>
+        </tr></thead>
+        <tbody id="waitlist-tbody">
+          ${list.map(e => {
+            const isOffered = e.status === 'offered'
+            const statusPill = isOffered
+              ? `<span style="display:inline-flex;flex-direction:column;gap:1px">
+                   <span style="display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:600;background:#FFF7ED;color:#C2410C;width:fit-content">Offered</span>
+                   <span style="font-size:.68rem;color:#9CA3AF">Expires ${fmtExpiry(e.offerExpiresAt)}</span>
+                 </span>`
+              : `<span style="display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:600;background:#F3F4F6;color:#6B7280">Waiting</span>`
+            return `<tr data-search="${(e.patientName || '').toLowerCase()} ${(e.doctorName || '').toLowerCase()}">
+              <td><div class="patient-name-cell">
+                ${avatar(e.patientName, 'patient-avatar')}
+                <div class="patient-name-info"><strong>${e.patientName}</strong><span>${e.patientId}</span></div>
+              </div></td>
+              <td style="font-size:.82rem">${e.doctorName || '—'}</td>
+              <td style="font-size:.82rem">${fmtD(e.date)}<br><span style="color:#6B7280">${e.time}</span></td>
+              <td>${statusPill}</td>
+              <td style="font-size:.78rem;color:#9ca3af;white-space:nowrap">${window._notifTimeAgo(e.createdAt)}</td>
+              <td>
+                <button class="btn-icon" title="Remove from waitlist" style="color:#DC2626"
+                        onclick="window.confirmRemoveWaitlistEntry(${e.id})">
+                  ${ic('trash-2', 'icon-sm')}
+                </button>
+              </td>
+            </tr>`
+          }).join('')}
         </tbody>
       </table>
       `}
@@ -1633,7 +1719,7 @@ function pageAdminReports() {
 //  ADMIN — SETTINGS
 // ════════════════════════════════════════════════════════════════
 function pageAdminSettings() {
-  const validSections = ['profile', 'clinic', 'services', 'consultation', 'archives']
+  const validSections = ['profile', 'clinic', 'services', 'consultation', 'terms', 'archives']
   const sec = validSections.includes(st().filter) ? st().filter : 'profile'
 
   // ── Section: My Profile ──────────────────────────────────────
@@ -1642,9 +1728,9 @@ function pageAdminSettings() {
     const adm = admins.find(a => a.id === user?.id) || user || {}
     const admName = adm.name || `${adm.firstName || ''} ${adm.lastName || ''}`.trim() || 'Administrator'
 
-    const pwField = (id, placeholder) => `
+    const pwField = (id, placeholder, extra='') => `
       <div style="position:relative">
-        <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px">
+        <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
         <button type="button" onclick="window.togglePwVisibility('${id}',this)"
                 style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
           ${ic('eye','icon-sm')}
@@ -1750,15 +1836,16 @@ function pageAdminSettings() {
             </div>
             <div class="form-group">
               <label class="form-label">New Password</label>
-              ${pwField('ad-newpw','Minimum 8 characters')}
+              ${pwField('ad-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('ad-newpw', this.value)"`)}
+              ${window.pwChecklistHtml('ad-newpw')}
             </div>
             <div class="form-group">
               <label class="form-label">Confirm New Password</label>
               ${pwField('ad-confpw','Repeat new password')}
-              <div id="ad-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
+              <div id="ad-pw-err" class="field-error">Passwords do not match.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-              ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
+              ${ic('info','icon-sm')} Can't reuse a previous password.
             </div>
             <div style="display:flex;justify-content:flex-end">
               <button class="btn-primary"
@@ -1826,6 +1913,27 @@ function pageAdminSettings() {
         </div>
 
         <div style="border-top:1px solid #F3F4F6;margin:20px 0 16px"></div>
+        <div style="font-size:.85rem;font-weight:600;color:#374151;margin-bottom:12px">Clinic Video</div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="width:96px;height:54px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#111;border:1.5px solid #E5E7EB;display:flex;align-items:center;justify-content:center;color:#6B7280">
+            ${clinicInfo.videoUrl ? `<video src="${clinicInfo.videoUrl}" style="width:100%;height:100%;object-fit:cover" muted></video>` : ic('camera','icon-sm')}
+          </div>
+          <div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <label for="ci-video-input" style="cursor:pointer">
+                <div class="btn-secondary" style="display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:7px 14px">
+                  ${ic('upload','icon-sm')} ${clinicInfo.videoUrl ? 'Replace Video' : 'Upload Video'}
+                </div>
+              </label>
+              ${clinicInfo.videoUrl ? `<button class="btn-ghost" style="font-size:.8rem;padding:7px 10px;color:#DC2626" onclick="window.removeClinicVideo()">${ic('trash-2','icon-sm')} Remove</button>` : ''}
+            </div>
+            <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">MP4 or WebM, up to 2GB. Shown as a video player on the public homepage — leave unset to hide the section.</div>
+            <input type="file" id="ci-video-input" accept="video/mp4,video/webm" style="display:none"
+                   onchange="window.handleVideoUpload(this)">
+          </div>
+        </div>
+
+        <div style="border-top:1px solid #F3F4F6;margin:20px 0 16px"></div>
         <div style="font-size:.85rem;font-weight:600;color:#374151;margin-bottom:12px">Clinic Logo</div>
         <div style="display:flex;align-items:center;gap:16px">
           <div style="width:60px;height:60px;border-radius:50%;background:#FFF0DC;border:1.5px solid #FFD9A8;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
@@ -1883,7 +1991,7 @@ function pageAdminSettings() {
               <button onclick="window.galleryMaxAdjust(-1)"
                       style="width:28px;height:30px;border:none;border-right:1.5px solid #E5E7EB;background:transparent;cursor:pointer;color:#6B7280;font-size:1.1rem;font-weight:600;display:flex;align-items:center;justify-content:center;transition:background 0.15s"
                       onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='transparent'">−</button>
-              <input type="number" id="gallery-max-input" min="1" max="10"
+              <input type="number" id="gallery-max-input" min="1" max="20"
                      value="${clinicInfo.galleryMaxPhotos ?? 10}"
                      style="width:30px;border:none;outline:none;text-align:center;font-size:.82rem;font-weight:700;color:#111827;background:transparent;padding:0">
               <button onclick="window.galleryMaxAdjust(1)"
@@ -2112,6 +2220,69 @@ function pageAdminSettings() {
     </div>`
   }
 
+  // ── Section: Terms & Policies ────────────────────────────────
+  // Shared builder for a markdown-editor document card + its preview card —
+  // Terms & Conditions and Appointment Policy are structurally identical,
+  // just different ids/labels/content/save-handler.
+  function mdDocEditor({ docTitle, docHint, taId, previewId, content, saveFn, saveLabel }) {
+    const escTa = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    return `
+      <div class="card" style="padding:20px 24px">
+        <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">${docTitle}</div>
+        <div style="font-size:.78rem;color:#9CA3AF;margin-bottom:10px">${docHint}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+          <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:#EFF6FF;color:#1D4ED8;white-space:nowrap">## (Heading text) → heading</span>
+          <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:#EFF6FF;color:#1D4ED8;white-space:nowrap">Blank line → new paragraph</span>
+          <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:#EFF6FF;color:#1D4ED8;white-space:nowrap">- (item text) → bullet point</span>
+          <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:999px;font-size:.72rem;font-weight:600;background:#FFF7ED;color:#C2410C;white-space:nowrap">&gt; (note text) → highlighted callout</span>
+        </div>
+        <textarea class="form-input" id="${taId}" rows="16"
+                   style="font-family:'SFMono-Regular',Consolas,monospace;font-size:.82rem;line-height:1.6;resize:vertical"
+                   oninput="window._mdPreviewUpdate('${taId}','${previewId}')">${escTa(content)}</textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button class="btn-primary" onclick="window.${saveFn}()">
+            ${ic('check','icon-sm')} ${saveLabel}
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px 24px">
+        <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">Preview</div>
+        <div style="font-size:.78rem;color:#9CA3AF;margin-bottom:12px">Exactly what patients will see.</div>
+        <div class="terms-body" id="${previewId}" style="max-height:420px;overflow:auto;border:1px solid #F3F4F6;border-radius:8px;padding:16px"></div>
+      </div>`
+  }
+
+  function sectionTerms() {
+    window.state.afterRender = () => {
+      window._mdPreviewUpdate('terms-md-input', 'terms-md-preview')
+      window._mdPreviewUpdate('policy-md-input', 'policy-md-preview')
+    }
+    return `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">Terms &amp; Policies</h1>
+        <p class="page-subtitle">Edit the legal and policy documents shown to patients during registration and booking.</p>
+      </div>
+    </div>
+    <div class="page-body" style="display:flex;flex-direction:column;gap:16px">
+      ${mdDocEditor({
+        docTitle: 'Terms & Conditions',
+        docHint: 'Shown in the registration page’s Terms &amp; Conditions and Data Privacy Act modal.',
+        taId: 'terms-md-input', previewId: 'terms-md-preview',
+        content: clinicInfo.termsContent || '',
+        saveFn: 'saveTermsContent', saveLabel: 'Save Terms &amp; Conditions'
+      })}
+      ${mdDocEditor({
+        docTitle: 'Appointment Policy',
+        docHint: 'Shown in the booking wizard’s Appointment Policy modal.',
+        taId: 'policy-md-input', previewId: 'policy-md-preview',
+        content: clinicInfo.appointmentPolicyContent || '',
+        saveFn: 'saveAppointmentPolicyContent', saveLabel: 'Save Appointment Policy'
+      })}
+    </div>`
+  }
+
   // ── Section: Archives ────────────────────────────────────────
   function sectionArchives() {
     const arcFilter = st().archivesFilter || 'all'
@@ -2184,7 +2355,7 @@ function pageAdminSettings() {
   if (sec === 'archives') window.state.afterRender = () => { window.initPagination('archives-tbody'); window.initSortable('archives-tbody', { key: 'date', type: 'date', dir: -1 }) }
   // services section uses a card grid — no table pagination needed
 
-  const sections = { profile: sectionProfile, clinic: sectionClinic, services: sectionServices, consultation: sectionConsultation, archives: sectionArchives }
+  const sections = { profile: sectionProfile, clinic: sectionClinic, services: sectionServices, consultation: sectionConsultation, terms: sectionTerms, archives: sectionArchives }
   return (sections[sec] || sections.clinic)()
 }
 
@@ -2779,9 +2950,9 @@ function pageDoctorSettings() {
 
   const docName = doc.name || `${doc.firstName || ''} ${doc.lastName || ''}`.trim() || 'Doctor'
 
-  const pwField = (id, placeholder) => `
+  const pwField = (id, placeholder, extra='') => `
     <div style="position:relative">
-      <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px">
+      <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
       <button type="button" onclick="window.togglePwVisibility('${id}',this)"
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
         ${ic('eye','icon-sm')}
@@ -2908,15 +3079,16 @@ function pageDoctorSettings() {
           </div>
           <div class="form-group">
             <label class="form-label">New Password</label>
-            ${pwField('doc-newpw','Minimum 8 characters')}
+            ${pwField('doc-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('doc-newpw', this.value)"`)}
+            ${window.pwChecklistHtml('doc-newpw')}
           </div>
           <div class="form-group">
             <label class="form-label">Confirm New Password</label>
             ${pwField('doc-confpw','Repeat new password')}
-            <div id="doc-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
+            <div id="doc-pw-err" class="field-error">Passwords do not match.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-            ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
+            ${ic('info','icon-sm')} Can't reuse a previous password.
           </div>
           <div style="display:flex;justify-content:flex-end">
             <button class="btn-primary"
@@ -3057,7 +3229,7 @@ function pageExamination() {
     </div></div>` : `
     <div class="card" style="margin-bottom:20px">
       <div class="profile-hero" style="padding:20px 24px">
-        <div class="profile-avatar-lg" style="width:56px;height:56px;font-size:1.3rem">${initials(p.name)}</div>
+        <div class="profile-avatar-lg" style="width:56px;height:56px;font-size:1.3rem">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}</div>
         <div>
           <div class="profile-info-name" style="font-size:1.2rem">${p.name}</div>
           <div class="profile-info-meta">
@@ -3129,7 +3301,7 @@ function pageExamination() {
           </div>
           <div class="form-group">
             <label class="form-label">Lens Type</label>
-            <select id="ex-lens-type" class="form-input">
+            <select id="ex-lens-type" class="form-select">
               ${['—','Single Vision','Bifocal','Progressive','Contact Lens','Reading Glasses','Safety Glasses','Computer Lenses'].map(lt =>
                 `<option value="${lt}" ${(pre.lensType||'—')===lt?'selected':''}>${lt}</option>`).join('')}
             </select>
@@ -4087,11 +4259,12 @@ function pagePatientExamHistory() {
     </div>
 
     ` : `
-    <div style="text-align:center;padding:60px 24px">
-      <div style="width:56px;height:56px;border-radius:50%;background:#FFF7ED;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">${ic('eye','icon-lg')}</div>
-      <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Examinations Yet</div>
-      <div style="font-size:.82rem;color:#6B7280;margin-bottom:20px">Your examination records will appear here after your first optical consultation.</div>
-      <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+    <div class="card">
+      <div style="text-align:center;padding:60px 24px">
+        <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Examinations Yet</div>
+        <div style="font-size:.82rem;color:#6B7280;margin-bottom:20px">Your examination records will appear here after your first optical consultation.</div>
+        <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+      </div>
     </div>`}
   </div>`
 }
@@ -4229,31 +4402,19 @@ function pagePatientDashboard() {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  PATIENT — APPOINTMENTS
+//  SHARED — APPOINTMENT BOOKING WIZARD
+//  Used by the patient's "Request Appointment" page (mode:'patient') and
+//  the admin/staff "New Appointment" page (mode:'staff'). The calendar,
+//  doctor-cards, time-slot grid and type-selection steps are identical
+//  either way; only the Review step (initial status vs. T&C + submit
+//  target) and the waitlist card (patient-only server-side) differ.
 // ════════════════════════════════════════════════════════════════
-function pagePatientAppts() {
-  const { user, filter, page } = st()
-  const tab     = (page === 'patient-request-appt') ? 'request' : (filter || 'all')
-  const myAppts = appointments.filter(a => a.patientId === user.id)
-  const _today = localDateStr()
-  const statusFilter = (!tab || tab === 'all' || tab === 'request' || tab === 'today') ? null : tab
-
-  let _pool = tab === 'today'
-    ? myAppts.filter(a => a.date === _today)
-    : statusFilter ? myAppts.filter(a => a.status === statusFilter) : myAppts
-  const _asc = tab === 'pending' || tab === 'approved'
-  const sortedAppts = tab === 'today'
-    ? [..._pool].sort((a, b) => a.time.localeCompare(b.time))
-    : _asc
-      ? [..._pool].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
-      : [..._pool].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
-
-  if (tab === 'request') {
-    window.state.afterRender = () => window.amcInit()
-  } else {
-    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', tab === 'today' ? { key: 'time', type: 'text', dir: 1, context: tab } : { key: 'date', type: 'date', dir: _asc ? 1 : -1, context: tab }) }
-  }
-
+function appointmentWizardHtml(mode) {
+  const isStaff = mode === 'staff'
+  // Follow-up Consultation is for staff/admin to schedule on a patient's
+  // behalf after reviewing their case — not something a patient should be
+  // able to self-select when requesting their own first-time visit.
+  const bookableServices = CLINIC_SERVICES.filter(s => s.status === 'active' && (isStaff || s.name !== 'Follow-up Consultation'))
   const _minAdv = minAdvanceDays()
   const advanceNoticeHtml = _minAdv === 0
     ? `You can book for <strong>today</strong> or any future date.`
@@ -4269,15 +4430,6 @@ function pagePatientAppts() {
     + `. Maximum booking window is ${consultationSettings.maxAdvanceBooking}.`
 
   return `
-  <div class="page-header">
-    <div class="page-header-left">
-      <h1 class="page-title">${tab === 'request' ? 'Request Appointment' : tab === 'today' ? "Today's Appointments" : (statusFilter ? statusFilter.charAt(0).toUpperCase()+statusFilter.slice(1)+' Appointments' : 'My Appointments')}</h1>
-      <p class="page-subtitle">${tab === 'request' ? 'Book a new consultation with one of our doctors' : tab === 'today' ? 'Your appointments scheduled for today' : 'View your appointment history'}</p>
-    </div>
-  </div>
-  <div class="page-body">
-
-    ${tab === 'request' ? `
     <style>
       /* ── Wizard layout ── */
       .wiz-layout { display:grid; grid-template-columns:1.7fr 1fr; gap:24px; align-items:start; }
@@ -4333,6 +4485,16 @@ function pagePatientAppts() {
       .time-slot:hover:not(.taken) { border-color:#E8760A; }
       .time-slot.selected { background:#E8760A; color:#fff; border-color:#E8760A; }
       .time-slot.taken { background:#F3F4F6; color:#9CA3AF; cursor:default; text-decoration:line-through; }
+      .time-slot.full { background:#FFF7ED; color:#C2410C; border-color:#FDBA74; }
+      .time-slot.full:hover { background:#FFEDD5; border-color:#E8760A; }
+      /* A full/waitlist slot that's also the current pick — .selected and
+         .full alone tie in specificity (2 classes each), so whichever rule
+         is declared later in the file silently wins; this 3-class rule
+         out-specifies both so the orange "selected" look always wins. */
+      .time-slot.selected.full { background:#E8760A; color:#fff; border-color:#E8760A; }
+      .time-slot-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-family:'Poppins',sans-serif; font-size:.72rem; color:#6B7280; }
+      .time-slot-legend-item { display:flex; align-items:center; gap:6px; }
+      .time-slot-legend-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
       /* ── Mini calendar ── */
       .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
       .amc-hdr { text-align:center; font-size:.65rem; font-weight:700; color:#9CA3AF; padding:4px 0; text-transform:uppercase; }
@@ -4345,12 +4507,14 @@ function pagePatientAppts() {
       .amc-day.amc-past { opacity:.35; cursor:default; }
       .amc-day.amc-far { opacity:.3; cursor:default; background:#f9fafb; }
       .amc-day.amc-empty { cursor:default; }
-      .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; flex-direction:column; justify-content:center; aspect-ratio:unset; min-height:46px; gap:1px; padding:3px 2px; }
-      .amc-holiday-lbl { font-size:.42rem; line-height:1.2; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:500; padding:0 1px; }
+      .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; }
+      .amc-holiday-lbl { position:absolute; left:2px; right:2px; top:calc(50% + 8px); font-size:.6rem; line-height:1.15; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:600; padding:0 1px; }
       .amc-day.amc-blocked { background:#FEE2E2; color:#B91C1C; cursor:default; font-weight:700; text-decoration:line-through; text-decoration-color:rgba(185,28,28,0.5); }
+      .amc-nodoc-lbl { position:absolute; left:2px; right:2px; top:calc(50% + 8px); font-size:.6rem; line-height:1.15; text-align:center; overflow:hidden; white-space:nowrap; font-weight:600; color:#6B7280; }
       @media (max-width:480px) {
-        .amc-day.amc-holiday { min-height:38px; font-size:.7rem; }
-        .amc-holiday-lbl { font-size:.35rem; }
+        .amc-day.amc-holiday { font-size:.7rem; }
+        .amc-holiday-lbl { font-size:.44rem; top:calc(50% + 4px); line-height:1.05; }
+        .amc-nodoc-lbl { font-size:.44rem; top:calc(50% + 4px); line-height:1.05; }
       }
       /* ── Summary sidebar (desktop) ── */
       .wiz-summary-rail { position:sticky; top:24px; }
@@ -4375,7 +4539,16 @@ function pagePatientAppts() {
       .rev-edit { font-size:.72rem; color:#E8760A; background:none; border:none; cursor:pointer;
         font-family:'Poppins',sans-serif; margin-left:auto; padding:0; flex-shrink:0; align-self:center; }
       .rev-edit:hover { text-decoration:underline; }
+      /* ── Initial Status (staff review step) ── */
+      .init-status-pill { flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+        padding:10px 14px; border-radius:8px; border:1.5px solid #E5E7EB; background:#fff; color:#6B7280;
+        font-family:'Poppins',sans-serif; font-size:.83rem; font-weight:600; cursor:pointer; transition:all .15s; }
+      .init-status-pill:hover { border-color:#D1D5DB; background:#F9FAFB; }
+      .init-status-pill.selected[data-status="pending"]  { background:#FFF3E0; border-color:#E8891C; color:#E8891C; }
+      .init-status-pill.selected[data-status="approved"] { background:#E8F5E9; border-color:#2E7D32; color:#2E7D32; }
     </style>
+
+    ${isStaff ? '' : '<div id="my-waitlist-card"></div>'}
 
     <div class="wiz-layout">
 
@@ -4395,23 +4568,30 @@ function pagePatientAppts() {
         <div class="wiz-step active card" id="wiz-step-0">
           <div class="card-body">
             <div style="margin-bottom:16px">
-              <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">When would you like to visit?</div>
-              <div style="font-size:.85rem;color:#6B7280">Select your preferred consultation date.</div>
+              <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">${isStaff ? 'When should the visit be scheduled?' : 'When would you like to visit?'}</div>
+              <div style="font-size:.85rem;color:#6B7280">${isStaff ? `Select the consultation date for <strong id="wiz-patient-lbl0"></strong>.` : 'Select your preferred consultation date.'}</div>
             </div>
             <!-- Doctor pre-fill banner — shown only when coming from Doctor Availability -->
-            <div id="amc-prefill-banner" style="display:none;background:#FFF8F0;border-left:3px solid #E8760A;border-radius:8px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:10px">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#E8760A" stroke-width="2" width="16" height="16" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <div id="amc-prefill-banner" style="display:none;background:#FFF8F0;border-left:3px solid #E8760A;border-radius:8px;padding:12px 16px;margin-bottom:16px;align-items:flex-start;gap:10px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#E8760A" stroke-width="2" width="16" height="16" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
               <div style="font-size:.82rem;color:#92400e;line-height:1.5">
                 Booking with <strong id="amc-prefill-doc-name"></strong>. Only their available days are shown. Select your preferred date below.
               </div>
             </div>
-            <div style="background:#eff6ff;border-left:3px solid #3b82f6;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-              <span style="flex-shrink:0;display:flex"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
+            <div style="background:#eff6ff;border-left:3px solid #3b82f6;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
+              <span style="flex-shrink:0;display:flex;margin-top:2px"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></span>
               <div style="font-size:.82rem;color:#1e40af;line-height:1.5">
                 ${advanceNoticeHtml}<br>
                 ${clinicHoursNotice}
               </div>
             </div>
+            ${isStaff ? '' : `
+            <div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
+              <span style="flex-shrink:0;display:flex;margin-top:2px"><svg viewBox="0 0 24 24" fill="none" stroke="#E8760A" stroke-width="2" stroke-linecap="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg></span>
+              <div style="font-size:.82rem;color:#92400E;line-height:1.5">
+                <strong>Before you book:</strong> Approved appointments get a reminder at noon the day before your visit. Confirm by 9:00 PM that same day or the slot is automatically released to the next patient. See the <a href="#" class="appt-policy-link" onclick="event.preventDefault();window.openAppointmentPolicyModal()">Appointment Policy</a> for full details.
+              </div>
+            </div>`}
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
               <button class="btn-icon" id="amc-prev" onclick="window.amcGoMonth(-1)">${ic('chevron-left','icon-sm')}</button>
               <span id="amc-month-label" style="font-size:.88rem;font-weight:700;color:#1C1C1C"></span>
@@ -4440,7 +4620,7 @@ function pagePatientAppts() {
         <div class="wiz-step card" id="wiz-step-1">
           <div class="card-body">
             <div style="margin-bottom:16px">
-              <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">Choose your doctor</div>
+              <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">${isStaff ? 'Choose the doctor' : 'Choose your doctor'}</div>
               <div style="font-size:.85rem;color:#6B7280">Showing doctors available on <strong id="wiz-date-lbl2" style="color:#1C1C1C"></strong></div>
             </div>
             <div id="wiz-doctor-cards"></div>
@@ -4462,6 +4642,12 @@ function pagePatientAppts() {
               <div style="font-size:.85rem;color:#6B7280">Available slots for <strong id="wiz-doc-lbl3" style="color:#1C1C1C"></strong> on <strong id="wiz-date-lbl3" style="color:#1C1C1C"></strong></div>
             </div>
             <div id="appt-time-slots"></div>
+            <div class="time-slot-legend">
+              <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#fff;border:1.5px solid #e5e7eb"></span>Available</div>
+              <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#FFF7ED;border:1.5px solid #FDBA74"></span>Fully booked (waitlist available)</div>
+              <div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#E8760A"></span>Selected</div>
+              ${_minAdv === 0 ? `<div class="time-slot-legend-item"><span class="time-slot-legend-swatch" style="background:#F3F4F6;border:1.5px solid #e5e7eb"></span>Past</div>` : ''}
+            </div>
             <input type="hidden" id="appt-time" value="">
             <div class="wiz-nav">
               <button class="wiz-btn-back" onclick="window.wizGo(-1)">${ic('chevron-left','icon-sm')} Back</button>
@@ -4476,26 +4662,27 @@ function pagePatientAppts() {
         <div class="wiz-step card" id="wiz-step-3">
           <div class="card-body">
             <div style="margin-bottom:16px">
-              <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">What do you need?</div>
+              <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:4px">${isStaff ? 'What type of consultation?' : 'What do you need?'}</div>
               <div style="font-size:.85rem;color:#6B7280">Select the type of consultation.</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
-              ${CLINIC_SERVICES.filter(s => s.status === 'active').map((s, i) => `
+              ${bookableServices.map((s, i) => `
               <button class="appt-type-card${i === 0 ? ' selected' : ''}"
                       onclick="window.selectApptType('${s.name.replace(/'/g,"\\'")}',this)">
                 <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
                   <span style="color:#E8760A">${ic(s.icon || 'eye','icon-sm')}</span>
                   <span style="font-size:.83rem;font-weight:600;color:#1C1C1C">${s.name}</span>
+                  ${s.duration ? `<span style="margin-left:auto;font-size:.66rem;font-weight:700;color:#9CA3AF;white-space:nowrap;flex-shrink:0">~${s.duration} min</span>` : ''}
                 </div>
                 <div style="font-size:.73rem;color:#9CA3AF;line-height:1.4">${s.description}</div>
               </button>`).join('')}
             </div>
-            <input type="hidden" id="appt-type" value="${CLINIC_SERVICES.filter(s => s.status === 'active')[0]?.name || 'Eye Examination'}">
+            <input type="hidden" id="appt-type" value="${bookableServices[0]?.name || 'Eye Examination'}">
             <div style="margin-bottom:4px">
               <label style="font-size:.78rem;font-weight:600;color:#374151">Notes / Reason for Visit <span style="font-weight:400;color:#9CA3AF">(optional)</span></label>
             </div>
             <textarea id="appt-notes" class="form-textarea" rows="3"
-                      placeholder="Describe your symptoms or reason for the visit…"></textarea>
+                      placeholder="${isStaff ? "Describe the patient's symptoms or reason for the visit…" : 'Describe your symptoms or reason for the visit…'}"></textarea>
             <div class="wiz-nav">
               <button class="wiz-btn-back" onclick="window.wizGo(-1)">${ic('chevron-left','icon-sm')} Back</button>
               <button class="wiz-btn-next" onclick="window.wizGo(1)">
@@ -4513,6 +4700,11 @@ function pagePatientAppts() {
               <div style="font-size:.85rem;color:#6B7280">Please confirm the details below.</div>
             </div>
             <div style="border:1px solid #f3f4f6;border-radius:10px;padding:4px 16px;margin-bottom:16px">
+              ${isStaff ? `
+              <div class="rev-row">
+                <div class="rev-icon">${ic('user','icon-sm')}</div>
+                <div style="flex:1"><div class="rev-label">Patient</div><div class="rev-val" id="rev-patient">—</div></div>
+              </div>` : ''}
               <div class="rev-row">
                 <div class="rev-icon">${ic('calendar','icon-sm')}</div>
                 <div style="flex:1"><div class="rev-label">Date</div><div class="rev-val" id="rev-date">—</div></div>
@@ -4538,13 +4730,45 @@ function pagePatientAppts() {
                 <div style="flex:1"><div class="rev-label">Notes</div><div class="rev-val" id="rev-notes" style="font-weight:400;font-style:italic;color:#6B7280">No notes provided</div></div>
               </div>
             </div>
+            ${isStaff ? `
+            <div class="form-group" style="max-width:360px;margin-bottom:16px">
+              <label class="form-label">Initial Status</label>
+              <div style="display:flex;gap:8px;margin-top:6px">
+                <button type="button" class="init-status-pill selected" data-status="pending"
+                        onclick="window.setInitialStatus('pending', this)">
+                  ${ic('clock','icon-sm')} Pending
+                </button>
+                <button type="button" class="init-status-pill" data-status="approved"
+                        onclick="window.setInitialStatus('approved', this)">
+                  ${ic('check-circle','icon-sm')} Approved
+                </button>
+              </div>
+              <input type="hidden" id="ca-initial-status" value="pending">
+            </div>
+            <div style="font-size:.75rem;color:#9CA3AF;line-height:1.5;margin-bottom:16px;display:flex;align-items:flex-start;gap:6px">
+              ${ic('info','icon-sm')} This appointment will be created on behalf of the patient shown above. The patient will be notified.
+            </div>
+            ` : `
             <div style="font-size:.75rem;color:#9CA3AF;line-height:1.5;margin-bottom:16px;display:flex;align-items:flex-start;gap:6px">
               ${ic('info','icon-sm')} Your appointment request will be reviewed by clinic staff to confirm doctor availability and scheduling. You will be notified once confirmed.
             </div>
+            <div class="reg-terms">
+              <input type="checkbox" id="appt-terms-agree" class="chk" disabled
+                     title="Read the Appointment Policy to unlock this checkbox"
+                     onchange="window.syncApptSubmitState()">
+              <span>
+                I have read and agree to the <a href="#" onclick="event.preventDefault();window.openAppointmentPolicyModal()">Appointment Policy</a>, including the cancellation and no-show terms.
+                <span class="reg-terms-hint" id="appt-terms-hint">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Click the Appointment Policy link above and read to the bottom to unlock this checkbox.
+                </span>
+              </span>
+            </div>
+            `}
             <div class="wiz-nav">
               <button class="wiz-btn-back" onclick="window.wizGo(-1)">${ic('chevron-left','icon-sm')} Back</button>
-              <button class="wiz-btn-next" id="appt-submit-btn" onclick="window.requestAppointment()" style="padding:12px 32px">
-                ${ic('check','icon-sm')} Submit Request
+              <button class="wiz-btn-next" id="appt-submit-btn" onclick="window.${isStaff ? 'submitStaffAppointment' : 'requestAppointment'}()" style="padding:12px 32px" disabled>
+                ${ic('check','icon-sm')} ${isStaff ? 'Create Appointment' : 'Submit Request'}
               </button>
             </div>
           </div>
@@ -4559,6 +4783,11 @@ function pagePatientAppts() {
             <div style="font-size:.9rem;font-weight:700;color:#1C1C1C;margin-bottom:18px;display:flex;align-items:center;gap:7px">
               ${ic('calendar','icon-sm')} Booking Summary
             </div>
+            ${isStaff ? `
+            <div class="sum-row">
+              <div class="sum-icon">${ic('user','icon-sm')}</div>
+              <div><div class="sum-label">Patient</div><div class="sum-val" id="sum-patient">—</div></div>
+            </div>` : ''}
             <div class="sum-row">
               <div class="sum-icon">${ic('calendar','icon-sm')}</div>
               <div><div class="sum-label">Date</div><div class="sum-val empty" id="sum-date">Not selected yet</div></div>
@@ -4573,7 +4802,7 @@ function pagePatientAppts() {
             </div>
             <div class="sum-row" style="margin-bottom:0">
               <div class="sum-icon">${ic('file-text','icon-sm')}</div>
-              <div><div class="sum-label">Type</div><div class="sum-val" id="sum-type">Eye Examination</div></div>
+              <div><div class="sum-label">Type</div><div class="sum-val" id="sum-type">${bookableServices[0]?.name || 'Eye Examination'}${bookableServices[0]?.duration ? ` (~${bookableServices[0].duration} min)` : ''}</div></div>
             </div>
             <div style="border-top:1px solid #f3f4f6;margin:16px 0"></div>
             <div style="display:flex;align-items:center;gap:5px;font-size:.73rem;color:#9CA3AF;line-height:1.4" id="sum-hint">
@@ -4583,8 +4812,116 @@ function pagePatientAppts() {
         </div>
       </div>
 
+    </div>`
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ADMIN/STAFF — NEW APPOINTMENT (patient picker + shared wizard)
+// ════════════════════════════════════════════════════════════════
+function pageCreateAppointment() {
+  const { params } = st()
+  const patientId   = params.patientId   || ''
+  const patientName = params.patientName || ''
+
+  if (!patientId) {
+    window.state.afterRender = () => { document.getElementById('cap-patient-search')?.focus() }
+    return `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1 class="page-title">New Appointment</h1>
+        <p class="page-subtitle">Select which patient this appointment is for</p>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card" style="max-width:640px;margin:0 auto">
+        <div class="card-body">
+          <div class="form-group">
+            <label class="form-label">Patient ID, Name, or QR Code <span class="req">*</span></label>
+            <div class="search-input-wrap">
+              ${ic('search','icon-sm')}
+              <input type="text" id="cap-patient-search" class="search-input" style="width:100%"
+                     placeholder="e.g. P001, Juan Dela Cruz, or CANA-P001-..."
+                     autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                     oninput="window._filterCapPatientList(this.value)">
+            </div>
+          </div>
+          <div id="cap-patient-list" style="max-height:380px;overflow-y:auto;border:1px solid #E5E7EB;border-radius:8px;margin-top:8px">
+            ${patients.length
+              ? patients.map(p => window._renderPatientResult(p, window._capPatientOnclick(p))).join('')
+              : `<div style="padding:24px;text-align:center;font-size:.85rem;color:#9CA3AF">No patients on file yet.</div>`}
+          </div>
+        </div>
+      </div>
+    </div>`
+  }
+
+  window.state.afterRender = () => window.wizInitStaff(patientId, patientName)
+  return `
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">New Appointment</h1>
+      <p class="page-subtitle">Booking for <strong>${patientName}</strong></p>
+    </div>
+    <button class="btn-secondary" style="align-self:center" onclick="window.navigate('create-appointment')">${ic('refresh-cw','icon-sm')} Change Patient</button>
+  </div>
+  <div class="page-body">
+    ${appointmentWizardHtml('staff')}
+  </div>`
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PATIENT — APPOINTMENTS
+// ════════════════════════════════════════════════════════════════
+function pagePatientAppts() {
+  const { user, filter, page } = st()
+  const tab     = (page === 'patient-request-appt') ? 'request' : (filter || 'all')
+  const myAppts = appointments.filter(a => a.patientId === user.id)
+  const _today = localDateStr()
+  const statusFilter = (!tab || tab === 'all' || tab === 'request' || tab === 'today') ? null : tab
+
+  let _pool = tab === 'today'
+    ? myAppts.filter(a => a.date === _today)
+    : statusFilter ? myAppts.filter(a => a.status === statusFilter) : myAppts
+  const _asc = tab === 'pending' || tab === 'approved'
+  const sortedAppts = tab === 'today'
+    ? [..._pool].sort((a, b) => a.time.localeCompare(b.time))
+    : _asc
+      ? [..._pool].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+      : [..._pool].sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
+
+  if (tab === 'request' && !user.bookingRestricted) {
+    window.state.afterRender = () => { window.amcInit(); window.loadMyWaitlistCard() }
+  } else {
+    window.state.afterRender = () => { window.initPagination('pt-appt-tbody'); window.initSortable('pt-appt-tbody', tab === 'today' ? { key: 'time', type: 'text', dir: 1, context: tab } : { key: 'date', type: 'date', dir: _asc ? 1 : -1, context: tab }) }
+  }
+
+  return `
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">${tab === 'request' ? 'Request Appointment' : tab === 'today' ? "Today's Appointments" : (statusFilter ? statusFilter.charAt(0).toUpperCase()+statusFilter.slice(1)+' Appointments' : 'My Appointments')}</h1>
+      <p class="page-subtitle">${tab === 'request' ? 'Book a new consultation with one of our doctors' : tab === 'today' ? 'Your appointments scheduled for today' : 'View your appointment history'}</p>
+    </div>
+  </div>
+  <div class="page-body">
+
+    ${tab === 'request' ? (user.bookingRestricted ? `
+    <div class="card" style="max-width:560px;margin:0 auto">
+      <div class="card-body" style="text-align:center;padding:40px 32px">
+        <div style="width:56px;height:56px;border-radius:50%;background:#FEF2F2;border:2px solid #FCA5A5;
+                    display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#DC2626">
+          ${ic('alert-circle','icon-lg')}
+        </div>
+        <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C;margin-bottom:8px">Online Booking Unavailable</div>
+        <div style="font-size:.85rem;color:#6B7280;line-height:1.6;margin-bottom:20px">
+          Online booking is currently unavailable for your account due to repeated missed appointments.
+          Please contact the clinic directly by phone or in person to schedule your next visit.
+        </div>
+        <button class="btn-secondary" onclick="window.navigate('patient-appts',{filter:'all'})">${ic('chevron-left','icon-sm')} Back to My Appointments</button>
+      </div>
     </div>
     ` : `
+    ${appointmentWizardHtml('patient')}
+    `) : `
     <div class="table-wrap">
       <div class="table-toolbar">
         <span class="table-title">${tab === 'today' ? "Today's Appointments" : statusFilter ? statusFilter.charAt(0).toUpperCase()+statusFilter.slice(1)+' Appointments' : 'All Appointments'} (${sortedAppts.length})</span>
@@ -4606,23 +4943,27 @@ function pagePatientAppts() {
           <th>Time</th><th>Type</th><th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="pt-appt-tbody">
-          ${sortedAppts.map(a => `<tr data-search="${a.doctorName.toLowerCase()} ${a.type.toLowerCase()}" data-appt-status="${a.status}" data-sort-doctor="${a.doctorName.toLowerCase()}" data-sort-date="${a.date}">
+          ${sortedAppts.map(a => {
+            return `<tr data-search="${a.doctorName.toLowerCase()} ${a.type.toLowerCase()}" data-appt-status="${a.status}" data-sort-doctor="${a.doctorName.toLowerCase()}" data-sort-date="${a.date}">
             <td style="font-size:.82rem;font-weight:500">${a.doctorName}</td>
             <td style="font-size:.82rem">${fmtDate(a.date)}</td>
             <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
             <td style="font-size:.82rem">${a.type}</td>
             <td>${badge(a.status)}</td>
             <td>
-              <div class="pt-appt-act">
-                <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
-                ${(a.status==='pending'||a.status==='approved') ? `
-                  ${a.status==='approved' ? (a.rescheduleRequest ? `<span title="Reschedule request pending" style="display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:999px;padding:1px 7px;white-space:nowrap">${ic('refresh-cw','icon-xs')} Requested</span>` : `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`) : ''}
-                  ${apptCancellable(a)
-                    ? `<button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>`
-                    : `<button class="btn-icon" title="Cancellation window has passed" style="color:#9CA3AF;opacity:.5;cursor:not-allowed" onclick="window.explainCancelDeadline()">${ic('x-circle','icon-sm')}</button>`}` : ''}
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${rescheduleReqLabel(a)}
+                <div class="pt-appt-act">
+                  <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
+                  ${(a.status==='pending'||a.status==='approved') ? `
+                    ${a.status==='approved' ? (a.rescheduleRequest ? '' : `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`) : ''}
+                    ${apptCancellable(a)
+                      ? `<button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>`
+                      : `<button class="btn-icon" title="Cancellation window has passed" style="color:#9CA3AF;opacity:.5;cursor:not-allowed" onclick="window.explainCancelDeadline()">${ic('x-circle','icon-sm')}</button>`}` : ''}
+                </div>
               </div>
             </td>
-          </tr>`).join('')}
+          </tr>`}).join('')}
         </tbody>
       </table>` : `<div class="table-empty">${tab === 'today' ? 'No appointments scheduled for today.' : `No ${statusFilter || ''} appointments found.`}</div>`}
     </div>`}
@@ -4724,11 +5065,12 @@ function pagePatientConsultations() {
     </div>
 
     ` : `
-    <div style="text-align:center;padding:60px 24px">
-      <div style="width:56px;height:56px;border-radius:50%;background:#FFF7ED;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">${ic('message-square','icon-lg')}</div>
-      <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Consultations Yet</div>
-      <div style="font-size:.82rem;color:#6B7280;margin-bottom:20px">Your consultation records will appear here after your visit.</div>
-      <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+    <div class="card">
+      <div style="text-align:center;padding:60px 24px">
+        <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Consultations Yet</div>
+        <div style="font-size:.82rem;color:#6B7280;margin-bottom:20px">Your consultation records will appear here after your visit.</div>
+        <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+      </div>
     </div>`}
   </div>`
 }
@@ -4807,7 +5149,7 @@ function pagePatientQR() {
         <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C;margin-bottom:24px">How to use your QR Code</div>
         <div style="position:relative">
           ${steps.map(([title, desc], i) => `
-          <div style="display:flex;gap:16px;${i < steps.length - 1 ? 'margin-bottom:20px' : ''}">
+          <div style="display:flex;gap:16px">
             <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
               <div style="width:28px;height:28px;border-radius:50%;background:#E8760A;color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center">${i+1}</div>
               ${i < steps.length - 1 ? `<div style="width:2px;flex:1;background:#E5E7EB;margin-top:4px;min-height:24px"></div>` : ''}
@@ -4834,9 +5176,9 @@ function pageStaffSettings() {
   const staffMember = staff.find(s => s.id === user?.id) || user || {}
   const staffName = staffMember.name || `${staffMember.firstName || ''} ${staffMember.lastName || ''}`.trim() || 'Staff'
 
-  const pwField = (id, placeholder) => `
+  const pwField = (id, placeholder, extra='') => `
     <div style="position:relative">
-      <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px">
+      <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
       <button type="button" onclick="window.togglePwVisibility('${id}',this)"
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
         ${ic('eye','icon-sm')}
@@ -4945,15 +5287,16 @@ function pageStaffSettings() {
           </div>
           <div class="form-group">
             <label class="form-label">New Password</label>
-            ${pwField('st-newpw','Minimum 8 characters')}
+            ${pwField('st-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('st-newpw', this.value)"`)}
+            ${window.pwChecklistHtml('st-newpw')}
           </div>
           <div class="form-group">
             <label class="form-label">Confirm New Password</label>
             ${pwField('st-confpw','Repeat new password')}
-            <div id="st-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
+            <div id="st-pw-err" class="field-error">Passwords do not match.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-            ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
+            ${ic('info','icon-sm')} Can't reuse a previous password.
           </div>
           <div style="display:flex;justify-content:flex-end">
             <button class="btn-primary"
@@ -5177,11 +5520,12 @@ function pagePatientPrescriptions() {
     </div>
 
     ` : `
-    <div style="text-align:center;padding:64px 24px">
-      <div style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#F9FAFB,#F3F4F6);border:2px dashed #E5E7EB;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#D1D5DB">${ic('file-text','icon-lg')}</div>
-      <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Prescriptions Yet</div>
-      <div style="font-size:.82rem;color:#9CA3AF;margin-bottom:20px;max-width:300px;margin-left:auto;margin-right:auto;line-height:1.6">Prescription records are generated after your optical examination with a doctor.</div>
-      <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+    <div class="card">
+      <div style="text-align:center;padding:64px 24px">
+        <div style="font-size:.95rem;font-weight:700;color:#1C1C1C;margin-bottom:6px">No Prescriptions Yet</div>
+        <div style="font-size:.82rem;color:#9CA3AF;margin-bottom:20px;max-width:300px;margin-left:auto;margin-right:auto;line-height:1.6">Prescription records are generated after your optical examination with a doctor.</div>
+        <button class="btn-primary" onclick="window.navigate('patient-request-appt')">${ic('plus','icon-sm')} Book an Appointment</button>
+      </div>
     </div>`}
   </div>`
 }
@@ -5192,9 +5536,9 @@ function pagePatientPrescriptions() {
 function pagePatientNotifications() {
   const notifs = window._notifications || []
 
-  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', record:'eye', prescription:'file-text', info:'info' }
-  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280' }
-  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6' }
+  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', waitlist_offer:'alert-circle', no_show:'alert-circle', record:'eye', prescription:'file-text', info:'info' }
+  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', waitlist_offer:'#E8760A', no_show:'#EF4444', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280' }
+  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', waitlist_offer:'#FFF0DC', no_show:'#FEF2F2', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6' }
   const resolveType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
   const unreadCount = notifs.filter(n => !n.isRead).length
@@ -5262,9 +5606,9 @@ function pagePatientSettings() {
     ? new Date(patient.dob).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
     : '—'
 
-  const pwField = (id, placeholder) => `
+  const pwField = (id, placeholder, extra='') => `
     <div style="position:relative">
-      <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px">
+      <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
       <button type="button" onclick="window.togglePwVisibility('${id}',this)"
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
         ${ic('eye','icon-sm')}
@@ -5379,13 +5723,23 @@ function pagePatientSettings() {
             </div>
             <div class="form-group">
               <label class="form-label" style="display:flex;align-items:center;gap:4px;color:#9CA3AF">
+                ${ic('lock','icon-sm')} Age
+              </label>
+              <input type="text" class="form-input" value="${patient?.age ? patient.age + ' years old' : '—'}" disabled
+                     style="background:#F9FAFB;color:#9CA3AF;cursor:not-allowed">
+            </div>
+          </div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" style="display:flex;align-items:center;gap:4px;color:#9CA3AF">
                 ${ic('lock','icon-sm')} Gender
               </label>
               <input type="text" class="form-input" value="${patient?.gender || '—'}" disabled
                      style="background:#F9FAFB;color:#9CA3AF;cursor:not-allowed">
             </div>
+            <div class="form-group"></div>
           </div>
-          <div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:0 6px 6px 0;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:.8rem;color:#92400E">
+          <div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:0 6px 6px 0;padding:10px 14px;display:flex;align-items:flex-start;gap:8px;font-size:.8rem;color:#92400E">
             <span style="flex-shrink:0;display:flex">${ic('info','icon-sm')}</span> Contact the clinic to update your date of birth, gender, or medical history.
           </div>
           <div style="display:flex;justify-content:flex-end">
@@ -5413,15 +5767,16 @@ function pagePatientSettings() {
             </div>
             <div class="form-group">
               <label class="form-label">New Password</label>
-              ${pwField('sett-newpw','Minimum 8 characters')}
+              ${pwField('sett-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('sett-newpw', this.value)"`)}
+              ${window.pwChecklistHtml('sett-newpw')}
             </div>
             <div class="form-group">
               <label class="form-label">Confirm New Password</label>
               ${pwField('sett-confpw','Repeat new password')}
-              <div id="sett-pw-err" style="color:#DC2626;font-size:.75rem;margin-top:5px;display:none">Passwords do not match.</div>
+              <div id="sett-pw-err" class="field-error">Passwords do not match.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
-              ${ic('info','icon-sm')} Minimum 8 characters with at least one number and one letter. Can't reuse a previous password.
+              ${ic('info','icon-sm')} Can't reuse a previous password.
             </div>
             <div style="display:flex;justify-content:flex-end">
               <button class="btn-primary"
@@ -5469,7 +5824,6 @@ function pagePatientSettings() {
 function pageComingSoon() {
   const pageLabel = (() => {
     const labels = {
-      'create-appointment':    'Create Appointment',
       'add-patient':           'Add Patient',
       'staff-settings':        'Settings',
       'doctor-appointments':   'My Appointments',
@@ -5519,6 +5873,11 @@ function pagePatientDoctorAvail() {
   const allDocs    = typeof getAvailableDoctors === 'function' ? getAvailableDoctors() : []
   const firstDoc   = allDocs[0]
 
+  // Furthest bookable date (Consultation Settings → Maximum Advance Booking).
+  // Individual days beyond this still show as unbookable; browsing the
+  // calendar itself (month/year navigation) is intentionally unrestricted.
+  const maxBookDate = maxAdvanceDate(new Date(baseYear, baseMonth, todayDate))
+
   // Per-doctor calendar view state: { [docId]: { year, month } }
   window._patCalState = window._patCalState || {}
 
@@ -5534,7 +5893,6 @@ function pagePatientDoctorAvail() {
     const firstDay    = new Date(viewYear, viewMonth, 1).getDay()
     const daysInMon   = new Date(viewYear, viewMonth + 1, 0).getDate()
     const isBaseMonth = viewYear === baseYear && viewMonth === baseMonth
-    const maxBookDate = maxAdvanceDate(new Date(baseYear, baseMonth, todayDate))
     const selDate     = window._patCalState?.[doctor.id]?.selectedDate || ''
     const phHolidays  = typeof getPHHolidays === 'function' ? getPHHolidays(viewYear) : {}
 
@@ -5567,7 +5925,7 @@ function pagePatientDoctorAvail() {
       const tooSoon     = daysOut >= 0 && daysOut < minAdvanceDays()
 
       let cls = 'cal-day'
-      if (isSel)                          cls += ' today'
+      if (isSel)                          cls += ' cal-selected'
       else if (isToday)                   cls += ' today'
       else if (isBlocked && !isPast)      cls += ' date-blocked'
       else if (isHoliday && !isPast)      cls += ' cal-holiday'
@@ -5583,8 +5941,7 @@ function pagePatientDoctorAvail() {
       const tooSoonOnly = tooSoon && !isToday && !isPast && !isFar && !isHoliday && !isBlocked
       const dimStyle  = (isPast || isFar) ? 'opacity:.35;pointer-events:none;'
                        : (tooSoon && !isToday) ? 'opacity:.35;cursor:not-allowed;' : ''
-      const selStyle  = isSel && !isToday ? 'outline:3px solid #E8760A;outline-offset:1px;' : ''
-      const styleAttr = (dimStyle || selStyle) ? ` style="${dimStyle}${selStyle}"` : ''
+      const styleAttr = dimStyle ? ` style="${dimStyle}"` : ''
       const titleAttr = tooSoon   ? `title="${minAdvanceTooltip()}"` :
                         isBlocked ? `title="Doctor unavailable: ${String(blockedReason).replace(/"/g,'&quot;')}"` :
                         isHoliday ? `title="Clinic closed: ${holidayName}"` : ''
@@ -5616,9 +5973,10 @@ function pagePatientDoctorAvail() {
     if (month > 11) { year++; month = 0 }
     if (month < 0)  { year--; month = 11 }
 
-    // Clamp: no earlier than baseMonth, no later than baseMonth+2
-    const offset = (year - baseYear) * 12 + (month - baseMonth)
-    if (delta !== 0 && (offset < 0 || offset > 2)) return
+    // This is a browsing/reference calendar, not the booking flow itself —
+    // month/year navigation is intentionally unlimited in both directions.
+    // Individual days still show as unbookable (isFar/isPast) beyond the
+    // real advance-booking window; only the "can I look" control is unrestricted.
 
     // Preserve selectedDate when updating state
     window._patCalState[docId] = { year, month, selectedDate: selectedDate || '' }
@@ -5681,29 +6039,17 @@ function pagePatientDoctorAvail() {
       doctorDays: doc.availableDays || [],
       date:       state?.selectedDate || ''
     }
-    window.navigate('patient-appts', { filter: 'request' })
+    window.navigate('patient-request-appt')
   }
 
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
   function buildCalNav(doctor, viewYear, viewMonth) {
-    const offset    = (viewYear - baseYear) * 12 + (viewMonth - baseMonth)
-    const canPrev   = offset > 0
-    const canNext   = offset < 2
     const label     = MONTH_NAMES[viewMonth] + ' ' + viewYear
-    const btnBase   = 'background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background .15s'
-    const btnActive = 'color:#374151'
-    const btnDim    = 'color:#D1D5DB;cursor:default'
     return `
-      <button onclick="window.patCalNavMonth('${doctor.id}',-1)" style="${btnBase};${canPrev ? btnActive : btnDim}"
-              ${!canPrev ? 'disabled' : ''}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
+      <button class="btn-icon" onclick="window.patCalNavMonth('${doctor.id}',-1)">${ic('chevron-left','icon-sm')}</button>
       <span style="font-size:.85rem;font-weight:600;color:#1C1C1C;min-width:130px;text-align:center">${label}</span>
-      <button onclick="window.patCalNavMonth('${doctor.id}',1)" style="${btnBase};${canNext ? btnActive : btnDim}"
-              ${!canNext ? 'disabled' : ''}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>`
+      <button class="btn-icon" onclick="window.patCalNavMonth('${doctor.id}',1)">${ic('chevron-right','icon-sm')}</button>`
   }
 
   function buildPatDocPanel(doctor) {

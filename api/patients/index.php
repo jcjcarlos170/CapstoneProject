@@ -154,6 +154,8 @@ try {
             'registeredDate' => $p['registered_date'] ?? '',
             'lastVisit'      => $p['last_visit'] ?: '—',
             'status'         => $p['status'] ?? 'active',
+            'noShowCount'    => (int)($p['no_show_count'] ?? 0),
+            'bookingRestricted' => (bool)($p['booking_restricted'] ?? false),
             'photoUrl'       => $photoMap[(int)($p['user_id'] ?? 0)] ?? null,
             'examinations'   => $examsByPt[$pid] ?? [],
             'prescriptions'  => $rxByPt[$pid]   ?? [],

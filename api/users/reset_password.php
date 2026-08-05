@@ -27,8 +27,8 @@ $newPass   = $b['newPassword']     ?? '';
 if (!$profileId || !$role || !$newPass) {
     jsonResponse(['success' => false, 'message' => 'profileId, role and newPassword are required.']);
 }
-if (strlen($newPass) < 8) {
-    jsonResponse(['success' => false, 'message' => 'Password must be at least 8 characters.']);
+if ($pwError = validatePasswordPolicy($newPass)) {
+    jsonResponse(['success' => false, 'message' => $pwError]);
 }
 
 $tableMap = [

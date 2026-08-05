@@ -99,6 +99,24 @@ try {
                 ->execute([$appt['date'], $appt['patient_id']]);
         }
 
+        // Manually marking a no-show (same-day, before the auto-transition in
+        // appointments/index.php would otherwise catch it tomorrow) counts
+        // against the patient the same way the automatic path does.
+        $justRestricted = false;
+        if ($newStatus === 'no-show' && $appt['patient_id']) {
+            $justRestricted = recordNoShow($pdo, $appt['patient_id']);
+        }
+
+        // The slot just freed up — offer it to whoever's first on the
+        // waitlist for this exact doctor+date+time, if anyone is waiting.
+        // Mirrors checkApptConflict()'s own definition of "not occupying a
+        // slot" (status NOT IN ('cancelled','disapproved')) — 'no-show' is
+        // included too, though it's a same-day/already-past status by
+        // definition so it's rarely the trigger in practice.
+        if (in_array($newStatus, ['cancelled', 'disapproved', 'no-show'], true) && $appt['doctor_id']) {
+            offerNextWaitlistSlot($pdo, $appt['doctor_id'], $appt['date'], $appt['time']);
+        }
+
         // Notify patient when status changes (not for patient-initiated cancel)
         if ($role !== 'patient' && $patientUid = $getPatientUserId()) {
             $fmtDate = date('M j, Y', strtotime($appt['date']));
@@ -120,6 +138,12 @@ try {
                     "Your appointment request with {$doctor} on {$fmtDate} could not be approved."
                     . ($disapprovalReason ? " Reason: {$disapprovalReason}" : '')
                 );
+            } elseif ($newStatus === 'no-show') {
+                $msg = "You were marked as a no-show for your appointment with {$doctor} on {$fmtDate} at {$appt['time']}.";
+                if ($justRestricted) {
+                    $msg .= ' Due to repeated missed appointments, online booking has been temporarily restricted for your account. Please contact the clinic directly to schedule.';
+                }
+                createNotification($pdo, $patientUid, 'no_show', 'Missed Appointment', $msg);
             }
         }
 

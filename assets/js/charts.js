@@ -390,16 +390,24 @@ function updateAnalyticsCharts(ds) {
 }
 
 // ── Staff Dashboard — Today's Overview (horizontal bar) ─────────
-function initStaffOverviewChart(canvasId = 'chart-staff-overview', initialData = [0,0,0,0,0,0]) {
+function initStaffOverviewChart(canvasId = 'chart-staff-overview', initialData = [0,0,0,0,0,0], labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']) {
   destroy('staffOverview')
   const el = document.getElementById(canvasId)
   if (!el) return
   const ctx = el.getContext('2d')
 
+  // A fixed suggestedMax (e.g. 5) forces the axis to that width even on a
+  // slow week — a single appointment then renders as a sliver filling only
+  // ~20% of the row, reading as "stuck in the corner" rather than as its
+  // own bar. Scaling to the week's actual busiest day (plus a little
+  // headroom, with a small floor so an all-zero week doesn't look broken
+  // either) keeps the bar proportionate to what's actually being shown.
+  const dataMax = Math.max(0, ...initialData)
+
   _charts.staffOverview = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      labels: labels,
       datasets: [{
         label: 'Appointments this week',
         data: initialData,
@@ -417,7 +425,7 @@ function initStaffOverviewChart(canvasId = 'chart-staff-overview', initialData =
       scales: {
         x: {
           beginAtZero: true,
-          suggestedMax: 5,
+          suggestedMax: Math.max(3, dataMax + 1),
           grid: { color: GRID },
           ticks: { precision: 0, color: '#9CA3AF', font: { size: 11 } }
         },
@@ -434,5 +442,8 @@ function updateStaffOverviewChart(data, labels) {
   if (!_charts.staffOverview) return
   if (labels) _charts.staffOverview.data.labels = labels
   _charts.staffOverview.data.datasets[0].data = data
+  // Keep the x-axis scaled to the current data, same reasoning as init above.
+  const dataMax = Math.max(0, ...data)
+  _charts.staffOverview.options.scales.x.suggestedMax = Math.max(3, dataMax + 1)
   _charts.staffOverview.update('active')
 }

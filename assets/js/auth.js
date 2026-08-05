@@ -4,6 +4,48 @@
 //  API base: /api/auth/  (relative, works with any sub-path)
 // ================================================================
 
+// ── Password policy (shared by every screen that sets a password) ─
+const PW_POLICY_RULES = [
+  { key: 'len',   label: 'At least 8 characters',     test: v => v.length >= 8 },
+  { key: 'lower', label: 'One lowercase letter (a-z)', test: v => /[a-z]/.test(v) },
+  { key: 'upper', label: 'One uppercase letter (A-Z)', test: v => /[A-Z]/.test(v) },
+  { key: 'num',   label: 'One number (0-9)',           test: v => /[0-9]/.test(v) },
+]
+function pwPolicyValid(v) {
+  return PW_POLICY_RULES.every(r => r.test(v || ''))
+}
+function pwChecklistHtml(idPrefix) {
+  return `<div class="pw-checklist" id="${idPrefix}-checklist">` +
+    PW_POLICY_RULES.map(r => `
+      <div class="pw-check-item" id="${idPrefix}-chk-${r.key}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+        <span>${r.label}</span>
+      </div>`).join('') +
+    `</div>`
+}
+function updatePwChecklist(idPrefix, value) {
+  const v = value || ''
+  PW_POLICY_RULES.forEach(r => {
+    const item = document.getElementById(`${idPrefix}-chk-${r.key}`)
+    if (!item) return
+    const svg = item.querySelector('svg')
+    const met = r.test(v)
+    const hasInput = v.length > 0
+    item.classList.toggle('met', met)
+    item.classList.toggle('unmet', hasInput && !met)
+    if (svg) {
+      svg.innerHTML = met
+        ? '<polyline points="20 6 9 17 4 12"/>'
+        : hasInput
+          ? '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+          : '<circle cx="12" cy="12" r="9"/>'
+    }
+  })
+}
+window.pwPolicyValid     = pwPolicyValid
+window.pwChecklistHtml   = pwChecklistHtml
+window.updatePwChecklist = updatePwChecklist
+
 // ── Login ────────────────────────────────────────────────────────
 function _showLoginError(msg) {
   const errEl  = document.getElementById('login-error')
@@ -86,6 +128,7 @@ async function logout() {
 
   document.getElementById('app-shell').style.display   = 'none'
   document.getElementById('login-screen').style.display = 'flex'
+  _syncAuthBranding()
   document.getElementById('login-email').value          = ''
   document.getElementById('login-password').value       = ''
   document.getElementById('login-error').style.display  = 'none'
@@ -125,8 +168,8 @@ async function handleRegister() {
     errMsg.textContent = 'The passwords you entered do not match. Please re-enter your password.'
     errEl.style.display = 'flex'; return
   }
-  if (pass.length < 8) {
-    errMsg.textContent = 'Password must be at least 8 characters.'
+  if (!pwPolicyValid(pass)) {
+    errMsg.textContent = 'Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.'
     errEl.style.display = 'flex'; return
   }
 
@@ -161,59 +204,59 @@ async function handleRegister() {
 // only be checked by reading the terms here and scrolling to the bottom,
 // which is how this enforces an actual read-through instead of a
 // rubber-stamp checkbox.
-const TERMS_AND_PRIVACY_HTML = `
-  <h4>1. Acceptance of Terms</h4>
-  <p>By creating a patient account with Cana Optical Clinic ("the Clinic"), you agree to be bound by these Terms &amp; Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.</p>
+// Markdown-source default (mirrors api/helpers.php's DEFAULT_TERMS_MD exactly)
+// — served only if the pre-auth clinic/public.php fetch hasn't resolved yet.
+// Parsed by renderTermsMarkdown() (db.js) into the same <h4>/<p>/<ul> HTML
+// this used to be hardcoded as.
+const DEFAULT_TERMS_MD = `## 1. Acceptance of Terms
+By creating a patient account with Cana Optical Clinic ("the Clinic"), you agree to be bound by these Terms & Conditions and the Data Privacy Notice below. If you do not agree, please do not proceed with registration.
 
-  <h4>2. Account Registration</h4>
-  <p>You must provide accurate, current, and complete information during registration. You are responsible for keeping your password confidential and for all activity under your account. Notify the Clinic immediately if you suspect unauthorized use.</p>
+## 2. Account Registration
+You must provide accurate, current, and complete information during registration. You are responsible for keeping your password confidential and for all activity under your account. Notify the Clinic immediately if you suspect unauthorized use.
 
-  <h4>3. Your Patient QR Code</h4>
-  <p>Upon registration, a unique QR code is generated and linked to your patient record. Present this QR code at the clinic for fast, accurate check-in. Do not share it with anyone else — it provides access to your health information.</p>
+## 3. Your Patient QR Code
+Upon registration, a unique QR code is generated and linked to your patient record. Present this QR code at the clinic for fast, accurate check-in. Do not share it with anyone else — it provides access to your health information.
 
-  <h4>4. Appointments</h4>
-  <p>Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The Clinic reserves the right to reschedule or decline requests when necessary.</p>
+## 4. Appointments
+Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The Clinic reserves the right to reschedule or decline requests when necessary.
 
-  <h4>5. Use of the Platform</h4>
-  <p>You agree to use this system only for legitimate healthcare purposes related to your own care. Misuse — including attempting to access another patient's records or interfering with the system's normal operation — may result in account suspension.</p>
+## 5. Use of the Platform
+You agree to use this system only for legitimate healthcare purposes related to your own care. Misuse — including attempting to access another patient's records or interfering with the system's normal operation — may result in account suspension.
 
-  <h4>6. Data Privacy Act Notice (Republic Act No. 10173)</h4>
-  <p>In compliance with the Data Privacy Act of 2012 (RA 10173) and its Implementing Rules and Regulations, the Clinic collects the personal and sensitive personal information you provide during registration (e.g. name, date of birth, address, contact details) and through your subsequent care (e.g. examination results, diagnoses, prescriptions). This information is collected and processed solely for:</p>
-  <ul>
-    <li>Creating and maintaining your patient record</li>
-    <li>Scheduling and managing appointments</li>
-    <li>Providing optical examination, diagnosis, and treatment</li>
-    <li>Generating your patient identification QR code</li>
-    <li>Communicating with you regarding your account, appointments, or care</li>
-    <li>Complying with legal and regulatory requirements</li>
-  </ul>
+## 6. Data Privacy Act Notice (Republic Act No. 10173)
+In compliance with the Data Privacy Act of 2012 (RA 10173) and its Implementing Rules and Regulations, the Clinic collects the personal and sensitive personal information you provide during registration (e.g. name, date of birth, address, contact details) and through your subsequent care (e.g. examination results, diagnoses, prescriptions). This information is collected and processed solely for:
+- Creating and maintaining your patient record
+- Scheduling and managing appointments
+- Providing optical examination, diagnosis, and treatment
+- Generating your patient identification QR code
+- Communicating with you regarding your account, appointments, or care
+- Complying with legal and regulatory requirements
 
-  <h4>7. Storage and Security</h4>
-  <p>Your data is stored on secured servers with access restricted to authorized clinic personnel (admin, staff, and your attending doctor) who need it to perform their duties. We apply reasonable organizational, physical, and technical safeguards to protect your information against unauthorized access, alteration, disclosure, or destruction.</p>
+## 7. Storage and Security
+Your data is stored on secured servers with access restricted to authorized clinic personnel (admin, staff, and your attending doctor) who need it to perform their duties. We apply reasonable organizational, physical, and technical safeguards to protect your information against unauthorized access, alteration, disclosure, or destruction.
 
-  <h4>8. Data Sharing</h4>
-  <p>The Clinic does not sell or rent your personal information. Your data may only be shared with third parties when required by law, when necessary to provide your care (e.g. referrals), or with your explicit consent.</p>
+## 8. Data Sharing
+The Clinic does not sell or rent your personal information. Your data may only be shared with third parties when required by law, when necessary to provide your care (e.g. referrals), or with your explicit consent.
 
-  <h4>9. Data Retention</h4>
-  <p>Your personal and health records are retained for as long as your account is active, and for the period required by applicable healthcare record-keeping regulations afterward, after which they are securely disposed of.</p>
+## 9. Data Retention
+Your personal and health records are retained for as long as your account is active, and for the period required by applicable healthcare record-keeping regulations afterward, after which they are securely disposed of.
 
-  <h4>10. Your Rights as a Data Subject</h4>
-  <p>Under the Data Privacy Act, you have the right to:</p>
-  <ul>
-    <li>Be informed of how your data is collected and processed</li>
-    <li>Access the personal data the Clinic holds about you</li>
-    <li>Request correction of inaccurate or outdated data</li>
-    <li>Object to or withdraw consent for processing, subject to legal or contractual restrictions</li>
-    <li>Request deletion of your data, where applicable</li>
-    <li>File a complaint with the National Privacy Commission (NPC)</li>
-  </ul>
-  <p>To exercise any of these rights, please contact the clinic directly using the contact details on our website.</p>
+## 10. Your Rights as a Data Subject
+Under the Data Privacy Act, you have the right to:
+- Be informed of how your data is collected and processed
+- Access the personal data the Clinic holds about you
+- Request correction of inaccurate or outdated data
+- Object to or withdraw consent for processing, subject to legal or contractual restrictions
+- Request deletion of your data, where applicable
+- File a complaint with the National Privacy Commission (NPC)
 
-  <h4>11. Consent</h4>
-  <p>By checking "I agree" and completing registration, you acknowledge that you have read and understood this notice, and you consent to the collection, use, storage, and processing of your personal and sensitive personal information as described above, for the purpose of receiving care from Cana Optical Clinic — and you are entrusting your credentials and personal information to the Clinic on that basis.</p>
+To exercise any of these rights, please contact the clinic directly using the contact details on our website.
 
-  <h4>12. Changes to this Notice</h4>
-  <p>The Clinic may update these Terms &amp; Conditions and this Data Privacy Notice from time to time. Continued use of your account after changes are posted constitutes acceptance of the revised terms.</p>
+## 11. Consent
+By checking "I agree" and completing registration, you acknowledge that you have read and understood this notice, and you consent to the collection, use, storage, and processing of your personal and sensitive personal information as described above, for the purpose of receiving care from Cana Optical Clinic — and you are entrusting your credentials and personal information to the Clinic on that basis.
+
+## 12. Changes to this Notice
+The Clinic may update these Terms & Conditions and this Data Privacy Notice from time to time. Continued use of your account after changes are posted constitutes acceptance of the revised terms.
 `
 
 function openTermsModal() {
@@ -224,7 +267,7 @@ function openTermsModal() {
     </div>
     <div class="modal-body">
       <div class="terms-body" id="terms-scroll-body" onscroll="window._checkTermsScroll()">
-        ${TERMS_AND_PRIVACY_HTML}
+        ${renderTermsMarkdown(window._termsContentMd || DEFAULT_TERMS_MD)}
       </div>
     </div>
     <div class="modal-footer">
@@ -469,7 +512,33 @@ function _prefillRememberedEmail() {
 window._prefillRememberedEmail = _prefillRememberedEmail
 
 // ── Screen switching ──────────────────────────────────────────────
+// Re-fetches clinic name/logo from the public endpoint every time an auth
+// screen is (re)shown — app.html's inline bootstrap script only runs once
+// on the initial hard page load, so without this, a branding change made
+// after that (or a sign-out back to the login screen) would keep showing
+// whatever was current at that first load until the next full refresh.
+function _syncAuthBranding() {
+  fetch('api/clinic/public.php').then(r => r.json()).then(d => {
+    if (!d || !d.success || !d.clinic) return
+    const cn = d.clinic.name, lu = d.clinic.logoUrl
+    if (cn) {
+      document.querySelectorAll('.brand-logo-name').forEach(e => { e.textContent = cn })
+      const lsEl = document.getElementById('ls-brand-name')
+      if (lsEl) lsEl.textContent = cn
+      try { localStorage.setItem('_canaopticalclinic_clinicName', cn) } catch (_) {}
+    }
+    if (lu) {
+      document.querySelectorAll('.loading-screen-logo,.auth-bp-logo').forEach(e => { e.src = lu })
+      const fav = document.querySelector('link[rel="icon"]')
+      if (fav) fav.href = lu
+      try { localStorage.setItem('_canaopticalclinic_logo_url', lu) } catch (_) {}
+    }
+  }).catch(() => {})
+}
+window._syncAuthBranding = _syncAuthBranding
+
 function showRegister() {
+  _syncAuthBranding()
   document.getElementById('login-screen').style.display    = 'none'
   document.getElementById('register-screen').style.display = 'flex'
   ;['reg-first','reg-last','reg-dob','reg-address','reg-contact','reg-email','reg-password','reg-confirm']
@@ -479,7 +548,6 @@ function showRegister() {
     const t = new Date()
     const maxDob = new Date(t.getFullYear() - 18, t.getMonth(), t.getDate())
     dobEl.max = maxDob.toISOString().slice(0, 10)
-    dobEl.parentElement.classList.remove('has-value')
   }
   const genderEl = document.getElementById('reg-gender'); if (genderEl) genderEl.value = ''
   const bloodEl  = document.getElementById('reg-blood');  if (bloodEl)  bloodEl.value  = ''
@@ -493,6 +561,7 @@ function showRegister() {
 }
 
 function showLogin() {
+  _syncAuthBranding()
   document.getElementById('register-screen').style.display  = 'none'
   document.getElementById('forgot-screen').style.display    = 'none'
   document.getElementById('verify-screen').style.display    = 'none'
@@ -502,6 +571,7 @@ function showLogin() {
 window.showLogin = showLogin
 
 function showForgotPassword() {
+  _syncAuthBranding()
   document.getElementById('login-screen').style.display  = 'none'
   document.getElementById('forgot-screen').style.display = 'flex'
   fpUpdateDots(1)
@@ -516,6 +586,17 @@ function showForgotPassword() {
   window._fpEmail = ''
   clearInterval(window._fpResendCooldownInterval)
   window._fpResendCooldownLeft = 0
+
+  // Clear any password entered in a previous pass through this flow —
+  // the step-4 inputs are never unmounted between visits, so without this
+  // a second reset (even for a different email) starts pre-filled.
+  ;['fp-s4-pw1', 'fp-s4-pw2'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) { el.value = ''; el.classList.remove('error') }
+    updatePwChecklist(id, '')
+  })
+  const err1 = document.getElementById('fp-s4-err1'); if (err1) err1.classList.remove('show')
+  const err2 = document.getElementById('fp-s4-err2'); if (err2) err2.classList.remove('show')
 }
 
 // ── Forgot Password flow ──────────────────────────────────────────
@@ -647,7 +728,7 @@ async function fpS4Submit() {
   pw1.classList.remove('error'); pw2.classList.remove('error'); err1.classList.remove('show'); err2.classList.remove('show')
   let valid = true
   if (!pw1.value) { pw1.classList.add('error'); err1.textContent = 'Please enter a new password.'; err1.classList.add('show'); valid = false }
-  else if (pw1.value.length < 8) { pw1.classList.add('error'); err1.textContent = 'Password must be at least 8 characters.'; err1.classList.add('show'); valid = false }
+  else if (!pwPolicyValid(pw1.value)) { pw1.classList.add('error'); err1.textContent = 'Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.'; err1.classList.add('show'); valid = false }
   if (!pw2.value) { pw2.classList.add('error'); err2.textContent = 'Please confirm your password.'; err2.classList.add('show'); valid = false }
   else if (pw1.value && pw2.value !== pw1.value) { pw2.classList.add('error'); err2.textContent = 'Passwords do not match.'; err2.classList.add('show'); valid = false }
   if (!valid) return
@@ -807,6 +888,7 @@ function showEmailVerify(email, fromRegistration = false) {
   _evEmail   = email
   _evFromReg = fromRegistration
 
+  _syncAuthBranding()
   document.getElementById('login-screen').style.display    = 'none'
   document.getElementById('register-screen').style.display = 'none'
   document.getElementById('forgot-screen').style.display   = 'none'
@@ -826,7 +908,7 @@ function showEmailVerify(email, fromRegistration = false) {
 
   // Clear OTP inputs
   document.querySelectorAll('#ev-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
-  document.getElementById('ev-error').style.display = 'none'
+  document.getElementById('ev-error').classList.remove('show')
 
   // Reset resend button and any running cooldown
   clearInterval(_evResendCooldownInterval)
@@ -921,11 +1003,11 @@ async function evSubmitOTP() {
 
   if (otp.length < 6) {
     errEl.textContent = 'Please enter the complete 6-digit code.'
-    errEl.style.display = 'block'
+    errEl.classList.add('show')
     inputs.forEach(i => i.classList.add('error'))
     return
   }
-  errEl.style.display = 'none'
+  errEl.classList.remove('show')
   inputs.forEach(i => i.classList.remove('error'))
 
   const btn = document.getElementById('ev-submit-btn')
@@ -994,8 +1076,8 @@ async function evSubmitOTP() {
     }, 900)
 
   } catch (_) {
-    errEl.textContent   = 'Network error. Please check your connection and try again.'
-    errEl.style.display = 'block'
+    errEl.textContent = 'Network error. Please check your connection and try again.'
+    errEl.classList.add('show')
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Verify & Activate Account' }
   }
@@ -1006,7 +1088,7 @@ async function evResendCode() {
   if (_evResendCooldownLeft > 0) return
 
   const errEl = document.getElementById('ev-error')
-  errEl.style.display = 'none'
+  errEl.classList.remove('show')
 
   _evStartResendCooldown()
   const resendBtn = document.getElementById('ev-resend-btn')
@@ -1033,8 +1115,8 @@ async function evResendCode() {
         evShowStep(2)
         return
       }
-      errEl.textContent   = data.message || 'Failed to resend code. Please try again.'
-      errEl.style.display = 'block'
+      errEl.textContent = data.message || 'Failed to resend code. Please try again.'
+      errEl.classList.add('show')
       return
     }
 
@@ -1044,8 +1126,8 @@ async function evResendCode() {
     _evStartTimer(300)
 
   } catch (_) {
-    errEl.textContent   = 'Network error. Please try again.'
-    errEl.style.display = 'block'
+    errEl.textContent = 'Network error. Please try again.'
+    errEl.classList.add('show')
   }
 }
 window.evResendCode = evResendCode
@@ -1135,7 +1217,7 @@ async function evSaveEditEmail() {
 
     // Fresh OTP was sent to the new address — reset the entry UI same as a resend.
     document.querySelectorAll('#ev-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
-    document.getElementById('ev-error').style.display = 'none'
+    document.getElementById('ev-error').classList.remove('show')
     clearInterval(_evResendCooldownInterval)
     _evResendCooldownInterval = null
     _evResendCooldownLeft = 0
@@ -1248,6 +1330,7 @@ function _bootAfterAuth(role, user) {
   if (role === 'admin') { _syncActivityLog(); _syncStaff(); _syncArchives() }
   if (role === 'staff') _syncStaff()
   if (['admin', 'staff', 'doctor'].includes(role)) _syncPatients()
+  if (['admin', 'staff'].includes(role)) _syncWaitlist()
   if (role === 'patient') _syncMyRecords()
   // Doctors array (incl. schedule/availability/blocked dates) — every role needs
   // a synced copy, not just staff: patients book against it, doctors see their
@@ -1428,6 +1511,25 @@ async function _syncContactMessages() {
 }
 window._syncContactMessages = _syncContactMessages
 
+// ── Waitlist sync (admin/staff visibility only — patients read their own
+// entry directly via loadMyWaitlistCard) ────────────────────────────
+window._waitlistCount = 0
+
+async function _syncWaitlist() {
+  try {
+    const r = await fetch('api/waitlist/index.php')
+    if (!r.ok) return
+    const d = await r.json()
+    if (!d.success || !Array.isArray(d.entries)) return
+    const changed = _pollDataChanged(waitlistEntries, d.entries)
+    waitlistEntries.splice(0, waitlistEntries.length, ...d.entries)
+    window._waitlistCount = d.entries.length
+    if (window._updateSidebarBadges) window._updateSidebarBadges()
+    if (changed && window.state?.page === 'waitlist' && window.renderPage) window.renderPage({ silent: true })
+  } catch (_) {}
+}
+window._syncWaitlist = _syncWaitlist
+
 // ── Clinic settings + services sync ─────────────────────────────────
 const _CLINIC_SETTINGS_PAGES = new Set([
   'admin-settings', 'doctor-availability', 'patient-appts', 'patient-dashboard'
@@ -1446,8 +1548,15 @@ async function _syncClinicSettings() {
       foundedYear: s.foundedYear ?? null,
       logoUrl: s.logoUrl, heroUrl: s.heroUrl ?? null,
       mapLat: s.mapLat ?? null, mapLng: s.mapLng ?? null, mapEmbedUrl: s.mapEmbedUrl ?? null,
-      galleryMaxPhotos: s.galleryMaxPhotos ?? null
+      videoUrl: s.videoUrl ?? null,
+      galleryMaxPhotos: s.galleryMaxPhotos ?? null,
+      termsContent: s.termsContent ?? null,
+      appointmentPolicyContent: s.appointmentPolicyContent ?? null
     })
+    // Keep the pre-auth global in sync too, so an admin editing this mid-session
+    // (or re-opening the registration screen after logging out) sees their own
+    // change immediately rather than the stale value from page load.
+    if (clinicInfo.termsContent) window._termsContentMd = clinicInfo.termsContent
     Object.assign(consultationSettings, {
       defaultDuration: s.defaultDuration, maxAdvanceBooking: s.maxAdvanceBooking,
       minAdvanceBooking: s.minAdvanceBooking, maxApptsPerDoctorPerDay: s.maxApptsPerDoctorPerDay,
@@ -1547,7 +1656,7 @@ async function _systemPollTick() {
 
   // Role-specific light syncs
   if (role === 'patient') _syncMyRecords()
-  if (['admin','staff'].includes(role)) _syncContactMessages()
+  if (['admin','staff'].includes(role)) { _syncContactMessages(); _syncWaitlist() }
 
   // Heavier syncs every other tick (~60s)
   if (_pollTick % 2 === 0) {
@@ -1617,11 +1726,5 @@ function _shakeCard() {
   card.addEventListener('animationend', () => card.classList.remove('login-shake'), { once: true })
 }
 
-function toggleLoginPw() {
-  const input = document.getElementById('login-password')
-  const icon  = document.getElementById('login-eye-icon')
-  const EYE_OPEN   = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
-  const EYE_CLOSED = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
-  if (input.type === 'password') { input.type = 'text'; icon.innerHTML = EYE_CLOSED }
-  else { input.type = 'password'; icon.innerHTML = EYE_OPEN }
-}
+// toggleLoginPw() is defined in main.js (loads after this file and wins the
+// global binding anyway) — removed the dead duplicate that used to live here.

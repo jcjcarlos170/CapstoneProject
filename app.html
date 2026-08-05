@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=block" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/global.css">
+  <link rel="stylesheet" href="assets/css/global.css?v=20260806c">
   <style>
     .badge-no-show {
       display: inline-flex !important;
@@ -78,13 +78,42 @@
               letter-spacing:-.02em;line-height:1.2;text-align:center;max-width:220px;margin-bottom:36px;
               animation:_ls-rise .4s .12s both">Cana Optical Clinic</div>
   <script>
-  ;(function(){try{
-    var cn=localStorage.getItem('_canaopticalclinic_clinicName');
-    var lu=localStorage.getItem('_canaopticalclinic_logo_url');
-    if(cn){var el=document.getElementById('ls-brand-name');if(el)el.textContent=cn;}
-    if(cn){document.querySelectorAll('.brand-logo-name').forEach(function(e){e.textContent=cn;});}
-    if(lu){document.querySelectorAll('.loading-screen-logo,.auth-bp-logo').forEach(function(e){e.src=lu;});}
-  }catch(_){}}());
+  ;(function(){
+    // Paint instantly from last-known values (no network round-trip) —
+    // covers the common case of a returning user on the same browser.
+    try{
+      var cn=localStorage.getItem('_canaopticalclinic_clinicName');
+      var lu=localStorage.getItem('_canaopticalclinic_logo_url');
+      if(cn){var el=document.getElementById('ls-brand-name');if(el)el.textContent=cn;}
+      if(cn){document.querySelectorAll('.brand-logo-name').forEach(function(e){e.textContent=cn;});}
+      if(lu){
+        document.querySelectorAll('.loading-screen-logo,.auth-bp-logo').forEach(function(e){e.src=lu;});
+        var fav=document.querySelector('link[rel="icon"]'); if(fav) fav.href=lu;
+      }
+    }catch(_){}
+    // Then confirm/upgrade against the live clinic settings — this is what
+    // makes a fresh browser (empty cache) or a name/logo change made on
+    // another device show correctly on the login/register/verify screens,
+    // which render before any authenticated sync (_syncClinicSettings) can run.
+    fetch('api/clinic/public.php').then(function(r){return r.json()}).then(function(d){
+      if(!d||!d.success||!d.clinic) return;
+      var cn=d.clinic.name, lu=d.clinic.logoUrl;
+      if(cn){
+        var el=document.getElementById('ls-brand-name'); if(el) el.textContent=cn;
+        document.querySelectorAll('.brand-logo-name').forEach(function(e){e.textContent=cn;});
+        try{localStorage.setItem('_canaopticalclinic_clinicName',cn);}catch(_){}
+      }
+      if(lu){
+        document.querySelectorAll('.loading-screen-logo,.auth-bp-logo').forEach(function(e){e.src=lu;});
+        var fav=document.querySelector('link[rel="icon"]'); if(fav) fav.href=lu;
+        try{localStorage.setItem('_canaopticalclinic_logo_url',lu);}catch(_){}
+      }
+      // Registration's Terms & Conditions modal renders pre-auth, so this is
+      // the only path it can ever get the admin-edited content from —
+      // _syncClinicSettings() doesn't run until after login.
+      if(d.clinic.termsContent) window._termsContentMd = d.clinic.termsContent;
+    }).catch(function(){});
+  }());
   </script>
 
   <!-- Ring spinner (SVG) -->
@@ -295,7 +324,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         Expires in <span id="fp-timer-display">5:00</span>
       </div>
-      <div class="fp-field-error" id="fp-s3-error" style="text-align:center;margin-bottom:8px">Please enter the complete 6-digit code.</div>
+      <div class="fp-field-error" id="fp-s3-error" style="margin-bottom:8px">Please enter the complete 6-digit code.</div>
       <div class="fp-resend-row">Didn't receive a code? <button class="fp-resend-link" onclick="fpResendOTP()">Resend Code</button></div>
       <button class="fp-btn-primary full" id="fp-s3-btn" onclick="fpS3Submit()" style="margin-bottom:14px">Verify OTP</button>
       <div style="text-align:center">
@@ -334,10 +363,28 @@
       <div class="fp-group">
         <label class="fp-label">New Password</label>
         <div class="fp-pw-wrap">
-          <input type="password" id="fp-s4-pw1" class="fp-input" placeholder="Minimum 8 characters" autocomplete="new-password">
+          <input type="password" id="fp-s4-pw1" class="fp-input" placeholder="Minimum 8 characters" autocomplete="new-password" oninput="window.updatePwChecklist('fp-s4-pw1', this.value)">
           <button type="button" class="fp-pw-eye" onclick="fpTogglePw('fp-s4-pw1','fp-eye1')">
             <svg id="fp-eye1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
+        </div>
+        <div class="pw-checklist" id="fp-s4-pw1-checklist">
+          <div class="pw-check-item" id="fp-s4-pw1-chk-len">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+            <span>At least 8 characters</span>
+          </div>
+          <div class="pw-check-item" id="fp-s4-pw1-chk-lower">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+            <span>One lowercase letter (a-z)</span>
+          </div>
+          <div class="pw-check-item" id="fp-s4-pw1-chk-upper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+            <span>One uppercase letter (A-Z)</span>
+          </div>
+          <div class="pw-check-item" id="fp-s4-pw1-chk-num">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+            <span>One number (0-9)</span>
+          </div>
         </div>
         <div class="fp-field-error" id="fp-s4-err1"></div>
       </div>
@@ -351,7 +398,6 @@
         </div>
         <div class="fp-field-error" id="fp-s4-err2"></div>
       </div>
-      <div class="fp-hint">Must be at least 8 characters with one letter and one number.</div>
       <div class="fp-btn-row">
         <button type="button" class="fp-back-link" onclick="showLogin()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
@@ -437,7 +483,7 @@
           Expires in <span id="ev-timer-display">5:00</span>
         </div>
 
-        <div class="fp-field-error" id="ev-error" style="text-align:center;margin-bottom:8px"></div>
+        <div class="fp-field-error" id="ev-error" style="margin-bottom:8px"></div>
 
         <div class="fp-resend-row">
           Didn't receive a code? <button class="fp-resend-link" id="ev-resend-btn" onclick="evResendCode()">Resend Code</button>
@@ -562,26 +608,18 @@
             <input type="text" id="reg-first" class="reg-input" placeholder="Juan">
           </div>
           <div class="reg-group">
-            <label class="reg-label">Last Name <span class="reg-req">*</span></label>
-            <input type="text" id="reg-last" class="reg-input" placeholder="Dela Cruz">
-          </div>
-
-          <div class="reg-group reg-full">
             <label class="reg-label">Middle Name</label>
             <input type="text" id="reg-middle" class="reg-input" placeholder="Santos">
           </div>
 
+          <div class="reg-group reg-full">
+            <label class="reg-label">Last Name <span class="reg-req">*</span></label>
+            <input type="text" id="reg-last" class="reg-input" placeholder="Dela Cruz">
+          </div>
+
           <div class="reg-group">
             <label class="reg-label">Date of Birth <span class="reg-req">*</span></label>
-            <div class="reg-date-field">
-              <input type="date" id="reg-dob" class="reg-input" autocomplete="off"
-                     oninput="this.parentElement.classList.toggle('has-value', !!this.value)"
-                     onclick="if(this.showPicker){try{this.showPicker()}catch(e){}}"
-                     onfocus="if(this.showPicker){try{this.showPicker()}catch(e){}}">
-              <span class="reg-date-placeholder">mm/dd/yyyy</span>
-              <div class="reg-date-icon-mask"></div>
-              <svg class="reg-date-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
+            <input type="date" id="reg-dob" class="reg-input" autocomplete="off">
             <div class="reg-hint">Must be 18 years old or above to register</div>
           </div>
           <div class="reg-group">
@@ -637,12 +675,29 @@
           <div class="reg-group">
             <label class="reg-label">Password <span class="reg-req">*</span></label>
             <div class="reg-pw-wrap">
-              <input type="password" id="reg-password" class="reg-input" placeholder="Enter password" autocomplete="new-password">
+              <input type="password" id="reg-password" class="reg-input" placeholder="Enter password" autocomplete="new-password" oninput="window.updatePwChecklist('reg-password', this.value)">
               <button type="button" class="lf-pw-eye" onclick="toggleRegPw('reg-password','reg-pw-eye1')" title="Show/hide">
                 <svg id="reg-pw-eye1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
-            <div class="reg-hint">Minimum 8 characters</div>
+            <div class="pw-checklist" id="reg-password-checklist">
+              <div class="pw-check-item" id="reg-password-chk-len">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                <span>At least 8 characters</span>
+              </div>
+              <div class="pw-check-item" id="reg-password-chk-lower">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                <span>One lowercase letter (a-z)</span>
+              </div>
+              <div class="pw-check-item" id="reg-password-chk-upper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                <span>One uppercase letter (A-Z)</span>
+              </div>
+              <div class="pw-check-item" id="reg-password-chk-num">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                <span>One number (0-9)</span>
+              </div>
+            </div>
           </div>
           <div class="reg-group">
             <label class="reg-label">Confirm Password <span class="reg-req">*</span></label>
@@ -777,9 +832,9 @@
 <script src="assets/js/pagination.js"></script>
 <script src="assets/js/sortable.js"></script>
 <script src="assets/js/router.js"></script>
-<script src="assets/js/pages.js"></script>
+<script src="assets/js/pages.js?v=20260806d"></script>
 <script src="api/badge-fix.php"></script>
-<script src="assets/js/main.js"></script>
+<script src="assets/js/main.js?v=20260806"></script>
 <script>
   // If navigated here with #register, set a flag so restoreSession()
   // opens the register screen instead of login when no session exists

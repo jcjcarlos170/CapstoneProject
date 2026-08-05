@@ -127,6 +127,13 @@ button { border-radius: unset; }
   justify-content: center;
   padding: 52px 42px;
 }
+.auth-brand-panel::after {
+  content: "";
+  position: absolute; inset: 0;
+  opacity: .05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
 .auth-bp-inner {
   position: relative; z-index: 1;
@@ -157,6 +164,49 @@ button { border-radius: unset; }
   font-size: 2.4rem; font-weight: 800;
   color: #fff; letter-spacing: -0.03em; line-height: 1.2;
   margin-bottom: 10px;
+}
+.auth-bp-desc {
+  font-size: 0.92rem; line-height: 1.7;
+  color: rgba(255,255,255,.65);
+  max-width: 300px;
+}
+.auth-bp-divider {
+  width: 44px; height: 3px;
+  margin: 22px 0 20px;
+  border-radius: 2px;
+  background: #E8760A;
+}
+.auth-bp-features {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  align-items: flex-start;
+}
+.auth-bp-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,.72);
+  letter-spacing: -0.01em;
+  text-align: left;
+  animation: bp-feature-in .5s cubic-bezier(.22,1,.36,1) both;
+}
+.auth-bp-feature:nth-child(1) { animation-delay: .08s; }
+.auth-bp-feature:nth-child(2) { animation-delay: .16s; }
+.auth-bp-feature:nth-child(3) { animation-delay: .24s; }
+.auth-bp-feature-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex-shrink: 0;
+  border-radius: 9px;
+  background: rgba(232,118,10,.16);
+  border: 1px solid rgba(232,118,10,.32);
+  color: #FDBA74;
+}
+.auth-bp-feature-icon svg { width: 15px; height: 15px; }
+@keyframes bp-feature-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .auth-bp-clinic-name {
   font-size: 0.85rem; font-weight: 600;
@@ -224,6 +274,7 @@ button { border-radius: unset; }
   .auth-bp-logo { width: 24px; height: 24px; }
   .auth-bp-text-block { align-items: center; flex-direction: row; gap: 0; }
   .auth-bp-brand-name { font-size: 1rem; margin-bottom: 0; line-height: 1.15; }
+  .auth-bp-desc, .auth-bp-divider, .auth-bp-features { display: none; }
   .auth-form-panel { padding: 20px; justify-content: flex-start; }
   .auth-form-panel--register { padding-top: 16px; padding-bottom: 16px; }
   .auth-back-link { margin-bottom: 12px; }
@@ -296,7 +347,7 @@ button { border-radius: unset; }
 /* Error */
 .lf-error {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   background: #FEF2F2;
   border: 1px solid #FECACA;
@@ -309,7 +360,7 @@ button { border-radius: unset; }
   margin-bottom: 12px;
   line-height: 1.5;
 }
-.lf-error svg { flex-shrink: 0; }
+.lf-error svg { flex-shrink: 0; margin-top: 2px; }
 
 /* Remember + forgot */
 .lf-row {
@@ -466,8 +517,27 @@ button { border-radius: unset; }
 .fp-pw-wrap .fp-input { padding-right:44px }
 .fp-pw-eye { position:absolute;right:0;top:0;bottom:0;width:42px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:#9CA3AF;transition:color .2s }
 .fp-pw-eye:hover { color:#E8891C }
-.fp-field-error { font-size:0.75rem;color:#DC2626;margin-top:5px;display:none }
-.fp-field-error.show { display:block }
+.fp-field-error, .field-error {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-left: 4px solid #DC2626;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: #B91C1C;
+  line-height: 1.5;
+  margin-top: 14px;
+}
+.fp-field-error.show, .field-error.show { display: flex; }
+.fp-field-error::before, .field-error::before {
+  content: "";
+  width: 16px; height: 16px; flex-shrink: 0;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23DC2626' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12' y2='16'/%3E%3C/svg%3E");
+}
 .fp-hint { font-size:0.73rem;color:#9ca3af;margin-bottom:14px;line-height:1.5 }
 /* Progress dots */
 .fp-progress { display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 20px }
@@ -543,6 +613,7 @@ button { border-radius: unset; }
 }
 .reg-desc a, .reg-terms-link {
   color: #E8891C; font-weight: 600; text-decoration: underline; cursor: pointer;
+  transition: color 0.2s ease;
 }
 .reg-desc a:hover, .reg-terms-link:hover { color: #C4620A; }
 
@@ -585,7 +656,7 @@ select.reg-input:focus {
 select.reg-input option[value=""] { color: #9CA3AF; }
 select.reg-input option { color: #1C1C1C; }
 input[type="date"].reg-input {
-  cursor: pointer;
+  cursor: text;
   /* Force light-mode rendering so the browser's native date-field text
      (mm/dd/yyyy hint + edit fields) uses dark-on-light colours regardless
      of the OS dark-mode setting. Without this, Chrome Android/Safari render
@@ -593,16 +664,12 @@ input[type="date"].reg-input {
      white background set by .reg-input. */
   color-scheme: light;
 }
-/* The native calendar icon is unreliable across browsers here — some
-   Android builds render it invisible (white-on-white) regardless of
-   color-scheme, others ignore opacity:0 entirely and show a fallback
-   chevron instead. Rather than keep fighting per-browser rendering of
-   this pseudo-element, it's removed outright; the always-visible custom
-   .reg-date-icon is drawn in its place, and JS calls showPicker() on
-   click so the field still opens on any click/tap regardless of where
-   the real icon would have been. */
+/* Matches the .form-input date fields used in the admin modals: plain
+   native <input type="date">, native icon, native click/typing behaviour —
+   no custom overlay icon or click-zone JS. Pointer only over the icon
+   itself (browser default); text cursor everywhere else. */
 input[type="date"].reg-input::-webkit-calendar-picker-indicator {
-  display: none;
+  cursor: pointer;
 }
 /* Explicitly colour the webkit date-edit sub-fields on WebKit/Blink so they
    remain visible even when the system prefers dark mode. */
@@ -614,46 +681,6 @@ input[type="date"].reg-input::-webkit-datetime-edit-day-field,
 input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   color: #1C1C1C;
   -webkit-text-fill-color: #1C1C1C;
-}
-/* Same reasoning as the icon above: some browsers render the empty-state
-   "mm/dd/yyyy" hint invisibly too, so it's hidden (transparent, not the
-   dark color above) until a real value is chosen, and .reg-date-placeholder
-   below shows our own hint text in its place. */
-.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit,
-.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-fields-wrapper,
-.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-text,
-.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-month-field,
-.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-day-field,
-.reg-date-field:not(.has-value) input[type="date"].reg-input::-webkit-datetime-edit-year-field {
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-}
-.reg-date-field { position: relative; }
-.reg-date-field input[type="date"].reg-input { padding-right: 38px; }
-.reg-date-placeholder {
-  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-  color: #9CA3AF; font-size: 0.85rem; font-family: 'Poppins', sans-serif;
-  pointer-events: none;
-}
-.reg-date-field.has-value .reg-date-placeholder { display: none; }
-/* Some Android Chrome builds keep rendering the native calendar icon (or a
-   fallback chevron) regardless of opacity/display CSS on the pseudo-element
-   itself — this happens to bypass normal CSS suppression on at least one
-   confirmed device. Rather than fight that further, this opaque patch
-   simply paints over wherever the browser insists on drawing it, matching
-   the field's own background so it reads as part of the field, not a
-   visible box. .reg-date-icon (below, later in DOM order) paints on top
-   of it with our own clean icon. pointer-events:none on both lets clicks
-   fall through to the real input underneath. */
-.reg-date-icon-mask {
-  position: absolute; right: 1px; top: 1px; bottom: 1px; width: 40px;
-  background: #fff;
-  border-radius: 0 7px 7px 0;
-  pointer-events: none;
-}
-.reg-date-icon {
-  position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
-  pointer-events: none;
 }
 .reg-input:focus {
   border-color: #E8891C;
@@ -707,9 +734,11 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   color: #6b7280;
   line-height: 1.5;
 }
-.reg-terms .chk { flex-shrink: 0; margin-top: 1px; }
-.reg-terms a { color: #E8891C; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.reg-terms .chk { flex-shrink: 0; margin-top: -1px; }
+.reg-terms a { color: #E8891C; font-weight: 600; text-decoration: underline; cursor: pointer; transition: color 0.2s ease; }
 .reg-terms a:hover { color: #C4620A; }
+.appt-policy-link { color: #C2410C; font-weight: 600; text-decoration: underline; cursor: pointer; transition: color 0.2s ease; }
+.appt-policy-link:hover { color: #9A3412; }
 .reg-terms-hint {
   display: flex;
   align-items: center;
@@ -1998,6 +2027,11 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
 .btn-danger:active:not(:disabled) { background: #991B1B; }
 .btn-danger:focus-visible { outline: 2px solid #DC2626; outline-offset: 2px; }
 .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
+/* .btn-danger is deliberately sized to match .btn-ghost for toolbar pairings
+   (e.g. "Clear Filters" + "Clear All Logs"). But in a modal footer it's
+   instead paired with .btn-secondary, which is a size class up — match that
+   pairing specifically rather than resizing the base class everywhere. */
+.btn-secondary + .btn-danger { padding: 9px 20px; font-size: 0.85rem; border-radius: 8px; }
 
 .btn-success {
   display: inline-flex;
@@ -2052,6 +2086,13 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   white-space: nowrap;
 }
 .btn-disapprove:hover { background: #fee2e2; border-color: #fca5a5; }
+
+/* Live password policy checklist */
+.pw-checklist { display: flex; flex-direction: column; gap: 5px; margin: 8px 0 2px; }
+.pw-check-item { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: #9CA3AF; transition: color 0.15s ease; }
+.pw-check-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+.pw-check-item.met { color: #059669; }
+.pw-check-item.unmet { color: #DC2626; }
 
 .btn-ghost {
   display: inline-flex;
@@ -2122,6 +2163,12 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   background: white;
 }
 .form-input::placeholder { color: #C4C9D4; }
+/* Standard native behaviour: pointer only over the calendar icon itself
+   (the browser's own click target for opening the picker); the rest of
+   the field keeps the normal text cursor so typing a date manually still
+   feels like editing text, not clicking a button. */
+input[type="date"].form-input { cursor: text; }
+input[type="date"].form-input::-webkit-calendar-picker-indicator { cursor: pointer; }
 .form-select {
   width: 100%;
   padding: 11px 38px 11px 14px;
@@ -2715,23 +2762,23 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   border-radius: 50%;
 }
 .cal-day.today {
-  background: var(--clr-primary);
-  color: white;
+  outline: 2px solid #E8760A;
   font-weight: 700;
 }
-.cal-day.today:hover { background: var(--clr-primary); }
+.cal-day.cal-selected {
+  background: #E8760A !important;
+  color: #fff !important;
+  font-weight: 700;
+}
 .cal-day.blocked { background: #FFEBEE; color: #9CA3AF; cursor: default; }
-.cal-day.cal-holiday { background: #FFF1F2; color: #f43f5e; cursor: default; font-weight: 600; flex-direction: column; justify-content: center; aspect-ratio: unset; min-height: 46px; gap: 1px; padding: 3px 2px; }
-.cal-holiday-lbl { font-size: .42rem; line-height: 1.2; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-weight: 500; padding: 0 1px; }
-.cal-day.today.cal-holiday { background: #FFF1F2; outline: 2px solid #f43f5e; }
+.cal-day.cal-holiday { background: #FFF1F2; color: #f43f5e; cursor: default; font-weight: 600; }
+.cal-holiday-lbl { position: absolute; left: 2px; right: 2px; top: calc(50% + 8px); font-size: .42rem; line-height: 1.1; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-weight: 500; padding: 0 1px; }
 @media (max-width: 480px) {
-  .cal-day.cal-holiday { min-height: 38px; font-size: 0.7rem; }
+  .cal-day.cal-holiday { font-size: 0.7rem; }
   .cal-holiday-lbl { font-size: .35rem; }
 }
 .cal-day.avail   { background: #ECFDF5; color: #065F46; font-weight: 600; }
 .cal-day.avail:hover { background: #D1FAE5; }
-.cal-day.today.avail { background: #E8760A; color: #fff; }
-.cal-day.today.blocked { background: #E8760A; color: #fff; }
 .cal-day.has-appts::before {
   content: '';
   position: absolute;
@@ -2766,9 +2813,6 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   background: var(--clr-danger);
   box-shadow: 0 0 0 1.5px #fff;
 }
-.cal-day.today.date-blocked { background: #B91C1C; color: #fff; text-decoration-color: rgba(255,255,255,0.6); }
-.cal-day.today.date-blocked::after { box-shadow: 0 0 0 1.5px #B91C1C; }
-
 
 /* Calendar hover tooltip (fixed-position, appended to body) */
 #cal-tooltip {
@@ -3161,9 +3205,6 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   }
   #sidebar.mobile-open { transform: translateX(0); }
   #main-area { margin-left: 0 !important; }
-  /* Let footer flow with content so the user scrolls to it instead of it pinning to the viewport bottom */
-  .sidebar-foot { margin-top: 0; }
-
 
   .grid-2, .grid-3, .grid-sidebar { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr 1fr; }

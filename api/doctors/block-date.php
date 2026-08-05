@@ -28,6 +28,9 @@ $blockedBy = trim($b['blockedBy'] ?? '') ?: 'Staff';
 if (!$doctorId || !$date) {
     jsonResponse(['success' => false, 'message' => 'doctorId and date are required.']);
 }
+if (!$reason) {
+    jsonResponse(['success' => false, 'message' => 'A reason is required to block this date.']);
+}
 
 $d = DateTime::createFromFormat('Y-m-d', $date);
 if (!$d || $d->format('Y-m-d') !== $date) {
@@ -47,7 +50,7 @@ try {
         'INSERT INTO blocked_dates (doctor_id, date, reason, created_by) VALUES (?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE reason = VALUES(reason)'
     );
-    $s->execute([$doctorId, $date, $reason ?: null, $blockedBy]);
+    $s->execute([$doctorId, $date, $reason, $blockedBy]);
 
     jsonResponse(['success' => true]);
 

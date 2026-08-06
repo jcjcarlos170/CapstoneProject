@@ -349,7 +349,13 @@
 
     centerBtn.addEventListener('click', togglePlay);
     playBtn.addEventListener('click', togglePlay);
-    video.addEventListener('click', togglePlay);
+    // Desktop: click the video itself toggles play/pause (standard convention).
+    // Touch: handled separately below (handleVideoTap) — YouTube's mobile
+    // convention is tap-to-toggle-the-control-bar, not tap-to-play/pause.
+    video.addEventListener('click', () => {
+      if (isTouchPrimary) { handleVideoTap(); return; }
+      togglePlay();
+    });
     video.addEventListener('play',  () => setPlayIcon(true));
     video.addEventListener('pause', () => setPlayIcon(false));
     video.addEventListener('ended', () => setPlayIcon(false));
@@ -540,28 +546,38 @@
       if (!isFs) unlockOrientation();
     });
 
-    // Auto-hide the control bar during playback once idle; always show when paused.
-    // Deliberately skipped on touch-primary devices (matchMedia('(hover: none)'))
-    // — while the bar is hidden it's also pointer-events:none, so a tap on
-    // where a button *would* be doesn't actually hit that button at all (the
-    // browser's hit-testing skips pointer-events:none elements entirely); the
-    // tap falls through to the video underneath instead, which just reveals
-    // the bar without ever firing the button's own click. A second, separate
-    // tap directly on the now-visible button is needed to actually activate
-    // it — not obvious, and exactly why skip/seek could look "broken" with a
-    // single tap. Keeping the bar always visible on touch sidesteps that
-    // entirely instead of trying to special-case the first-tap-only-reveals
-    // behavior real players use.
+    // Auto-hide the control bar during playback once idle; always show when
+    // paused. Matches YouTube's own mobile behavior: tapping the video
+    // toggles the bar (reveal if hidden, hide if shown) rather than
+    // toggling play/pause — play/pause is only ever via the dedicated
+    // button. The tricky part on touch is that a tap where a hidden button
+    // *would* be always lands on the video underneath instead (the bar is
+    // pointer-events:none while hidden) — without care, that single tap
+    // would both reveal the bar AND fire this toggle, immediately hiding it
+    // again (a flicker), or worse, feel like the tap "did nothing" to the
+    // control the user actually meant to hit. wasHiddenAtTouchStart records
+    // whether the bar was hidden at the *start* of this touch, before
+    // touchstart's own showBar() call reveals it — so by the time the
+    // resulting click fires, we still know a bare reveal was this tap's
+    // entire job, and skip the toggle-back-off.
     const isTouchPrimary = window.matchMedia && window.matchMedia('(hover: none)').matches;
     let idleTimer;
+    let wasHiddenAtTouchStart = false;
     function showBar() {
       bar.classList.remove('vid-bar-hidden');
       clearTimeout(idleTimer);
-      if (!video.paused && !isTouchPrimary) idleTimer = setTimeout(() => bar.classList.add('vid-bar-hidden'), 2500);
+      if (!video.paused) idleTimer = setTimeout(() => bar.classList.add('vid-bar-hidden'), 2500);
+    }
+    function handleVideoTap() {
+      if (wasHiddenAtTouchStart) return; // this tap's only job was the reveal touchstart already did
+      if (!video.paused) { clearTimeout(idleTimer); bar.classList.add('vid-bar-hidden'); }
     }
     wrap.addEventListener('mousemove', showBar);
     wrap.addEventListener('mouseleave', () => { if (!video.paused && !isTouchPrimary) bar.classList.add('vid-bar-hidden'); });
-    wrap.addEventListener('touchstart', showBar, { passive: true });
+    wrap.addEventListener('touchstart', () => {
+      wasHiddenAtTouchStart = bar.classList.contains('vid-bar-hidden');
+      showBar();
+    }, { passive: true });
     video.addEventListener('play', showBar);
     video.addEventListener('pause', () => { clearTimeout(idleTimer); bar.classList.remove('vid-bar-hidden'); });
   })();

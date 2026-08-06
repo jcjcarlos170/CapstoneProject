@@ -8209,24 +8209,255 @@ window.toggleRegPw = toggleRegPw
 //  PHOTO / LOGO UPLOAD (frontend-only, FileReader preview)
 // ════════════════════════════════════════════════════════════════
 
+// Selecting a file no longer uploads it immediately — it opens the crop
+// modal below first (Facebook-style drag-to-reposition + zoom slider), so
+// whatever framing the user picks is what actually gets saved, instead of
+// object-fit:cover blindly center-cropping whatever aspect ratio they
+// happened to pick.
 function handlePhotoUpload(input, avatarId) {
   const file = input.files[0]
   if (!file) return
+  input.value = '' // so re-selecting the exact same file later still fires 'change'
 
-  // Show an instant local preview while the upload is in flight
   const reader = new FileReader()
-  reader.onload = e => {
-    _applyAvatarPhoto(avatarId, e.target.result)
-  }
+  reader.onload = e => openPhotoCropModal(e.target.result, avatarId)
   reader.readAsDataURL(file)
+}
+window.handlePhotoUpload = handlePhotoUpload
 
-  // Upload to server
+function _applyAvatarPhoto(avatarId, src) {
+  const imgTag = `<img src="${src}" alt="Profile photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+  const el = document.getElementById(avatarId)
+  if (el) { el.style.cssText += ';background:transparent;padding:0'; el.innerHTML = imgTag }
+  const sidebar = document.querySelector('.sidebar-profile-avatar')
+  if (sidebar) { sidebar.style.cssText += ';background:transparent;padding:0'; sidebar.innerHTML = imgTag }
+}
+
+// ── Photo crop modal ────────────────────────────────────────────────
+// Matches Facebook's own "Choose profile picture" dialog: the whole photo
+// stays visible inside a rectangular frame, dimmed everywhere except a
+// bright circular cutout showing exactly what will be saved — rather than
+// hard-clipping to a small circle and hiding the rest of the photo, which
+// gives no sense of what's just outside the crop.
+//
+// _crop holds the live state of whichever session is open: the loaded
+// Image, its natural size, the "fit" scale (shorter edge exactly covers the
+// *frame*, same framing object-fit:cover would pick by default), the
+// user's zoom multiplier on top of that, and the current pan offset (the
+// image's rendered top-left corner, in frame pixels). Dragging/zooming only
+// mutates offsetX/offsetY/zoom and re-renders via a CSS transform — the
+// actual pixel crop happens once, on Save, via a single canvas.drawImage().
+let _crop = null
+const CROP_OUT      = 480   // exported square image size, in px — independent of on-screen size
+const CROP_MAX_ZOOM = 3
+const CROP_STEP_PX  = 12    // pan distance per arrow-key press
+// .modal-overlay's 20px side padding + .modal-body's 24px side padding
+// (global.css) eat 88px of horizontal space no matter the screen size, so a
+// fixed frame size would get clipped by modal-box's overflow:hidden on any
+// phone narrower than ~470px logical pixels (most phones, portrait).
+// Sized against the actual viewport instead (88px chrome + a small safety
+// margin), with 360 as the desktop/tablet cap and a floor so it's never
+// unusably tiny.
+function _cropFrameSize() {
+  return Math.max(220, Math.min(360, window.innerWidth - 108))
+}
+
+function openPhotoCropModal(dataUrl, avatarId) {
+  const img = new Image()
+  img.onload = () => {
+    const frame     = _cropFrameSize()
+    const circle    = Math.round(frame * 0.8)   // visible crop circle, inset within the frame
+    const inset     = (frame - circle) / 2
+    const baseScale = frame / Math.min(img.naturalWidth, img.naturalHeight)
+    _crop = {
+      avatarId, img, frame, circle, inset, baseScale, zoom: 1, dragging: false, lastX: 0, lastY: 0,
+      naturalW: img.naturalWidth, naturalH: img.naturalHeight,
+      offsetX: (frame - img.naturalWidth  * baseScale) / 2,
+      offsetY: (frame - img.naturalHeight * baseScale) / 2,
+    }
+    showModal(`
+      <div class="modal-header">
+        <div class="modal-title">${icon('camera','icon-sm')} Adjust Photo</div>
+        <button class="modal-close" onclick="window.closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:24px;padding-bottom:28px">
+        <div id="crop-viewport" tabindex="0" style="width:${frame}px;height:${frame}px;border-radius:12px;overflow:hidden;position:relative;
+             background:#1C1C1C;touch-action:none;cursor:grab;user-select:none;outline:none">
+          <img id="crop-img" src="${dataUrl}" draggable="false" alt=""
+               style="position:absolute;left:0;top:0;max-width:none;max-height:none;transform-origin:top left;pointer-events:none;user-select:none;-webkit-user-drag:none">
+          <!-- The "hole": box-shadow with a huge spread dims everything outside
+               this circle while leaving its own interior fully transparent —
+               the standard spotlight/vignette trick, no image duplication needed. -->
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:${circle}px;height:${circle}px;
+               border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.9);pointer-events:none"></div>
+          <div id="crop-tip" style="position:absolute;top:12px;left:50%;transform:translate(-50%,0);background:rgba(0,0,0,.65);color:#fff;
+               font-size:.7rem;font-weight:600;padding:6px 12px;border-radius:999px;display:flex;align-items:center;gap:6px;
+               pointer-events:none;white-space:nowrap;transition:opacity .2s">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13">
+              <polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/>
+              <line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>
+            </svg>
+            Drag or use arrow keys to reposition
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;width:100%;max-width:${frame}px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" width="16" height="16" style="flex-shrink:0">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+          <input type="range" id="crop-zoom" min="1" max="${CROP_MAX_ZOOM}" step="0.01" value="1" style="flex:1" oninput="window._cropZoomInput(this.value)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" width="18" height="18" style="flex-shrink:0">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/>
+          </svg>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="window.cropPhotoSave()">${icon('check','icon-sm')} Save Photo</button>
+      </div>
+    `)
+    _cropRender()
+    _cropAttachEvents()
+  }
+  img.src = dataUrl
+}
+window.openPhotoCropModal = openPhotoCropModal
+
+// Once the user actually interacts (drag or arrow key), the "how to use
+// this" tooltip has done its job — fade it out instead of leaving it
+// permanently overlapping the photo.
+function _cropDismissTip() {
+  const tip = document.getElementById('crop-tip')
+  if (tip) tip.style.opacity = '0'
+}
+
+function _cropClamp() {
+  const c = _crop
+  const scale = c.baseScale * c.zoom
+  const w = c.naturalW * scale, h = c.naturalH * scale
+  // Clamped against the full FRAME (not just the visible circle) so the
+  // dimmed area is always real (if darkened) photo content, never empty
+  // background — exactly how Facebook's own cropper behaves.
+  c.offsetX = Math.min(0, Math.max(c.frame - w, c.offsetX))
+  c.offsetY = Math.min(0, Math.max(c.frame - h, c.offsetY))
+}
+
+function _cropRender() {
+  const c = _crop
+  const el = document.getElementById('crop-img')
+  if (!c || !el) return
+  const scale = c.baseScale * c.zoom
+  el.style.width     = (c.naturalW * scale) + 'px'
+  el.style.height    = (c.naturalH * scale) + 'px'
+  el.style.transform = `translate(${c.offsetX}px, ${c.offsetY}px)`
+}
+
+function _cropPan(dx, dy) {
+  if (!_crop) return
+  _crop.offsetX += dx
+  _crop.offsetY += dy
+  _cropClamp()
+  _cropRender()
+}
+
+function _cropAttachEvents() {
+  const vp = document.getElementById('crop-viewport')
+  if (!vp) return
+  // Pointer Capture means move/up keep firing on this exact element even
+  // once the finger/cursor drags outside the frame — no window-level
+  // listeners to remember to clean up when the modal closes. Attached to
+  // the frame itself (not just the circle) so dragging works from anywhere
+  // on the visible photo, dimmed area included — same as Facebook.
+  vp.addEventListener('pointerdown', e => {
+    if (!_crop) return
+    _cropDismissTip()
+    _crop.dragging = true
+    _crop.lastX = e.clientX
+    _crop.lastY = e.clientY
+    vp.setPointerCapture(e.pointerId)
+    vp.style.cursor = 'grabbing'
+  })
+  vp.addEventListener('pointermove', e => {
+    if (!_crop || !_crop.dragging) return
+    _cropPan(e.clientX - _crop.lastX, e.clientY - _crop.lastY)
+    _crop.lastX = e.clientX
+    _crop.lastY = e.clientY
+  })
+  const endDrag = () => { if (_crop) _crop.dragging = false; vp.style.cursor = 'grab' }
+  vp.addEventListener('pointerup', endDrag)
+  vp.addEventListener('pointercancel', endDrag)
+  // Arrow keys — the tooltip actually says this works, so it needs to.
+  vp.addEventListener('keydown', e => {
+    const steps = { ArrowLeft: [CROP_STEP_PX,0], ArrowRight: [-CROP_STEP_PX,0], ArrowUp: [0,CROP_STEP_PX], ArrowDown: [0,-CROP_STEP_PX] }
+    if (!steps[e.key]) return
+    e.preventDefault()
+    _cropDismissTip()
+    _cropPan(...steps[e.key])
+  })
+  // Scroll-wheel zoom — a nice-to-have for desktop/trackpad users on top of
+  // the slider, which stays the primary (and only touch-friendly) control.
+  vp.addEventListener('wheel', e => {
+    e.preventDefault()
+    const zoomInput = document.getElementById('crop-zoom')
+    if (!zoomInput || !_crop) return
+    const next = Math.min(CROP_MAX_ZOOM, Math.max(1, _crop.zoom + (e.deltaY > 0 ? -0.05 : 0.05)))
+    zoomInput.value = next
+    _cropZoomInput(next)
+  }, { passive: false })
+}
+
+function _cropZoomInput(val) {
+  const c = _crop
+  if (!c) return
+  _cropDismissTip()
+  const newZoom  = parseFloat(val)
+  const oldScale = c.baseScale * c.zoom
+  const newScale = c.baseScale * newZoom
+  // Zoom toward whatever point is currently centered in the frame, rather
+  // than the image's top-left corner — otherwise the framing jumps
+  // unpredictably every time the slider moves.
+  const cx = (c.frame / 2 - c.offsetX) / oldScale
+  const cy = (c.frame / 2 - c.offsetY) / oldScale
+  c.zoom    = newZoom
+  c.offsetX = c.frame / 2 - cx * newScale
+  c.offsetY = c.frame / 2 - cy * newScale
+  _cropClamp()
+  _cropRender()
+}
+window._cropZoomInput = _cropZoomInput
+
+function cropPhotoSave() {
+  const c = _crop
+  if (!c) return
+  const scale   = c.baseScale * c.zoom
+  // The exported image is exactly what's inside the circle, not the whole
+  // frame — c.inset shifts the source rect from the frame's top-left to the
+  // circle's top-left before converting into original-image pixels.
+  const srcX    = (c.inset - c.offsetX) / scale
+  const srcY    = (c.inset - c.offsetY) / scale
+  const srcSize = c.circle / scale
+  const canvas  = document.createElement('canvas')
+  canvas.width  = CROP_OUT
+  canvas.height = CROP_OUT
+  canvas.getContext('2d').drawImage(c.img, srcX, srcY, srcSize, srcSize, 0, 0, CROP_OUT, CROP_OUT)
+  canvas.toBlob(blob => {
+    if (!blob) { toast('Could not process that image. Please try again.', 'error'); return }
+    _uploadPhotoBlob(blob, c.avatarId)
+  }, 'image/jpeg', 0.92)
+}
+window.cropPhotoSave = cropPhotoSave
+
+function _uploadPhotoBlob(blob, avatarId) {
+  const previewUrl = URL.createObjectURL(blob)
+  _applyAvatarPhoto(avatarId, previewUrl)
+  closeModal()
+
   const form = new FormData()
-  form.append('photo', file)
+  form.append('photo', blob, 'photo.jpg')
 
   fetch('api/users/upload_photo.php', { method: 'POST', body: form })
     .then(r => r.json())
     .then(d => {
+      URL.revokeObjectURL(previewUrl)
       if (!d.success) { toast(d.message || 'Upload failed.', 'error'); return }
 
       if (state.user) {
@@ -8243,17 +8474,8 @@ function handlePhotoUpload(input, avatarId) {
       _applyAvatarPhoto(avatarId, d.photoUrl)
       toast('Profile photo updated.', 'success')
     })
-    .catch(() => toast('Upload failed. Please try again.', 'error'))
+    .catch(() => { URL.revokeObjectURL(previewUrl); toast('Upload failed. Please try again.', 'error') })
 }
-
-function _applyAvatarPhoto(avatarId, src) {
-  const imgTag = `<img src="${src}" alt="Profile photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
-  const el = document.getElementById(avatarId)
-  if (el) { el.style.cssText += ';background:transparent;padding:0'; el.innerHTML = imgTag }
-  const sidebar = document.querySelector('.sidebar-profile-avatar')
-  if (sidebar) { sidebar.style.cssText += ';background:transparent;padding:0'; sidebar.innerHTML = imgTag }
-}
-window.handlePhotoUpload = handlePhotoUpload
 
 /**
  * handleLogoUpload — same idea but for the clinic logo preview in

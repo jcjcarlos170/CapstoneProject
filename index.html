@@ -354,26 +354,46 @@
     video.addEventListener('pause', () => setPlayIcon(false));
     video.addEventListener('ended', () => setPlayIcon(false));
 
-    // ±10s skip — each press is a real network request (video.php has to
-    // spin up, reopen the file, and stream the new range), so mashing the
-    // button repeatedly used to fire one request per click and let them
-    // pile up/cancel each other, which read as lag. Instead, rapid presses
-    // now only adjust a pending offset + the on-screen flash immediately
-    // (instant visual feedback), and the actual seek — the one expensive
-    // part — only fires once, ~220ms after the last press in the burst.
+    // ±10s skip — each press is a real network request, so mashing the
+    // button used to fire one per click and let them pile up/cancel each
+    // other, which read as lag. Leading+trailing: the FIRST tap in a burst
+    // seeks immediately (a single deliberate press should never wait on
+    // anything), then a short cooldown coalesces any rapid follow-up taps
+    // into one seek fired right after the cooldown ends, instead of one
+    // request per click.
     let pendingSkip = 0;
     let skipTimer   = null;
-    const SKIP_DEBOUNCE_MS = 220;
+    let skipCooling = false;
+    const SKIP_COOLDOWN_MS = 220;
+
+    function applySkip(amount) {
+      const target = video.currentTime + amount;
+      video.currentTime = Math.max(0, Math.min(video.duration || target, target));
+    }
 
     function queueSkip(delta) {
       pendingSkip += delta;
       flashSkip((pendingSkip > 0 ? '+' : '−') + Math.abs(pendingSkip) + 's');
-      clearTimeout(skipTimer);
-      skipTimer = setTimeout(() => {
-        const target = video.currentTime + pendingSkip;
-        video.currentTime = Math.max(0, Math.min(video.duration || target, target));
+      if (skipCooling) return; // already mid-cooldown — this tap just adds to pendingSkip above
+
+      const fire = () => {
+        const amount = pendingSkip;
         pendingSkip = 0;
-      }, SKIP_DEBOUNCE_MS);
+        if (amount !== 0) applySkip(amount);
+      };
+      fire(); // leading edge — the first tap of a burst applies instantly
+      skipCooling = true;
+      clearTimeout(skipTimer);
+      skipTimer = setTimeout(function cooldown() {
+        if (pendingSkip !== 0) {
+          // Taps arrived during the cooldown — apply them, then cool down
+          // again so a continued mash still can't pile up requests.
+          fire();
+          skipTimer = setTimeout(cooldown, SKIP_COOLDOWN_MS);
+        } else {
+          skipCooling = false;
+        }
+      }, SKIP_COOLDOWN_MS);
     }
 
     backBtn.addEventListener('click', () => queueSkip(-10));
@@ -398,11 +418,13 @@
     // fires many 'input' events per second, and assigning video.currentTime
     // on every single one used to queue up a new Range request per event.
     // The fill bar and time readout still update on every event (so
-    // dragging feels perfectly smooth), but the actual seek — the part that
-    // hits the network — is throttled to at most one every 150ms while
-    // dragging, and always committed exactly on release.
+    // dragging feels perfectly smooth); the actual seek is leading+trailing
+    // throttled — the first tick of a drag seeks immediately, then further
+    // ticks within 150ms are coalesced into one seek instead of one per
+    // tick — and always committed exactly on release.
     let pendingSeekValue   = null;
     let seekThrottleTimer  = null;
+    let seekCooling        = false;
     const SEEK_THROTTLE_MS = 150;
 
     seek.addEventListener('input', () => {
@@ -411,18 +433,26 @@
       timeEl.textContent = fmt(seek.value) + ' / ' + fmt(video.duration);
 
       pendingSeekValue = seek.value;
-      if (!seekThrottleTimer) {
-        seekThrottleTimer = setTimeout(() => {
+      if (seekCooling) return; // this tick's value is already saved in pendingSeekValue above
+
+      video.currentTime = pendingSeekValue; // leading edge — first tick of the drag seeks instantly
+      seekCooling = true;
+      clearTimeout(seekThrottleTimer);
+      seekThrottleTimer = setTimeout(function cooldown() {
+        if (pendingSeekValue !== null && parseFloat(pendingSeekValue) !== video.currentTime) {
           video.currentTime = pendingSeekValue;
-          seekThrottleTimer = null;
-        }, SEEK_THROTTLE_MS);
-      }
+          seekThrottleTimer = setTimeout(cooldown, SEEK_THROTTLE_MS);
+        } else {
+          seekCooling = false;
+        }
+      }, SEEK_THROTTLE_MS);
     });
     seek.addEventListener('pointerdown', () => { seekDragging = true; });
     seek.addEventListener('pointerup', () => {
       seekDragging = false;
       clearTimeout(seekThrottleTimer);
       seekThrottleTimer = null;
+      seekCooling = false; // so the next drag's first tick leads immediately again, not blocked by stale cooldown state
       if (pendingSeekValue !== null) { video.currentTime = pendingSeekValue; pendingSeekValue = null; }
     });
 

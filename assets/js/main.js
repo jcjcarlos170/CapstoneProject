@@ -8359,9 +8359,44 @@ function _cropPan(dx, dy) {
   _cropRender()
 }
 
+// Zooms so that the image point currently under (anchorX, anchorY) —
+// viewport-local coordinates — stays exactly where it is on screen. The
+// slider and wheel-zoom anchor on the frame's center; pinch-zoom anchors on
+// the midpoint between the two fingers, so the photo zooms toward wherever
+// you're actually pinching instead of always jumping to re-center.
+function _cropZoomTo(newZoom, anchorX, anchorY) {
+  const c = _crop
+  if (!c) return
+  newZoom = Math.min(CROP_MAX_ZOOM, Math.max(1, newZoom))
+  const oldScale = c.baseScale * c.zoom
+  const newScale = c.baseScale * newZoom
+  const ix = (anchorX - c.offsetX) / oldScale
+  const iy = (anchorY - c.offsetY) / oldScale
+  c.zoom    = newZoom
+  c.offsetX = anchorX - ix * newScale
+  c.offsetY = anchorY - iy * newScale
+  _cropClamp()
+  _cropRender()
+}
+
+function _cropZoomInput(val) {
+  if (!_crop) return
+  _cropDismissTip()
+  _cropZoomTo(parseFloat(val), _crop.frame / 2, _crop.frame / 2)
+}
+window._cropZoomInput = _cropZoomInput
+
 function _cropAttachEvents() {
   const vp = document.getElementById('crop-viewport')
   if (!vp) return
+  // Tracks every currently-down pointer by id so two simultaneous touches
+  // can be told apart from a single drag — needed for pinch-to-zoom, since
+  // Pointer Events report each finger as its own independent pointer.
+  const pointers = new Map()
+  let pinchStartDist = 0
+  let pinchStartZoom = 1
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y)
+
   // Pointer Capture means move/up keep firing on this exact element even
   // once the finger/cursor drags outside the frame — no window-level
   // listeners to remember to clean up when the modal closes. Attached to
@@ -8370,21 +8405,57 @@ function _cropAttachEvents() {
   vp.addEventListener('pointerdown', e => {
     if (!_crop) return
     _cropDismissTip()
-    _crop.dragging = true
-    _crop.lastX = e.clientX
-    _crop.lastY = e.clientY
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
     vp.setPointerCapture(e.pointerId)
-    vp.style.cursor = 'grabbing'
+    if (pointers.size === 2) {
+      // Second finger just landed — switch from pan to pinch-zoom.
+      _crop.dragging = false
+      const [a, b] = [...pointers.values()]
+      pinchStartDist = dist(a, b)
+      pinchStartZoom = _crop.zoom
+    } else if (pointers.size === 1) {
+      _crop.dragging = true
+      _crop.lastX = e.clientX
+      _crop.lastY = e.clientY
+      vp.style.cursor = 'grabbing'
+    }
   })
   vp.addEventListener('pointermove', e => {
-    if (!_crop || !_crop.dragging) return
-    _cropPan(e.clientX - _crop.lastX, e.clientY - _crop.lastY)
-    _crop.lastX = e.clientX
-    _crop.lastY = e.clientY
+    if (!_crop || !pointers.has(e.pointerId)) return
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()]
+      const newDist = dist(a, b)
+      if (pinchStartDist > 0) {
+        const newZoom = pinchStartZoom * (newDist / pinchStartDist)
+        const rect = vp.getBoundingClientRect()
+        _cropZoomTo(newZoom, (a.x + b.x) / 2 - rect.left, (a.y + b.y) / 2 - rect.top)
+        const zoomInput = document.getElementById('crop-zoom')
+        if (zoomInput) zoomInput.value = _crop.zoom
+      }
+      return
+    }
+    if (_crop.dragging) {
+      _cropPan(e.clientX - _crop.lastX, e.clientY - _crop.lastY)
+      _crop.lastX = e.clientX
+      _crop.lastY = e.clientY
+    }
   })
-  const endDrag = () => { if (_crop) _crop.dragging = false; vp.style.cursor = 'grab' }
-  vp.addEventListener('pointerup', endDrag)
-  vp.addEventListener('pointercancel', endDrag)
+  function releasePointer(e) {
+    pointers.delete(e.pointerId)
+    if (pointers.size === 1) {
+      // Dropped from two fingers back to one — resume panning from
+      // wherever that remaining finger already is, instead of jumping.
+      const [remaining] = [...pointers.values()]
+      if (_crop) { _crop.dragging = true; _crop.lastX = remaining.x; _crop.lastY = remaining.y }
+    } else if (pointers.size === 0) {
+      if (_crop) _crop.dragging = false
+      vp.style.cursor = 'grab'
+    }
+  }
+  vp.addEventListener('pointerup', releasePointer)
+  vp.addEventListener('pointercancel', releasePointer)
   // Arrow keys — the tooltip actually says this works, so it needs to.
   vp.addEventListener('keydown', e => {
     const steps = { ArrowLeft: [CROP_STEP_PX,0], ArrowRight: [-CROP_STEP_PX,0], ArrowUp: [0,CROP_STEP_PX], ArrowDown: [0,-CROP_STEP_PX] }
@@ -8394,7 +8465,7 @@ function _cropAttachEvents() {
     _cropPan(...steps[e.key])
   })
   // Scroll-wheel zoom — a nice-to-have for desktop/trackpad users on top of
-  // the slider, which stays the primary (and only touch-friendly) control.
+  // the slider and pinch, which cover touch.
   vp.addEventListener('wheel', e => {
     e.preventDefault()
     const zoomInput = document.getElementById('crop-zoom')
@@ -8404,26 +8475,6 @@ function _cropAttachEvents() {
     _cropZoomInput(next)
   }, { passive: false })
 }
-
-function _cropZoomInput(val) {
-  const c = _crop
-  if (!c) return
-  _cropDismissTip()
-  const newZoom  = parseFloat(val)
-  const oldScale = c.baseScale * c.zoom
-  const newScale = c.baseScale * newZoom
-  // Zoom toward whatever point is currently centered in the frame, rather
-  // than the image's top-left corner — otherwise the framing jumps
-  // unpredictably every time the slider moves.
-  const cx = (c.frame / 2 - c.offsetX) / oldScale
-  const cy = (c.frame / 2 - c.offsetY) / oldScale
-  c.zoom    = newZoom
-  c.offsetX = c.frame / 2 - cx * newScale
-  c.offsetY = c.frame / 2 - cy * newScale
-  _cropClamp()
-  _cropRender()
-}
-window._cropZoomInput = _cropZoomInput
 
 function cropPhotoSave() {
   const c = _crop

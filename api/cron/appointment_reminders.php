@@ -10,11 +10,12 @@
 //  GET/POST /api/cron/appointment_reminders.php?key=...
 //
 //  Each run does three independent jobs:
-//   1. Send the day-before reminder at REMINDER_HOUR (noon) for approved
+//   1. Send the day-before reminder at the admin-configured reminder time
+//      (Clinic Settings → Scheduling Rules, default noon) for approved
 //      appointments happening tomorrow that haven't been reminded yet.
 //   2. Auto-cancel approved appointments happening tomorrow that were
-//      reminded but not confirmed by CONFIRM_DEADLINE_HOUR (9 PM) that
-//      same day, freeing the slot to the next waitlisted patient.
+//      reminded but not confirmed by the admin-configured deadline (default
+//      9 PM) that same day, freeing the slot to the next waitlisted patient.
 //   3. Expire stale waitlist offers past their claim window, cascading
 //      the offer to the next patient in line for that slot.
 //   4. Remove still-"waiting" entries whose slot is now too close to ever
@@ -32,13 +33,13 @@ if (!$providedKey || !hash_equals($cronSecret, $providedKey)) {
     jsonResponse(['success' => false, 'message' => 'Unauthorized.'], 403);
 }
 
-$reminderHourStr = sprintf('%02d:00:00', REMINDER_HOUR);
-$deadlineHourStr = sprintf('%02d:00:00', CONFIRM_DEADLINE_HOUR);
-
 $result = ['success' => true, 'remindersSent' => 0, 'autoCancelled' => 0, 'offersExpired' => 0, 'staleWaitlistRemoved' => 0];
 
 try {
     $pdo = getDB();
+
+    $reminderHourStr = settingTimeTo24h(reminderTimeSetting($pdo));
+    $deadlineHourStr = settingTimeTo24h(confirmDeadlineTimeSetting($pdo));
 
     // ── Job 1: send day-before reminder ─────────────────────────────
     $dueReminders = $pdo->prepare(

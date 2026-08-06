@@ -73,7 +73,12 @@ TERMS;
 // Same renderTermsMarkdown() convention as DEFAULT_TERMS_MD above. Section 4
 // uses "> " so it keeps rendering as the original amber callout box instead
 // of a plain paragraph.
-const DEFAULT_APPT_POLICY_MD = <<<'POLICY'
+// A function rather than a const so section 4 always states the *actual*
+// configured reminder/confirm-deadline times (Clinic Settings → Scheduling
+// Rules) instead of a hardcoded "noon"/"9:00 PM" that could silently drift
+// out of sync with what the cron is really doing.
+function defaultApptPolicyMd(string $reminderTime, string $confirmDeadlineTime): string {
+    return <<<POLICY
 ## 1. Appointment Requests
 Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The clinic reserves the right to reschedule or decline requests when necessary.
 
@@ -84,11 +89,12 @@ If you can no longer make it to your appointment, please cancel as early as poss
 If you miss multiple approved appointments without cancelling, online booking may be temporarily restricted for your account. In that case, please contact the clinic directly by phone or in person to schedule your next visit.
 
 ## 4. Appointment Reminders and Confirmation
-> For approved appointments, we send a reminder at noon the day before your visit. Please confirm you'll be attending by 9:00 PM that same day. If we don't hear from you by then, the appointment is automatically cancelled so the slot can be offered to another patient.
+> For approved appointments, we send a reminder at {$reminderTime} the day before your visit. Please confirm you'll be attending by {$confirmDeadlineTime} that same day. If we don't hear from you by then, the appointment is automatically cancelled so the slot can be offered to another patient.
 
 ## 5. Waitlist
 If your preferred slot is fully booked, you can join the waitlist for it. If that slot opens up, you'll be notified with a limited time to claim it. If you don't respond in time, or choose to decline, the slot is offered to the next patient in line. You can only be on one waitlist at a time.
 POLICY;
+}
 
 // Middle initial as displayed on formal names/documents ("Juan D. Dela Cruz") —
 // the standard PH convention — leading space included so callers can just
@@ -446,12 +452,26 @@ function recordNoShow(PDO $pdo, string $patientId): bool {
 }
 
 // ── Appointment reminders, confirmation & waitlist ─────────────────
-// The reminder is sent at REMINDER_HOUR the day before the appointment;
-// if the patient hasn't confirmed by CONFIRM_DEADLINE_HOUR that same day,
-// api/cron/appointment_reminders.php auto-cancels it. Both are checked
-// against the clinic's local time (Asia/Manila, set in this file above).
-const REMINDER_HOUR         = 12; // noon, day before the appointment
-const CONFIRM_DEADLINE_HOUR = 21; // 9:00 PM, same day as the reminder
+// The reminder is sent at the configured reminder time the day before the
+// appointment; if the patient hasn't confirmed by the configured deadline
+// that same day, api/cron/appointment_reminders.php auto-cancels it. Both
+// are checked against the clinic's local time (Asia/Manila, set in this
+// file above). Admin-configurable via Clinic Settings → Scheduling Rules
+// (clinic_settings.reminder_time / confirm_deadline_time — same "H:MM AM/PM"
+// string format as the rest of clinic_settings' time fields), rather than
+// fixed at noon/9:00 PM for every clinic.
+function reminderTimeSetting(PDO $pdo): string {
+    return $pdo->query('SELECT reminder_time FROM clinic_settings WHERE id = 1 LIMIT 1')->fetchColumn() ?: '12:00 PM';
+}
+function confirmDeadlineTimeSetting(PDO $pdo): string {
+    return $pdo->query('SELECT confirm_deadline_time FROM clinic_settings WHERE id = 1 LIMIT 1')->fetchColumn() ?: '9:00 PM';
+}
+// Converts a clinic_settings "H:MM AM/PM" time string into "HH:MM:SS" for
+// direct comparison against CURTIME() in the cron's SQL.
+function settingTimeTo24h(string $t): string {
+    $ts = strtotime($t);
+    return $ts !== false ? date('H:i:s', $ts) : '00:00:00';
+}
 
 // How long a waitlist offer stays claimable — a flat number, deliberately
 // not scaled by how far out the appointment is. A longer window for distant

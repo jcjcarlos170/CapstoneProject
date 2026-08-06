@@ -2146,7 +2146,24 @@ function pageAdminSettings() {
       }
       return slots.join('')
     }
-    const durationOpts = ['15 min','20 min','25 min','30 min','40 min','45 min','60 min']
+    // Reminder Send Time / Confirmation Deadline aren't clinic operating
+    // hours — they're just "when does a notification fire" — so unlike
+    // timeOpts() above (deliberately capped to a plausible 7 AM–9:30 PM
+    // business-hours window for the open/close pickers), this covers the
+    // full day so any time, including noon, is selectable.
+    function fullTimeOpts(selected) {
+      const slots = []
+      for (let h = 0; h <= 23; h++) {
+        for (const m of [0, 30]) {
+          const hh   = h % 12 === 0 ? 12 : h % 12
+          const ampm = h < 12 ? 'AM' : 'PM'
+          const lbl  = `${hh}:${m === 0 ? '00' : '30'} ${ampm}`
+          slots.push(`<option${lbl === selected ? ' selected' : ''}>${lbl}</option>`)
+        }
+      }
+      return slots.join('')
+    }
+    const durationOpts = ['15 min','20 min','25 min','30 min','35 min','40 min','45 min','50 min','55 min','60 min']
     const maxAdvOpts   = ['1 week','2 weeks','1 month','2 months','3 months']
     const minAdvOpts   = ['Same day','1 day','2 days','3 days']
     const allDays      = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
@@ -2189,6 +2206,16 @@ function pageAdminSettings() {
             <label class="form-label">Max Appointments Per Doctor Per Day</label>
             <input class="form-input" type="number" id="cs-max-appt" value="${cs.maxApptsPerDoctorPerDay}" min="1" max="50">
             <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">Limits the number of appointments a doctor can receive per day.</div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Reminder Send Time</label>
+            <select class="form-select" id="cs-reminder-time">${fullTimeOpts(cs.reminderTime || '12:00 PM')}</select>
+            <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">When the day-before reminder is sent for approved appointments.</div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label">Confirmation Deadline</label>
+            <select class="form-select" id="cs-confirm-deadline">${fullTimeOpts(cs.confirmDeadlineTime || '9:00 PM')}</select>
+            <div style="font-size:.72rem;color:#9CA3AF;margin-top:4px">Same-day cutoff to confirm attendance before auto-cancellation.</div>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:16px">
@@ -4642,7 +4669,7 @@ function appointmentWizardHtml(mode) {
             <div style="background:#FFF7ED;border-left:3px solid #E8760A;border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:flex-start;gap:10px">
               <span style="flex-shrink:0;display:flex;margin-top:2px"><svg viewBox="0 0 24 24" fill="none" stroke="#E8760A" stroke-width="2" stroke-linecap="round" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16"/></svg></span>
               <div style="font-size:.82rem;color:#92400E;line-height:1.5">
-                <strong>Before you book:</strong> Approved appointments get a reminder at noon the day before your visit. Confirm by 9:00 PM that same day or the slot is automatically released to the next patient. See the <a href="#" class="appt-policy-link" onclick="event.preventDefault();window.openAppointmentPolicyModal()">Appointment Policy</a> for full details.
+                <strong>Before you book:</strong> Approved appointments get a reminder at ${consultationSettings.reminderTime || '12:00 PM'} the day before your visit. Confirm by ${consultationSettings.confirmDeadlineTime || '9:00 PM'} that same day or the slot is automatically released to the next patient. See the <a href="#" class="appt-policy-link" onclick="event.preventDefault();window.openAppointmentPolicyModal()">Appointment Policy</a> for full details.
               </div>
             </div>`}
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">

@@ -45,6 +45,8 @@ const FIELD_MAP = [
     'afternoonStart'           => 'afternoon_start',
     'afternoonEnd'             => 'afternoon_end',
     'lunchBreak'               => 'lunch_break',
+    'reminderTime'             => 'reminder_time',
+    'confirmDeadlineTime'      => 'confirm_deadline_time',
 ];
 
 function rowToResponse(array $r): array {
@@ -67,7 +69,8 @@ function rowToResponse(array $r): array {
         'videoUrl'                 => $r['video_url'] ?? null,
         'galleryMaxPhotos'         => isset($r['gallery_max_photos']) ? (int)$r['gallery_max_photos'] : null,
         'termsContent'             => $r['terms_content'] ?: DEFAULT_TERMS_MD,
-        'appointmentPolicyContent' => $r['appointment_policy_content'] ?: DEFAULT_APPT_POLICY_MD,
+        'appointmentPolicyContent' => $r['appointment_policy_content']
+            ?: defaultApptPolicyMd($r['reminder_time'] ?: '12:00 PM', $r['confirm_deadline_time'] ?: '9:00 PM'),
         'defaultDuration'          => $r['default_duration'],
         'maxAdvanceBooking'        => $r['max_advance_booking'],
         'minAdvanceBooking'        => $r['min_advance_booking'],
@@ -78,6 +81,8 @@ function rowToResponse(array $r): array {
         'afternoonEnd'             => $r['afternoon_end'],
         'lunchBreak'               => (bool)$r['lunch_break'],
         'clinicDays'               => $r['clinic_days'] ? explode(',', $r['clinic_days']) : [],
+        'reminderTime'             => $r['reminder_time']        ?: '12:00 PM',
+        'confirmDeadlineTime'      => $r['confirm_deadline_time'] ?: '9:00 PM',
     ];
 }
 

@@ -94,7 +94,9 @@ var consultationSettings = {
   afternoonStart: '1:00 PM',
   afternoonEnd:   '5:00 PM',
   lunchBreak:  true,
-  clinicDays:  ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+  clinicDays:  ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+  reminderTime:        '12:00 PM',
+  confirmDeadlineTime: '9:00 PM'
 }
 
 // Parses consultationSettings.minAdvanceBooking ('Same day','1 day','2 days',…)

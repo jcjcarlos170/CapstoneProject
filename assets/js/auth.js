@@ -1563,7 +1563,8 @@ async function _syncClinicSettings() {
       minAdvanceBooking: s.minAdvanceBooking, maxApptsPerDoctorPerDay: s.maxApptsPerDoctorPerDay,
       morningStart: s.morningStart, morningEnd: s.morningEnd,
       afternoonStart: s.afternoonStart, afternoonEnd: s.afternoonEnd,
-      lunchBreak: s.lunchBreak, clinicDays: s.clinicDays
+      lunchBreak: s.lunchBreak, clinicDays: s.clinicDays,
+      reminderTime: s.reminderTime, confirmDeadlineTime: s.confirmDeadlineTime
     })
     window._clinicName     = clinicInfo.name     || 'Cana Optical Clinic'
     window._clinicAddress  = clinicInfo.address  || ''

@@ -1663,7 +1663,7 @@ function viewAppt(id) {
         <span style="flex-shrink:0;display:flex;color:#E8760A;margin-top:2px">${icon('alert-circle','icon-sm')}</span>
         <div style="font-size:.82rem;color:#92400E;line-height:1.5;flex:1;min-width:200px">
           <strong>Please confirm you'll be attending this appointment.</strong><br>
-          If we don't hear from you by 9:00 PM today, it will be automatically cancelled.
+          If we don't hear from you by ${consultationSettings.confirmDeadlineTime || '9:00 PM'} today, it will be automatically cancelled.
         </div>
         <button class="btn-primary" style="font-size:.78rem;padding:6px 14px;flex-shrink:0;align-self:center" onclick="window.confirmMyAppointment('${a.id}')">Confirm Appointment</button>
       </div>` : ''}
@@ -2164,7 +2164,7 @@ function confirmApptPrompt(id) {
         <div style="font-size:.82rem;color:#6B7280;margin-top:4px">${fmtD(a.date)} at ${a.time}</div>
         <div style="font-size:.82rem;color:#6B7280">${a.type}</div>
       </div>
-      <div style="font-size:.85rem;color:#6B7280;margin-bottom:20px">Will you be attending? If we don't hear from you by 9:00 PM today, this appointment will be automatically cancelled.</div>
+      <div style="font-size:.85rem;color:#6B7280;margin-bottom:20px">Will you be attending? If we don't hear from you by ${consultationSettings.confirmDeadlineTime || '9:00 PM'} today, this appointment will be automatically cancelled.</div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn-secondary" onclick="window.closeModal()">Not Now</button>
         <button class="btn-primary" onclick="window.confirmMyAppointment('${a.id}')">Yes, I'll Be There</button>
@@ -3046,11 +3046,19 @@ window.setInitialStatus = setInitialStatus
 // Same pattern as the registration page's Terms & Conditions modal: the
 // patient must scroll to the bottom before the checkbox unlocks, so
 // agreement isn't just a reflex click.
-// Markdown-source default (mirrors api/helpers.php's DEFAULT_APPT_POLICY_MD)
+// Markdown-source default (mirrors api/helpers.php's defaultApptPolicyMd())
 // — served only until _syncClinicSettings() resolves post-login. Parsed by
 // renderTermsMarkdown() (db.js). Section 4 uses "> " so it keeps rendering
-// as the original amber callout box instead of a plain paragraph.
-const DEFAULT_APPT_POLICY_MD = `## 1. Appointment Requests
+// as the original amber callout box instead of a plain paragraph. A
+// function (not a plain const) so it always states the *current*
+// consultationSettings.reminderTime/confirmDeadlineTime — reads live off
+// that object, so once _syncClinicSettings() resolves (or an admin changes
+// the setting mid-session) this reflects the real value, not a stale
+// hardcoded "noon"/"9:00 PM".
+function defaultApptPolicyMd() {
+  const reminderTime        = consultationSettings.reminderTime        || '12:00 PM'
+  const confirmDeadlineTime = consultationSettings.confirmDeadlineTime || '9:00 PM'
+  return `## 1. Appointment Requests
 Appointment requests submitted through this system are subject to confirmation by clinic staff based on doctor availability. The clinic reserves the right to reschedule or decline requests when necessary.
 
 ## 2. Cancellations
@@ -3060,11 +3068,12 @@ If you can no longer make it to your appointment, please cancel as early as poss
 If you miss multiple approved appointments without cancelling, online booking may be temporarily restricted for your account. In that case, please contact the clinic directly by phone or in person to schedule your next visit.
 
 ## 4. Appointment Reminders and Confirmation
-> For approved appointments, we send a reminder at noon the day before your visit. Please confirm you'll be attending by 9:00 PM that same day. If we don't hear from you by then, the appointment is automatically cancelled so the slot can be offered to another patient.
+> For approved appointments, we send a reminder at ${reminderTime} the day before your visit. Please confirm you'll be attending by ${confirmDeadlineTime} that same day. If we don't hear from you by then, the appointment is automatically cancelled so the slot can be offered to another patient.
 
 ## 5. Waitlist
 If your preferred slot is fully booked, you can join the waitlist for it. If that slot opens up, you'll be notified with a limited time to claim it. If you don't respond in time, or choose to decline, the slot is offered to the next patient in line. You can only be on one waitlist at a time.
 `
+}
 
 function openAppointmentPolicyModal() {
   showModal(`
@@ -3074,7 +3083,7 @@ function openAppointmentPolicyModal() {
     </div>
     <div class="modal-body">
       <div class="terms-body" id="appt-terms-scroll-body" onscroll="window._checkApptTermsScroll()">
-        ${renderTermsMarkdown(clinicInfo.appointmentPolicyContent || DEFAULT_APPT_POLICY_MD)}
+        ${renderTermsMarkdown(clinicInfo.appointmentPolicyContent || defaultApptPolicyMd())}
       </div>
     </div>
     <div class="modal-footer">
@@ -5057,6 +5066,8 @@ function saveSchedulingRules() {
   consultationSettings.maxAdvanceBooking        = gv('cs-adv-max')   || consultationSettings.maxAdvanceBooking
   consultationSettings.minAdvanceBooking        = gv('cs-adv-min')   || consultationSettings.minAdvanceBooking
   consultationSettings.maxApptsPerDoctorPerDay  = parseInt(gv('cs-max-appt')) || consultationSettings.maxApptsPerDoctorPerDay
+  consultationSettings.reminderTime             = gv('cs-reminder-time')    || consultationSettings.reminderTime
+  consultationSettings.confirmDeadlineTime      = gv('cs-confirm-deadline') || consultationSettings.confirmDeadlineTime
 
   fetch('api/clinic/settings.php', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -5064,7 +5075,9 @@ function saveSchedulingRules() {
       defaultDuration: consultationSettings.defaultDuration,
       maxAdvanceBooking: consultationSettings.maxAdvanceBooking,
       minAdvanceBooking: consultationSettings.minAdvanceBooking,
-      maxApptsPerDoctorPerDay: consultationSettings.maxApptsPerDoctorPerDay
+      maxApptsPerDoctorPerDay: consultationSettings.maxApptsPerDoctorPerDay,
+      reminderTime: consultationSettings.reminderTime,
+      confirmDeadlineTime: consultationSettings.confirmDeadlineTime
     })
   }).catch(() => {})
 

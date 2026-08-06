@@ -354,8 +354,30 @@
     video.addEventListener('pause', () => setPlayIcon(false));
     video.addEventListener('ended', () => setPlayIcon(false));
 
-    backBtn.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 10); flashSkip('−10s'); });
-    fwdBtn.addEventListener('click',  () => { video.currentTime = Math.min(video.duration || 0, video.currentTime + 10); flashSkip('+10s'); });
+    // ±10s skip — each press is a real network request (video.php has to
+    // spin up, reopen the file, and stream the new range), so mashing the
+    // button repeatedly used to fire one request per click and let them
+    // pile up/cancel each other, which read as lag. Instead, rapid presses
+    // now only adjust a pending offset + the on-screen flash immediately
+    // (instant visual feedback), and the actual seek — the one expensive
+    // part — only fires once, ~220ms after the last press in the burst.
+    let pendingSkip = 0;
+    let skipTimer   = null;
+    const SKIP_DEBOUNCE_MS = 220;
+
+    function queueSkip(delta) {
+      pendingSkip += delta;
+      flashSkip((pendingSkip > 0 ? '+' : '−') + Math.abs(pendingSkip) + 's');
+      clearTimeout(skipTimer);
+      skipTimer = setTimeout(() => {
+        const target = video.currentTime + pendingSkip;
+        video.currentTime = Math.max(0, Math.min(video.duration || target, target));
+        pendingSkip = 0;
+      }, SKIP_DEBOUNCE_MS);
+    }
+
+    backBtn.addEventListener('click', () => queueSkip(-10));
+    fwdBtn.addEventListener('click',  () => queueSkip(10));
 
     video.addEventListener('loadedmetadata', () => {
       seek.max = video.duration || 0;
@@ -372,12 +394,37 @@
       seekBuf.style.width = (end / video.duration) * 100 + '%';
     });
 
+    // Same idea as the ±10s buttons above: a fast drag across the scrubber
+    // fires many 'input' events per second, and assigning video.currentTime
+    // on every single one used to queue up a new Range request per event.
+    // The fill bar and time readout still update on every event (so
+    // dragging feels perfectly smooth), but the actual seek — the part that
+    // hits the network — is throttled to at most one every 150ms while
+    // dragging, and always committed exactly on release.
+    let pendingSeekValue   = null;
+    let seekThrottleTimer  = null;
+    const SEEK_THROTTLE_MS = 150;
+
     seek.addEventListener('input', () => {
-      video.currentTime = seek.value;
-      seekFill.style.width = (video.duration ? (seek.value / video.duration) * 100 : 0) + '%';
+      const pct = video.duration ? (seek.value / video.duration) * 100 : 0;
+      seekFill.style.width = pct + '%';
+      timeEl.textContent = fmt(seek.value) + ' / ' + fmt(video.duration);
+
+      pendingSeekValue = seek.value;
+      if (!seekThrottleTimer) {
+        seekThrottleTimer = setTimeout(() => {
+          video.currentTime = pendingSeekValue;
+          seekThrottleTimer = null;
+        }, SEEK_THROTTLE_MS);
+      }
     });
     seek.addEventListener('pointerdown', () => { seekDragging = true; });
-    seek.addEventListener('pointerup',   () => { seekDragging = false; });
+    seek.addEventListener('pointerup', () => {
+      seekDragging = false;
+      clearTimeout(seekThrottleTimer);
+      seekThrottleTimer = null;
+      if (pendingSeekValue !== null) { video.currentTime = pendingSeekValue; pendingSeekValue = null; }
+    });
 
     function syncVolIcon() {
       const isMuted = video.muted || video.volume === 0;

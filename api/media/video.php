@@ -82,8 +82,13 @@ if (!$fh) {
 fseek($fh, $start);
 
 // Stream in chunks rather than reading the whole (possibly ~2GB) file into
-// memory at once — matches the upload side's own 2GB ceiling.
-$chunkSize = 8192;
+// memory at once — matches the upload side's own 2GB ceiling. 256KB (rather
+// than a tiny 8KB) keeps memory use trivial while drastically cutting the
+// number of fread()/flush() round-trips needed per request — with 8KB, even
+// a single ±10s skip's worth of video (often 1-3MB) meant hundreds of
+// flush() calls, which was real, measurable per-seek overhead on top of the
+// request itself.
+$chunkSize = 262144;
 $bytesLeft = $length;
 while ($bytesLeft > 0 && !feof($fh)) {
     $readSize = (int)min($chunkSize, $bytesLeft);

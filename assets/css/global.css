@@ -2602,6 +2602,12 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  /* No wrap meant a footer with 3-4 buttons (e.g. Appointment Details'
+     Mark No-Show/Reschedule/Cancel) simply overflowed past modal-box's own
+     edge on a phone-width screen — modal-box's overflow:hidden then clipped
+     it, so only a thin sliver of the leftmost button was left visible,
+     looking cut off/broken instead of wrapping to a second row. */
+  flex-wrap: wrap;
   gap: 10px;
   flex-shrink: 0;
 }

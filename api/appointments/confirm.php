@@ -49,27 +49,43 @@ try {
 
     $pdo->prepare('UPDATE appointments SET confirmed_at = NOW() WHERE id = ?')->execute([$id]);
 
-    // Let anyone waiting for this exact doctor+date+time slot know the
-    // current holder just confirmed attendance. This doesn't remove them
-    // from the queue — the slot could still open up later (cancellation,
-    // no-show, etc.) — but they shouldn't be left assuming a cancellation
-    // might be imminent right when the opposite just happened.
+    // Let admin/staff know the patient confirmed attendance — so the front
+    // desk isn't left guessing whether tomorrow's slot is still a go.
+    $fmtDate = date('M j, Y', strtotime($appt['date']));
+    notifyAdminStaff($pdo, 'appointment_confirmed', 'Patient Confirmed Attendance',
+        "{$appt['patient_name']} confirmed attendance for their appointment with {$appt['doctor_name']} on {$fmtDate} at {$appt['time']}."
+    );
+
+    // The current holder just confirmed they're actually coming, so this
+    // slot is no longer a realistic prospect — waiting on it any longer
+    // just delays whoever's queued from booking something that's actually
+    // available. Drop them from the waitlist and point them at picking a
+    // new time, rather than leaving them queued on a slot that's now
+    // effectively locked in.
     if ($appt['doctor_id']) {
         $waiters = $pdo->prepare(
             "SELECT patient_id FROM appointment_waitlist
              WHERE doctor_id = ? AND date = ? AND time = ? AND status = 'waiting'"
         );
         $waiters->execute([$appt['doctor_id'], $appt['date'], $appt['time']]);
-        $fmtDate = date('M j, Y', strtotime($appt['date']));
-        foreach ($waiters->fetchAll() as $w) {
-            $ps = $pdo->prepare('SELECT user_id FROM patients WHERE id = ? LIMIT 1');
-            $ps->execute([$w['patient_id']]);
-            $userId = $ps->fetchColumn();
-            if ($userId) {
-                createNotification($pdo, (int)$userId, 'info', 'Waitlisted Slot Confirmed',
-                    "The {$appt['doctor_name']} appointment on {$fmtDate} at {$appt['time']} you're waitlisted for has just been confirmed by the patient currently holding it. "
-                  . "You'll remain on the waitlist and we'll still notify you if the slot opens up."
-                );
+        $waiting = $waiters->fetchAll();
+
+        if ($waiting) {
+            $pdo->prepare(
+                "UPDATE appointment_waitlist SET status = 'cancelled'
+                 WHERE doctor_id = ? AND date = ? AND time = ? AND status = 'waiting'"
+            )->execute([$appt['doctor_id'], $appt['date'], $appt['time']]);
+
+            foreach ($waiting as $w) {
+                $ps = $pdo->prepare('SELECT user_id FROM patients WHERE id = ? LIMIT 1');
+                $ps->execute([$w['patient_id']]);
+                $userId = $ps->fetchColumn();
+                if ($userId) {
+                    createNotification($pdo, (int)$userId, 'waitlist_removed', 'Removed From Waitlist',
+                        "The patient holding the {$appt['doctor_name']} appointment on {$fmtDate} at {$appt['time']} you were waitlisted for has confirmed their attendance, "
+                      . "so that slot is no longer expected to open up. You've been removed from the waitlist, please select another available time."
+                    );
+                }
             }
         }
     }

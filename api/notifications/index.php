@@ -44,6 +44,7 @@ try {
             'type'      => $r['type'],
             'title'     => $r['title'],
             'body'      => $r['body'],
+            'relatedId' => $r['related_id'] ?? null,
             'isRead'    => (bool)$r['is_read'],
             'createdAt' => $r['created_at'],
         ];

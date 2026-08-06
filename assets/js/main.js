@@ -152,9 +152,234 @@ function showModal(html, size = '') {
 function closeModal() {
   document.getElementById('modal-root').innerHTML = ''
   if (window._qrKillStream) window._qrKillStream()
+  closeDobPicker()
 }
 window.closeModal = closeModal
 window.showModal  = showModal
+
+// ════════════════════════════════════════════════════════════════
+//  DOB DATE PICKER — replaces native <input type="date"> for every
+//  date-of-birth field (registration + Add/Edit Patient + New User).
+//  Native date-input rendering (icon, internal text colour, fallback UI)
+//  is too inconsistent across Android OEM/WebView versions and iOS Safari
+//  — this renders identically everywhere since nothing is left to the OS.
+//  A same-id hidden <input> keeps holding the plain "YYYY-MM-DD" value, so
+//  every existing gv(id)/.value read across the app keeps working
+//  unchanged; only the visible control is different.
+// ════════════════════════════════════════════════════════════════
+function dobFieldHtml(id, opts = {}) {
+  const { value = '', cls = 'form-input', placeholder = 'Select date of birth', max = '', min = '' } = opts
+  const label = value ? _dobFormat(value) : placeholder
+  return `
+  <div class="dob-picker" id="${id}-wrap" data-max="${max}" data-min="${min}">
+    <input type="hidden" id="${id}" value="${value || ''}">
+    <button type="button" id="${id}-trigger" class="${cls} dob-picker-trigger" onclick="window.toggleDobPicker('${id}')">
+      <span class="dob-picker-text${value ? '' : ' placeholder'}" id="${id}-text">${label}</span>
+      ${icon('calendar', 'icon-sm')}
+    </button>
+  </div>`
+}
+window.dobFieldHtml = dobFieldHtml
+
+function _dobFormat(iso) {
+  if (!iso) return ''
+  const dt = new Date(iso + 'T00:00:00')
+  return isNaN(dt) ? iso : dt.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+let _dobOpenId = null
+let _dobState  = {}
+
+function toggleDobPicker(id) {
+  if (_dobOpenId === id) { closeDobPicker(); return }
+  openDobPicker(id)
+}
+window.toggleDobPicker = toggleDobPicker
+
+function openDobPicker(id) {
+  const wrap    = document.getElementById(id + '-wrap')
+  const trigger = document.getElementById(id + '-trigger')
+  const hidden  = document.getElementById(id)
+  if (!wrap || !trigger || !hidden) return
+
+  closeDobPicker() // only one open at a time
+
+  const maxIso = wrap.dataset.max || ''
+  const minIso = wrap.dataset.min || ''
+  const today  = new Date()
+  const seedIso = hidden.value || ''
+  let y, m
+  if (seedIso) {
+    const [sy, sm] = seedIso.split('-').map(Number)
+    y = sy; m = sm - 1
+  } else {
+    // No value yet — start on a plausible adult birth year rather than the
+    // current month, so the user isn't stuck spinning the year selector
+    // back 20-30 times before reaching a usable range.
+    y = today.getFullYear() - 25
+    m = today.getMonth()
+  }
+
+  _dobOpenId = id
+  _dobState  = { year: y, month: m, maxIso, minIso }
+  trigger.classList.add('open')
+
+  let pop = document.getElementById('dob-popover-root')
+  if (!pop) {
+    pop = document.createElement('div')
+    pop.id = 'dob-popover-root'
+    pop.className = 'dob-picker-popover'
+    document.body.appendChild(pop)
+  }
+  pop.style.display = 'block'
+  _dobRenderPanel()
+  _dobPositionPopover(trigger)
+
+  // Close on outside click / Escape / scroll — a popover left pinned to a
+  // coordinate the trigger has since scrolled away from (e.g. inside a
+  // scrollable modal body) would otherwise look broken/detached.
+  setTimeout(() => {
+    document.addEventListener('mousedown', _dobOutsideClick, true)
+    document.addEventListener('keydown', _dobEscClose, true)
+    window.addEventListener('scroll', closeDobPicker, true)
+    window.addEventListener('resize', closeDobPicker, true)
+  }, 0)
+}
+window.openDobPicker = openDobPicker
+
+function _dobOutsideClick(e) {
+  const pop = document.getElementById('dob-popover-root')
+  if (!pop || !_dobOpenId) return
+  if (pop.contains(e.target)) return
+  if (e.target.closest && e.target.closest('#' + _dobOpenId + '-trigger')) return
+  closeDobPicker()
+}
+function _dobEscClose(e) { if (e.key === 'Escape') closeDobPicker() }
+
+function closeDobPicker() {
+  const pop = document.getElementById('dob-popover-root')
+  if (pop) pop.style.display = 'none'
+  if (_dobOpenId) {
+    const trigger = document.getElementById(_dobOpenId + '-trigger')
+    if (trigger) trigger.classList.remove('open')
+  }
+  _dobOpenId = null
+  document.removeEventListener('mousedown', _dobOutsideClick, true)
+  document.removeEventListener('keydown', _dobEscClose, true)
+  window.removeEventListener('scroll', closeDobPicker, true)
+  window.removeEventListener('resize', closeDobPicker, true)
+}
+window.closeDobPicker = closeDobPicker
+
+function _dobPositionPopover(trigger) {
+  const pop = document.getElementById('dob-popover-root')
+  if (!pop) return
+  const rect = trigger.getBoundingClientRect()
+  const popW = pop.offsetWidth  || 280
+  const popH = pop.offsetHeight || 320
+  let left = rect.left
+  let top  = rect.bottom + 6
+  if (left + popW > window.innerWidth - 12) left = Math.max(12, window.innerWidth - popW - 12)
+  if (top + popH > window.innerHeight - 12) top  = Math.max(12, rect.top - popH - 6)
+  pop.style.left = left + 'px'
+  pop.style.top  = top + 'px'
+}
+
+function _dobRenderPanel() {
+  const pop = document.getElementById('dob-popover-root')
+  if (!pop || !_dobOpenId) return
+  const { year, month, maxIso, minIso } = _dobState
+  const maxDate = maxIso ? new Date(maxIso + 'T00:00:00') : new Date()
+  const minDate = minIso ? new Date(minIso + 'T00:00:00') : null
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const yearMax = maxDate.getFullYear()
+  const yearMin = minDate ? minDate.getFullYear() : yearMax - 100
+  const years = []
+  for (let y = yearMax; y >= yearMin; y--) years.push(y)
+
+  const firstDow  = new Date(year, month, 1).getDay()
+  const daysInMon = new Date(year, month + 1, 0).getDate()
+  const hidden    = document.getElementById(_dobOpenId)
+  const selIso    = hidden ? hidden.value : ''
+  const todayIso  = new Date().toISOString().slice(0, 10)
+
+  let cells = ''
+  for (let i = 0; i < firstDow; i++) cells += `<div class="dob-day dob-day-empty"></div>`
+  for (let d = 1; d <= daysInMon; d++) {
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const dateObj = new Date(year, month, d)
+    const disabled = (dateObj > maxDate) || (minDate && dateObj < minDate)
+    const cls = ['dob-day']
+    if (disabled) cls.push('dob-day-disabled')
+    if (iso === selIso)   cls.push('dob-day-selected')
+    if (iso === todayIso) cls.push('dob-day-today')
+    cells += `<div class="${cls.join(' ')}" ${disabled ? '' : `onclick="window.dobPickerSelectDay('${iso}')"`}>${d}</div>`
+  }
+
+  pop.innerHTML = `
+    <div class="dob-picker-head">
+      <select class="dob-picker-select" onchange="window.dobPickerSetMonth(this.value)">
+        ${monthNames.map((mn, i) => `<option value="${i}"${i === month ? ' selected' : ''}>${mn}</option>`).join('')}
+      </select>
+      <select class="dob-picker-select" onchange="window.dobPickerSetYear(this.value)">
+        ${years.map(y => `<option value="${y}"${y === year ? ' selected' : ''}>${y}</option>`).join('')}
+      </select>
+    </div>
+    <div class="dob-picker-grid">
+      ${['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => `<div class="dob-picker-hdr">${d}</div>`).join('')}
+      ${cells}
+    </div>`
+}
+
+function dobPickerSetMonth(m) {
+  _dobState.month = Number(m)
+  _dobRenderPanel()
+  const trigger = document.getElementById(_dobOpenId + '-trigger')
+  if (trigger) _dobPositionPopover(trigger)
+}
+window.dobPickerSetMonth = dobPickerSetMonth
+
+function dobPickerSetYear(y) {
+  _dobState.year = Number(y)
+  _dobRenderPanel()
+  const trigger = document.getElementById(_dobOpenId + '-trigger')
+  if (trigger) _dobPositionPopover(trigger)
+}
+window.dobPickerSetYear = dobPickerSetYear
+
+function dobPickerSelectDay(iso) {
+  const id = _dobOpenId
+  if (!id) return
+  const hidden  = document.getElementById(id)
+  const trigger = document.getElementById(id + '-trigger')
+  const text    = document.getElementById(id + '-text')
+  if (hidden) { hidden.value = iso; hidden.dispatchEvent(new Event('change', { bubbles: true })) }
+  if (text)   { text.textContent = _dobFormat(iso); text.classList.remove('placeholder') }
+  if (trigger) trigger.classList.remove('error')
+  closeDobPicker()
+}
+window.dobPickerSelectDay = dobPickerSelectDay
+
+// Clears a DOB field back to empty/placeholder — used wherever a form
+// reset previously just did `el.value = ''` on the old native input.
+function resetDobField(id) {
+  const hidden  = document.getElementById(id)
+  const trigger = document.getElementById(id + '-trigger')
+  const text    = document.getElementById(id + '-text')
+  if (hidden) hidden.value = ''
+  if (text)   { text.textContent = 'Select date of birth'; text.classList.add('placeholder') }
+  if (trigger) trigger.classList.remove('error')
+}
+window.resetDobField = resetDobField
+
+// Updates a DOB field's allowed max date after the fact — e.g. the 18+
+// cutoff on the registration page, recomputed every time that form opens.
+function setDobFieldMax(id, maxIso) {
+  const wrap = document.getElementById(id + '-wrap')
+  if (wrap) wrap.dataset.max = maxIso || ''
+}
+window.setDobFieldMax = setDobFieldMax
 
 // ════════════════════════════════════════════════════════════════
 //  TOAST
@@ -791,6 +1016,38 @@ async function disapproveAppt(id, reason) {
 let _reTakenSlotTimes = []
 let _reTakenSlotDur   = 30
 
+// Calendar state for the staff reschedule modal's date picker — see
+// _buildRescheduleCalCells() for the shared cell logic.
+let _reCal = { doctorId: '', apptId: '', year: 0, month: 0, selectedDate: '' }
+
+function reCalRender() {
+  const doctor = doctors.find(d => d.id === _reCal.doctorId)
+  const lbl = document.getElementById('re-cal-month-label')
+  if (lbl) lbl.textContent = new Date(_reCal.year, _reCal.month, 1).toLocaleDateString('en-PH', { month:'long', year:'numeric' })
+  const grid = document.getElementById('re-cal-cells')
+  // Staff retain discretion over booking-window timing (see the function's
+  // own doc comment) — enforceAdvanceWindow:false.
+  if (grid) grid.innerHTML = _buildRescheduleCalCells(doctor, _reCal.year, _reCal.month, _reCal.selectedDate, 'window.reCalSelectDate', false)
+}
+window.reCalRender = reCalRender
+
+function reCalGoMonth(delta) {
+  _reCal.month += delta
+  if (_reCal.month > 11) { _reCal.year++; _reCal.month = 0 }
+  if (_reCal.month < 0)  { _reCal.year--; _reCal.month = 11 }
+  reCalRender()
+}
+window.reCalGoMonth = reCalGoMonth
+
+function reCalSelectDate(dateStr) {
+  _reCal.selectedDate = dateStr
+  const inp = document.getElementById('re-date')
+  if (inp) inp.value = dateStr
+  reCalRender()
+  reOnDateChange(_reCal.doctorId, _reCal.apptId)
+}
+window.reCalSelectDate = reCalSelectDate
+
 function _reSlotConflicts(slotTime, slotDur) {
   const sm = _clockToMinutes(slotTime)
   if (sm == null) return false
@@ -899,6 +1156,9 @@ function rescheduleAppt(id) {
   else if (prefDateLabel) prefText = prefDateLabel
   else if (prefTimeLabel) prefText = prefTimeLabel
 
+  const [dY, dM, dD] = defaultDate.split('-').map(Number)
+  _reCal = { doctorId: a.doctorId, apptId: id, year: dY, month: dM - 1, selectedDate: defaultDate }
+
   showModal(`
     <div class="modal-header">
       <div class="modal-title">Reschedule Appointment</div>
@@ -918,15 +1178,47 @@ function rescheduleAppt(id) {
         .time-slot-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-family:'Poppins',sans-serif; font-size:.72rem; color:#6B7280; }
         .time-slot-legend-item { display:flex; align-items:center; gap:6px; }
         .time-slot-legend-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
+        /* ── Mini calendar — same convention as the booking wizard's own
+           amc-* classes (pages.js), copied here since modals don't share
+           the wizard page's stylesheet. ── */
+        .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+        .amc-hdr { text-align:center; font-size:.65rem; font-weight:700; color:#9CA3AF; padding:4px 0; text-transform:uppercase; }
+        .amc-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px;
+          font-size:.8rem; cursor:pointer; transition:all .15s; position:relative; color:#374151; }
+        .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
+        .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
+        .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
+        .amc-day.amc-selected { background:#E8760A !important; color:#fff !important; font-weight:700; }
+        .amc-day.amc-past { opacity:.35; cursor:default; }
+        .amc-day.amc-far { opacity:.3; cursor:default; background:#f9fafb; }
+        .amc-day.amc-empty { cursor:default; }
+        .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; }
+        .amc-holiday-lbl { position:absolute; left:2px; right:2px; top:calc(50% + 8px); font-size:.6rem; line-height:1.15; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:600; padding:0 1px; }
+        .amc-day.amc-blocked { background:#FEE2E2; color:#B91C1C; cursor:default; font-weight:700; text-decoration:line-through; text-decoration-color:rgba(185,28,28,0.5); }
       </style>
       ${fulfillingRequest ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.8rem;color:#9A3412">
         Fulfilling the patient's reschedule request.${prefText ? ` They asked for <strong>${prefText}</strong>, already pre-filled below.` : ' No specific date or time was requested.'}
       </div>` : ''}
       <div class="form-group"><label class="form-label">Patient</label>
         <input class="form-input" value="${a.patientName}" disabled></div>
-      <div class="form-group"><label class="form-label">New Date</label>
-        <input type="date" id="re-date" class="form-input" value="${defaultDate}"
-               min="${localDateStr()}" onchange="window.reOnDateChange('${a.doctorId}','${id}')"></div>
+      <div class="form-group">
+        <label class="form-label">New Date</label>
+        <input type="hidden" id="re-date" value="${defaultDate}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <button type="button" class="btn-icon" onclick="window.reCalGoMonth(-1)">${icon('chevron-left','icon-sm')}</button>
+          <span id="re-cal-month-label" style="font-size:.85rem;font-weight:700;color:#1C1C1C"></span>
+          <button type="button" class="btn-icon" onclick="window.reCalGoMonth(1)">${icon('chevron-right','icon-sm')}</button>
+        </div>
+        <div class="appt-mini-cal">
+          ${['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d=>`<div class="amc-hdr">${d}</div>`).join('')}
+        </div>
+        <div class="appt-mini-cal" id="re-cal-cells"></div>
+        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#ECFDF5;border:1px solid #6EE7B7;display:inline-block"></span>Available</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#FEE2E2;border:1px solid #FCA5A5;display:inline-block"></span>Doctor Unavailable</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#FFF1F2;border:1px solid #fda4af;display:inline-block"></span>PH Holiday</span>
+        </div>
+      </div>
       <div class="form-group"><label class="form-label">New Time</label>
         <div id="re-time-slots"></div>
         <div class="time-slot-legend">
@@ -943,6 +1235,7 @@ function rescheduleAppt(id) {
       <button class="btn-primary" onclick="window.doReschedule('${id}',${fulfillingRequest})">Confirm Reschedule</button>
     </div>`, 'modal-xl')
 
+  reCalRender()
   // Populate the initial slot grid/booked states for today's default date too
   // (fire-and-forget — same pattern used by the main wizard's own async
   // slot-loading calls), not just after the reviewer changes the date.
@@ -969,6 +1262,7 @@ async function doReschedule(id, fulfillRequest = false) {
   a.date = date
   a.time = time
   if (note) a.rescheduleNote = note
+  a.rescheduledAt = new Date().toISOString()
   if (a.rescheduleRequest) delete a.rescheduleRequest
   closeModal()
   toast('Appointment rescheduled.')
@@ -996,13 +1290,42 @@ function _rsSlotConflicts(slotTime, slotDur) {
   })
 }
 
-// Doctor-scoped calendar state for the reschedule modal — same shape/
-// classification logic as the booking wizard's _wiz/amcRender (main.js),
-// but scoped to the one doctor already on the appointment (the doctor
-// can't change mid-reschedule, unlike Step 1 of the main wizard). The date
-// itself now comes from a native date picker (matching the staff/admin
-// reschedule modal's format) rather than a custom month-grid calendar.
-let _rsCal = { doctorId: '', apptId: '', selectedDate: '', time: '' }
+// Doctor-scoped calendar state for the reschedule modal — same
+// classification logic as the booking wizard's amcRender(), via the shared
+// _buildRescheduleCalCells() (main.js), scoped to the one doctor already on
+// the appointment (the doctor can't change mid-reschedule, unlike Step 1 of
+// the main wizard). A plain native date picker can't disable individual
+// dates at all, so it could never actually enforce clinic days/doctor
+// availability/blocked dates — hence the real month-grid calendar here.
+let _rsCal = { doctorId: '', apptId: '', year: 0, month: 0, selectedDate: '', time: '' }
+
+function rsCalRender() {
+  const doctor = doctors.find(d => d.id === _rsCal.doctorId)
+  const lbl = document.getElementById('rs-cal-month-label')
+  if (lbl) lbl.textContent = new Date(_rsCal.year, _rsCal.month, 1).toLocaleDateString('en-PH', { month:'long', year:'numeric' })
+  const grid = document.getElementById('rs-cal-cells')
+  // Patients rescheduling themselves stay inside the clinic's advance-
+  // booking window, same as any other self-service booking — enforceAdvanceWindow:true.
+  if (grid) grid.innerHTML = _buildRescheduleCalCells(doctor, _rsCal.year, _rsCal.month, _rsCal.selectedDate, 'window.rsCalSelectDate', true)
+}
+window.rsCalRender = rsCalRender
+
+function rsCalGoMonth(delta) {
+  _rsCal.month += delta
+  if (_rsCal.month > 11) { _rsCal.year++; _rsCal.month = 0 }
+  if (_rsCal.month < 0)  { _rsCal.year--; _rsCal.month = 11 }
+  rsCalRender()
+}
+window.rsCalGoMonth = rsCalGoMonth
+
+function rsCalSelectDate(dateStr) {
+  _rsCal.selectedDate = dateStr
+  const inp = document.getElementById('rs-date')
+  if (inp) inp.value = dateStr
+  rsCalRender()
+  rsOnDateChange(_rsCal.doctorId, _rsCal.apptId)
+}
+window.rsCalSelectDate = rsCalSelectDate
 
 // Fetches taken slots for the doctor on the newly-picked date (excluding
 // this appointment's own current slot) and rebuilds the time-slot grid.
@@ -1105,16 +1428,18 @@ window.rsSelectTime = rsSelectTime
 function requestReschedule(id) {
   const a = appointments.find(a => a.id === id)
   if (!a) return
+
+  // Defense in depth — the button that opens this modal already hides/disables
+  // itself past the deadline, but don't rely on that alone for something
+  // that blocks a real reschedule request.
+  if (state.role === 'patient' && !apptReschedulable(a)) { explainRescheduleDeadline(); return }
+
   _rsTakenSlotTimes = []
   _rsTakenSlotDur   = _durationMinutes(consultationSettings.defaultDuration)
-  _rsCal = { doctorId: a.doctorId, apptId: id, selectedDate: '', time: '' }
+  const now = new Date()
+  _rsCal = { doctorId: a.doctorId, apptId: id, year: now.getFullYear(), month: now.getMonth(), selectedDate: '', time: '' }
 
   const fmtD = d => { const dt = new Date(d); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) }
-  // Same advance-booking window patients are held to everywhere else —
-  // a native date picker can't show per-day availability the way the old
-  // calendar did, but it can still keep them inside the valid range.
-  const minD = (() => { const d = new Date(); d.setDate(d.getDate() + minAdvanceDays()); return localDateStr(d) })()
-  const maxD = localDateStr(maxAdvanceDate(new Date()))
 
   showModal(`
     <div class="modal-header">
@@ -1132,6 +1457,23 @@ function requestReschedule(id) {
         .time-slot-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; font-family:'Poppins',sans-serif; font-size:.72rem; color:#6B7280; }
         .time-slot-legend-item { display:flex; align-items:center; gap:6px; }
         .time-slot-legend-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
+        /* ── Mini calendar — same convention as the booking wizard's own
+           amc-* classes (pages.js), copied here since modals don't share
+           the wizard page's stylesheet. ── */
+        .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+        .amc-hdr { text-align:center; font-size:.65rem; font-weight:700; color:#9CA3AF; padding:4px 0; text-transform:uppercase; }
+        .amc-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px;
+          font-size:.8rem; cursor:pointer; transition:all .15s; position:relative; color:#374151; }
+        .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
+        .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
+        .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
+        .amc-day.amc-selected { background:#E8760A !important; color:#fff !important; font-weight:700; }
+        .amc-day.amc-past { opacity:.35; cursor:default; }
+        .amc-day.amc-far { opacity:.3; cursor:default; background:#f9fafb; }
+        .amc-day.amc-empty { cursor:default; }
+        .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; }
+        .amc-holiday-lbl { position:absolute; left:2px; right:2px; top:calc(50% + 8px); font-size:.6rem; line-height:1.15; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:600; padding:0 1px; }
+        .amc-day.amc-blocked { background:#FEE2E2; color:#B91C1C; cursor:default; font-weight:700; text-decoration:line-through; text-decoration-color:rgba(185,28,28,0.5); }
       </style>
       <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.84rem">
         <div style="font-weight:600;color:#1a1a1a">${a.type}</div>
@@ -1143,8 +1485,21 @@ function requestReschedule(id) {
       </div>
       <div class="form-group">
         <label class="form-label">Preferred New Date <span style="color:#DC2626">*</span></label>
-        <input type="date" id="rs-date" class="form-input" min="${minD}" max="${maxD}"
-               onchange="window.rsOnDateChange('${a.doctorId}','${id}')">
+        <input type="hidden" id="rs-date" value="">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <button type="button" class="btn-icon" onclick="window.rsCalGoMonth(-1)">${icon('chevron-left','icon-sm')}</button>
+          <span id="rs-cal-month-label" style="font-size:.85rem;font-weight:700;color:#1C1C1C"></span>
+          <button type="button" class="btn-icon" onclick="window.rsCalGoMonth(1)">${icon('chevron-right','icon-sm')}</button>
+        </div>
+        <div class="appt-mini-cal">
+          ${['SUN','MON','TUE','WED','THU','FRI','SAT'].map(d=>`<div class="amc-hdr">${d}</div>`).join('')}
+        </div>
+        <div class="appt-mini-cal" id="rs-cal-cells"></div>
+        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap">
+          <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#ECFDF5;border:1px solid #6EE7B7;display:inline-block"></span>Available</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#FEE2E2;border:1px solid #FCA5A5;display:inline-block"></span>Doctor Unavailable</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:.7rem;color:#6B7280"><span style="width:10px;height:10px;border-radius:3px;background:#FFF1F2;border:1px solid #fda4af;display:inline-block"></span>PH Holiday</span>
+        </div>
       </div>
       <div class="form-group" id="rs-time-group" style="display:none">
         <label class="form-label">Preferred Time <span style="color:#DC2626">*</span></label>
@@ -1161,6 +1516,8 @@ function requestReschedule(id) {
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
       <button class="btn-primary" onclick="window.doRequestReschedule('${id}')">Submit Request</button>
     </div>`, 'modal-xl')
+
+  rsCalRender()
 }
 
 async function doRequestReschedule(id) {
@@ -1308,7 +1665,7 @@ function viewAppt(id) {
           <strong>Please confirm you'll be attending this appointment.</strong><br>
           If we don't hear from you by 9:00 PM today, it will be automatically cancelled.
         </div>
-        <button class="btn-primary" style="font-size:.78rem;padding:6px 14px;flex-shrink:0" onclick="window.confirmMyAppointment('${a.id}')">Confirm Appointment</button>
+        <button class="btn-primary" style="font-size:.78rem;padding:6px 14px;flex-shrink:0;align-self:center" onclick="window.confirmMyAppointment('${a.id}')">Confirm Appointment</button>
       </div>` : ''}
       ${a.rescheduleRequest ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:700;color:#C2410C;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
@@ -1345,6 +1702,13 @@ function markNotifRead(id) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: id })
     }).catch(() => {})
+  }
+  // The day-before "please confirm" reminder gets its own dedicated prompt
+  // instead of just landing on a filtered list — that's the whole point of
+  // this shortcut (see confirmApptPrompt()'s own comment for why).
+  if (notif && notif.type === 'reminder' && notif.relatedId && state.role === 'patient') {
+    confirmApptPrompt(notif.relatedId)
+    return
   }
   if (notif && window._notifNavTarget) {
     const { page: _np, params: _npar } = window._notifNavTarget(notif.type, state.role)
@@ -1601,6 +1965,13 @@ function explainCancelDeadline() {
 }
 window.explainCancelDeadline = explainCancelDeadline
 
+// Shown when a patient tries to request a reschedule too close to the
+// appointment (e.g. clicking a disabled reschedule button).
+function explainRescheduleDeadline() {
+  toast(`This appointment can no longer be rescheduled online, reschedule requests require at least ${RESCHEDULE_DEADLINE_HOURS} hours notice. Please message or call the clinic directly.`, 'error')
+}
+window.explainRescheduleDeadline = explainRescheduleDeadline
+
 function confirmCancelAppt(id) {
   const a = appointments.find(a => a.id === id)
   if (!a) return
@@ -1758,6 +2129,50 @@ async function confirmMyAppointment(id) {
   }
 }
 window.confirmMyAppointment = confirmMyAppointment
+
+// Dedicated, focused "please confirm" prompt — reached directly by tapping
+// the day-before reminder notification. Deliberately NOT the full
+// viewAppt() details modal: that buries the confirm button under a patient
+// card, doctor/type/date/time grid, and notes section, which is exactly
+// why patients were missing it. This puts nothing between the patient and
+// the one action the notification is actually about.
+function confirmApptPrompt(id) {
+  const a = appointments.find(a => a.id === id)
+  if (!a || a.status !== 'approved' || !a.reminderSentAt) {
+    // Stale by the time they clicked (already handled/cancelled elsewhere) —
+    // fall back to the appointments list instead of a dead-end modal.
+    toast("This appointment no longer needs confirmation.", 'info')
+    navigate('patient-appts', { filter: 'approved' })
+    return
+  }
+  if (a.confirmedAt) {
+    toast("You've already confirmed this appointment.", 'success')
+    navigate('patient-appts', { filter: 'approved' })
+    return
+  }
+
+  const fmtD = d => { const dt = new Date(d); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' }) }
+  showModal(`
+    <div class="modal-body" style="text-align:center;padding:32px 24px">
+      <div style="width:56px;height:56px;border-radius:50%;background:#FFF7ED;border:2px solid #FDBA74;
+                  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#E8760A">
+        ${icon('alert-circle','icon-lg')}
+      </div>
+      <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C;margin-bottom:8px">Confirm Your Appointment</div>
+      <div style="background:#F9FAFB;border-radius:10px;padding:14px 20px;margin-bottom:16px;text-align:left">
+        <div style="font-size:.85rem;font-weight:600;color:#1C1C1C">${a.doctorName}</div>
+        <div style="font-size:.82rem;color:#6B7280;margin-top:4px">${fmtD(a.date)} at ${a.time}</div>
+        <div style="font-size:.82rem;color:#6B7280">${a.type}</div>
+      </div>
+      <div style="font-size:.85rem;color:#6B7280;margin-bottom:20px">Will you be attending? If we don't hear from you by 9:00 PM today, this appointment will be automatically cancelled.</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn-secondary" onclick="window.closeModal()">Not Now</button>
+        <button class="btn-primary" onclick="window.confirmMyAppointment('${a.id}')">Yes, I'll Be There</button>
+      </div>
+      <button class="btn-ghost" style="margin-top:10px;font-size:.78rem" onclick="window.closeModal();window.viewAppt('${a.id}')">View Full Details</button>
+    </div>`)
+}
+window.confirmApptPrompt = confirmApptPrompt
 
 window.confirmCancelAppt  = confirmCancelAppt
 window.doCancelAppt       = doCancelAppt
@@ -2100,6 +2515,75 @@ function amcGoMonth(dir) {
 }
 window.amcGoMonth = amcGoMonth
 
+// Shared doctor-scoped calendar cell builder for the two reschedule flows
+// (staff's rescheduleAppt() and patient's requestReschedule()) — mirrors
+// amcRender()'s exact cell logic (day-of-week availability, blocked dates,
+// PH holidays) so date-picking during a reschedule respects precisely the
+// same rules as the original booking wizard, instead of a native
+// <input type="date"> that can't disable individual dates at all (no
+// min/max range can express "closed Sundays" or "this doctor's day off").
+// The doctor is always fixed here (a reschedule never changes doctor), so
+// this skips amcRender()'s doctor-agnostic/no-prefill branches entirely.
+//
+// enforceAdvanceWindow controls the min/max advance-booking bounds only —
+// deliberately NOT the day-of-week/holiday/blocked-date checks, which
+// always apply regardless of caller. This mirrors the same asymmetry
+// already established elsewhere (api/appointments/create.php): patients
+// booking for themselves are held to the clinic's advance-booking policy,
+// admin/staff retain discretion over timing but not over whether a doctor
+// actually works that day.
+function _buildRescheduleCalCells(doctor, year, month, selectedDate, onSelectFn, enforceAdvanceWindow) {
+  const now      = new Date()
+  const todayY   = now.getFullYear(), todayM = now.getMonth(), todayD = now.getDate()
+  const maxDate  = maxAdvanceDate(new Date(todayY, todayM, todayD))
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+  const phHolidays = getPHHolidays(year)
+  const blockedMap = {}
+  ;(doctor?.blockedDates || []).forEach(b => { blockedMap[b.date] = b.reason || 'Unavailable' })
+
+  const firstDay  = new Date(year, month, 1).getDay()
+  const daysInMon = new Date(year, month + 1, 0).getDate()
+  let cells = ''
+  for (let i = 0; i < firstDay; i++) cells += `<div class="amc-day amc-empty"></div>`
+  for (let d = 1; d <= daysInMon; d++) {
+    const dow       = new Date(year, month, d).getDay()
+    const dateStr   = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+    const isToday   = year===todayY && month===todayM && d===todayD
+    const isPast    = new Date(year, month, d) < new Date(todayY, todayM, todayD)
+    const isFar     = enforceAdvanceWindow && new Date(year, month, d) > maxDate
+    const isSun     = dow === 0
+    const isSel     = dateStr === selectedDate
+    const isHoliday = !!phHolidays[dateStr]
+    const holidayName   = phHolidays[dateStr] || ''
+    const blockedReason = blockedMap[dateStr]
+    const isBlocked = !!blockedReason
+    const docAvail  = (doctor?.availableDays || []).includes(dayNames[dow])
+    const daysOut   = Math.round((new Date(year, month, d) - new Date(todayY, todayM, todayD)) / 86400000)
+    const tooSoon   = enforceAdvanceWindow && daysOut < minAdvanceDays()
+    const isDisabled = isPast || isFar || tooSoon || isHoliday || isBlocked || isSun || !docAvail
+
+    let cls = 'amc-day'
+    if (isSel)                        cls += ' amc-selected'
+    else if (isToday)                 cls += ' amc-today'
+    else if (isBlocked && !isPast)    cls += ' amc-blocked'
+    else if (isHoliday && !isPast)    cls += ' amc-holiday'
+    else if (docAvail && !isDisabled) cls += ' amc-avail'
+    if (isDisabled) cls += ' amc-past'
+    if (isFar)      cls += ' amc-far'
+
+    const onclick = !isDisabled ? `onclick="${onSelectFn}('${dateStr}')"` : ''
+    const tooltip = (tooSoon && !isPast) ? `title="${minAdvanceTooltip()}"` :
+                    isBlocked ? `title="Doctor unavailable: ${String(blockedReason).replace(/"/g,'&quot;')}"` :
+                    isHoliday ? `title="Clinic closed: ${holidayName}"` :
+                    (!docAvail && !isPast && !isSun) ? `title="This doctor does not work on this day."` : ''
+    const inner = isHoliday && !isPast
+      ? `${d}<span class="amc-holiday-lbl">${holidayName}</span>`
+      : String(d)
+    cells += `<div class="${cls}" ${onclick} ${tooltip}>${inner}</div>`
+  }
+  return cells
+}
+
 function amcRender() {
   const now      = new Date()
   const todayY   = now.getFullYear(), todayM = now.getMonth(), todayD = now.getDate()
@@ -2128,7 +2612,12 @@ function amcRender() {
     const dateStr   = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const isToday   = year===todayY && month===todayM && d===todayD
     const isPast    = new Date(year, month, d) < new Date(todayY, todayM, todayD)
-    const isFar     = new Date(year, month, d) > maxDate
+    // Same staff/admin discretion as the min-advance (tooSoon) exception
+    // below — the Maximum Advance Booking window is also just a patient
+    // self-service policy, never enforced server-side for any role (there's
+    // no such check in create.php at all), so there's nothing to keep this
+    // frontend-only restriction consistent with by applying it to staff.
+    const isFar     = _wiz.mode !== 'staff' && new Date(year, month, d) > maxDate
     const isSun     = dow === 0
     const isSel     = dateStr === _wiz.selectedDate
     const isHoliday = !!phHolidays[dateStr]
@@ -2136,7 +2625,13 @@ function amcRender() {
     const blockedReason = blockedMap[dateStr]
     const isBlocked = !!blockedReason
     const daysOut   = Math.round((new Date(year, month, d) - new Date(todayY, todayM, todayD)) / 86400000)
-    const tooSoon   = daysOut < minAdvanceDays()
+    // Staff/admin booking on a patient's behalf (e.g. a walk-in) retain the
+    // same discretion over booking-window timing they already have on the
+    // backend (see create.php's own role==='patient' gate on this exact
+    // check) — same-day and other near-term dates stay selectable for them
+    // regardless of the clinic's Minimum Advance Booking policy, which only
+    // governs self-service patient bookings.
+    const tooSoon   = _wiz.mode !== 'staff' && daysOut < minAdvanceDays()
     const isDisabled = isPast || tooSoon || isHoliday || isBlocked
     // If doctor prefilled, restrict to their available days; otherwise fall
     // back to the clinic-wide Clinic Days setting (Consultation Settings) —
@@ -2701,8 +3196,9 @@ window.requestAppointment = requestAppointment
 // Admin/staff equivalent of requestAppointment() — the patient is already
 // chosen (via the picker gate in pageCreateAppointment()), there's no T&C
 // checkbox to agree to, and the caller sets the initial status directly
-// instead of every request starting as 'pending'. No waitlist handling:
-// the backend only ever returns waitlistAvailable for role==='patient'.
+// instead of every request starting as 'pending'. Hitting a full/held slot
+// offers to waitlist the chosen patient, same as the patient-side flow —
+// promptJoinWaitlist() branches on d.patientId to know which case it's in.
 async function submitStaffAppointment() {
   if (!_wiz.patientId || !_wiz.selectedDate || !_wiz.doctorId || !_wiz.time) {
     toast('Please complete all required fields.', 'error'); return
@@ -2729,6 +3225,7 @@ async function submitStaffAppointment() {
     const d = await r.json()
     if (!d.success) {
       if (btn) { btn.disabled = false; btn.innerHTML = icon('check','icon-sm') + ' Create Appointment' }
+      if (d.waitlistAvailable) { promptJoinWaitlist(d); return }
       toast(d.message || 'Could not create appointment.', 'error'); return
     }
 
@@ -2779,10 +3276,17 @@ function _filterCapPatientList(query) {
 }
 window._filterCapPatientList = _filterCapPatientList
 
+// Shared by both the patient's self-booking flow and the admin/staff
+// New Appointment flow — d.patientId/d.patientName are only present on the
+// admin/staff response (see create.php), which is how this tells the two
+// cases apart.
 function promptJoinWaitlist(d) {
   const dt = new Date(d.date + 'T00:00:00')
   const dateShort = dt.toLocaleDateString('en-PH', { month:'long', day:'numeric', year:'numeric' })
   const esc = s => (s || '').replace(/'/g, "\\'")
+  const isStaff = !!d.patientId
+  const joinArgs = `'${d.doctorId}','${esc(d.doctorName)}','${d.date}','${d.time}','${esc(d.type)}'`
+                 + (isStaff ? `,'${d.patientId}','${esc(d.patientName)}'` : '')
   showModal(`
     <div class="modal-body" style="text-align:center;padding:32px 24px">
       <div style="width:56px;height:56px;border-radius:50%;background:#FFF7ED;border:2px solid #FDBA74;
@@ -2791,29 +3295,41 @@ function promptJoinWaitlist(d) {
       </div>
       <div style="font-size:1.05rem;font-weight:700;color:#1C1C1C;margin-bottom:8px">This Slot Is Fully Booked</div>
       <div style="background:#F9FAFB;border-radius:10px;padding:14px 20px;margin-bottom:16px;text-align:left">
+        ${isStaff ? `<div style="font-size:.85rem;font-weight:600;color:#1C1C1C">${d.patientName}</div>` : ''}
         <div style="font-size:.85rem;font-weight:600;color:#1C1C1C">${d.doctorName}</div>
         <div style="font-size:.82rem;color:#6B7280;margin-top:4px">${dateShort} at ${d.time}</div>
       </div>
-      <div style="font-size:.85rem;color:#6B7280;margin-bottom:20px">Would you like to join the waitlist? We'll notify you if this slot opens up.</div>
+      <div style="font-size:.85rem;color:#6B7280;margin-bottom:20px">${isStaff
+        ? `Would you like to add ${d.patientName} to the waitlist? They'll be notified if this slot opens up.`
+        : `Would you like to join the waitlist? We'll notify you if this slot opens up.`}</div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn-secondary" onclick="window.closeModal()">No, choose another slot</button>
-        <button class="btn-primary" onclick="window.joinWaitlist('${d.doctorId}','${esc(d.doctorName)}','${d.date}','${d.time}','${esc(d.type)}')">Yes, join waitlist</button>
+        <button class="btn-primary" onclick="window.joinWaitlist(${joinArgs})">${isStaff ? 'Yes, add to waitlist' : 'Yes, join waitlist'}</button>
       </div>
     </div>`)
 }
 window.promptJoinWaitlist = promptJoinWaitlist
 
-async function joinWaitlist(doctorId, doctorName, date, time, type) {
+async function joinWaitlist(doctorId, doctorName, date, time, type, patientId, patientName) {
+  const isStaff = !!patientId
   try {
     const r = await fetch('api/waitlist/join.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ doctorId, doctorName, date, time, type, termsAgreed: true })
+      body: JSON.stringify({
+        doctorId, doctorName, date, time, type, termsAgreed: true,
+        ...(isStaff ? { patientId, patientName } : {})
+      })
     })
     const d = await r.json()
     if (!d.success) { toast(d.message || 'Could not join the waitlist.', 'error'); return }
     closeModal()
-    toast("You're on the waitlist. We'll notify you if this slot opens up.", 'success')
-    window.navigate('patient-request-appt')
+    if (isStaff) {
+      toast(`${patientName} has been added to the waitlist.`, 'success')
+      window.navigate('waitlist')
+    } else {
+      toast("You're on the waitlist. We'll notify you if this slot opens up.", 'success')
+      window.navigate('patient-request-appt')
+    }
   } catch (_) {
     toast('Network error — please try again.', 'error')
   }
@@ -3086,7 +3602,7 @@ function openAddUserModal() {
       <div id="nu-patient-fields" style="display:none;flex-direction:column;gap:14px">
         <div class="form-row-2">
           <div class="form-group"><label class="form-label">Date of Birth <span class="req">*</span></label>
-            <input type="date" id="nu-dob" class="form-input"></div>
+            ${dobFieldHtml('nu-dob', { max: new Date().toISOString().slice(0, 10) })}</div>
           <div class="form-group"><label class="form-label">Gender <span class="req">*</span></label>
             <select id="nu-gender" class="form-select">
               <option value="">Select gender</option>
@@ -3494,7 +4010,7 @@ function openAddPatientModal() {
       </div>
       <div class="form-row-2">
         <div class="form-group"><label class="form-label">Date of Birth <span class="req">*</span></label>
-          <input type="date" id="ap-dob" class="form-input"></div>
+          ${dobFieldHtml('ap-dob', { max: new Date().toISOString().slice(0, 10) })}</div>
         <div class="form-group"><label class="form-label">Gender <span class="req">*</span></label>
           <select id="ap-gender" class="form-select">
             <option value="">Select gender</option>
@@ -3597,7 +4113,7 @@ function openEditPatientModal(patientId) {
       </div>
       <div class="form-row-2">
         <div class="form-group"><label class="form-label">Date of Birth</label>
-          <input type="date" id="ep-dob" class="form-input" value="${p.dob || ''}"></div>
+          ${dobFieldHtml('ep-dob', { value: p.dob || '', max: new Date().toISOString().slice(0, 10) })}</div>
         <div class="form-group"><label class="form-label">Gender</label>
           <select id="ep-gender" class="form-select">
             ${['Male','Female','Other'].map(g=>`<option${g===p.gender?' selected':''}>${g}</option>`).join('')}
@@ -3628,7 +4144,7 @@ function openEditPatientModal(patientId) {
           <div style="font-size:.7rem;font-weight:700;letter-spacing:.08em;color:#B0B7C3;text-transform:uppercase;margin-bottom:4px">No-Show Record</div>
           <div style="font-size:.85rem;color:#374151">
             <strong style="color:${(p.noShowCount||0) >= 3 ? '#DC2626' : '#1C1C1C'}">${p.noShowCount || 0}</strong> missed appointment${(p.noShowCount||0) === 1 ? '' : 's'} on file
-            ${p.bookingRestricted ? `<span style="margin-left:8px;display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:700;color:#991B1B;background:#FEE2E2;border-radius:999px;padding:2px 9px">${icon('alert-circle','icon-xs')} Online booking restricted</span>` : ''}
+            ${p.bookingRestricted ? `<span style="margin-left:8px;display:inline-flex;align-items:center;gap:3px;vertical-align:middle;font-size:.68rem;font-weight:700;color:#991B1B;background:#FEE2E2;border-radius:999px;padding:2px 9px">${icon('alert-circle','icon-xs')} Online booking restricted</span>` : ''}
           </div>
         </div>
         ${p.bookingRestricted ? `<button type="button" class="btn-secondary" style="flex-shrink:0" onclick="window.clearBookingRestriction('${p.id}')">Clear Restriction</button>` : ''}
@@ -8722,13 +9238,38 @@ window._doClearAllLogs = async function () {
 
 function exportLog() {
   if (!activityLog.length) { toast('No log entries to export.', 'error'); return }
+
+  // Export exactly what's currently filtered on screen, not the whole
+  // unfiltered log — mirrors applyLogFilters()'s own predicates so a
+  // role/type/date-range/search filter actually narrows the file too,
+  // instead of silently exporting everything regardless of what's shown.
+  const roleF   = (document.getElementById('log-role-filter')?.value || '').toLowerCase()
+  const typeF   = (document.getElementById('log-type-filter')?.value || '').toLowerCase()
+  const fromF   = document.getElementById('log-date-from')?.value || ''
+  const toF     = document.getElementById('log-date-to')?.value   || ''
+  const searchF = (document.getElementById('log-search')?.value   || '').toLowerCase()
+
+  const filtered = activityLog.filter(l => {
+    const rowDate   = (l.timestamp || '').slice(0, 10)
+    const rowSearch = `${(l.user || '').toLowerCase()} ${(l.action || '').toLowerCase()}`
+    return (!roleF   || (l.role || '').toLowerCase() === roleF)
+        && (!typeF   || (l.type || '').toLowerCase() === typeF)
+        && (!fromF   || rowDate >= fromF)
+        && (!toF     || rowDate <= toF)
+        && (!searchF || rowSearch.includes(searchF))
+  })
+  if (!filtered.length) { toast('No log entries match the current filters.', 'error'); return }
+
   const header = ['#', 'User', 'Role', 'Action', 'Timestamp', 'Type', 'IP Address']
-  const rows   = activityLog.map((l, i) => [
+  const rows   = filtered.map((l, i) => [
     i + 1,
     `"${(l.user   || '').replace(/"/g, '""')}"`,
     `"${(l.role   || '').replace(/"/g, '""')}"`,
     `"${(l.action || '').replace(/"/g, '""')}"`,
-    `"${(l.timestamp || '').replace(/"/g, '""')}"`,
+    // Same 12-hour format the table itself displays (fmtTimestamp12h) —
+    // exporting the raw "YYYY-MM-DD HH:MM:SS" DB string instead made the
+    // file read differently from what was on screen.
+    `"${fmtTimestamp12h(l.timestamp).replace(/"/g, '""')}"`,
     l.type || '',
     l.ip || ''
   ])
@@ -8737,7 +9278,7 @@ function exportLog() {
   a.href    = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv)
   a.download = `cana-activity-log-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
-  toast('Log exported successfully.', 'success')
+  toast(`Exported ${filtered.length} log entr${filtered.length !== 1 ? 'ies' : 'y'}.`, 'success')
 }
 window.exportLog = exportLog
 

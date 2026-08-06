@@ -89,6 +89,8 @@
 --    ALTER TABLE `patients` ADD COLUMN `booking_restricted` TINYINT(1) NOT NULL DEFAULT 0 AFTER `no_show_count`;
 --    ALTER TABLE `appointments` ADD COLUMN `reminder_sent_at` DATETIME NULL DEFAULT NULL AFTER `terms_agreed`;
 --    ALTER TABLE `appointments` ADD COLUMN `confirmed_at` DATETIME NULL DEFAULT NULL AFTER `reminder_sent_at`;
+--    ALTER TABLE `appointments` ADD COLUMN `rescheduled_at` DATETIME NULL DEFAULT NULL AFTER `confirmed_at`;
+--    ALTER TABLE `notifications` ADD COLUMN `related_id` VARCHAR(10) NULL DEFAULT NULL AFTER `body`;
 --    CREATE TABLE IF NOT EXISTS `appointment_waitlist` (
 --      `id`               INT UNSIGNED NOT NULL AUTO_INCREMENT,
 --      `patient_id`       VARCHAR(10)  NOT NULL,
@@ -249,6 +251,7 @@ CREATE TABLE IF NOT EXISTS `appointments` (
   `terms_agreed`         TINYINT(1)   NOT NULL DEFAULT 0, -- patient accepted the booking policy at request time
   `reminder_sent_at`     DATETIME     NULL DEFAULT NULL, -- day-before-noon reminder was sent
   `confirmed_at`         DATETIME     NULL DEFAULT NULL, -- patient confirmed attendance after the reminder
+  `rescheduled_at`       DATETIME     NULL DEFAULT NULL, -- staff/admin last moved this appointment's date/time
   PRIMARY KEY (`id`),
   FOREIGN KEY (`patient_id`) REFERENCES `patients`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`doctor_id`)  REFERENCES `doctors`(`id`)  ON DELETE CASCADE
@@ -348,6 +351,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `type`       VARCHAR(50)   NOT NULL,
   `title`      VARCHAR(255)  NOT NULL,
   `body`       TEXT          NOT NULL,
+  `related_id` VARCHAR(10)   NULL DEFAULT NULL, -- e.g. the appointment ID this notification is about, when there is one
   `is_read`    TINYINT(1)    NOT NULL DEFAULT 0,
   `created_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

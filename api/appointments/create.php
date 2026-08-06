@@ -126,16 +126,22 @@ try {
         $message = $conflict !== null
             ? "This time conflicts with an existing appointment at {$conflict}. Please choose a different slot."
             : "This slot is currently reserved for another patient. Please choose a different slot.";
-        $response = ['success' => false, 'message' => $message];
-        // Only patients booking for themselves get offered the waitlist —
-        // admin/staff scheduling on a patient's behalf handle this by phone.
-        if ($role === 'patient') {
-            $response['waitlistAvailable'] = true;
-            $response['doctorId']   = $doctorId;
-            $response['doctorName'] = $doctorName;
-            $response['date']       = $date;
-            $response['time']       = $time;
-            $response['type']       = $type;
+        $response = [
+            'success'           => false,
+            'message'           => $message,
+            'waitlistAvailable' => true,
+            'doctorId'          => $doctorId,
+            'doctorName'        => $doctorName,
+            'date'              => $date,
+            'time'              => $time,
+            'type'              => $type,
+        ];
+        // Admin/staff creating on a patient's behalf need the patient's
+        // identity passed through too, so the frontend can offer to waitlist
+        // that specific patient instead of assuming "the logged-in user."
+        if ($role !== 'patient') {
+            $response['patientId']   = $patientId;
+            $response['patientName'] = $patientName;
         }
         jsonResponse($response);
     }
@@ -162,9 +168,16 @@ try {
         $ps->execute([$patientId]);
         $pRow = $ps->fetch();
         if ($pRow && $pRow['user_id']) {
-            createNotification($pdo, (int)$pRow['user_id'], 'info',
+            // Match the type to the appointment's actual status so the
+            // notification routes to the right filter on click (same
+            // convention update.php uses for status-change notifications) —
+            // 'info' had no appointment-aware routing and always dead-ended
+            // on the dashboard.
+            $notifType = $status === 'approved' ? 'approved' : 'new_appointment';
+            createNotification($pdo, (int)$pRow['user_id'], $notifType,
                 'Appointment Scheduled',
                 "An appointment with {$doctorName} has been scheduled for you on {$fmtDate} at {$time}."
+                . ($status === 'approved' ? '' : ' It is pending confirmation from the clinic.')
             );
         }
     }

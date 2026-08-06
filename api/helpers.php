@@ -392,8 +392,36 @@ function buildUserObject(string $role, array $p, string $email, array $days = []
 }
 
 // ── No-show tracking ───────────────────────────────────────────────
-// Patients past this many no-shows lose self-service booking (see
-// api/appointments/create.php) until an admin/staff clears the flag.
+// Threshold: 3 no-shows (this constant). Consequence: booking_restricted
+// gets set on the patient record, which blocks self-service ONLINE
+// booking only — api/appointments/create.php rejects a patient-submitted
+// request with "Online booking is currently unavailable for your account
+// due to repeated missed appointments. Please contact the clinic directly
+// to schedule."
+//
+// Takes effect immediately, the instant the 3rd no-show is recorded —
+// whether that's the automatic day-passed detection (appointments/index.php)
+// or a staff member manually marking one (appointments/update.php). No
+// grace period, no separate approval step.
+//
+// Lasts indefinitely — there's no automatic expiry, it doesn't wear off
+// after any period of good behavior. The only way it's lifted is an
+// admin/staff manually clicking "Clear Restriction" in the Edit Patient
+// modal (api/patients/clear_restriction.php). Clearing it only resets the
+// restriction FLAG, not the no-show counter itself — so if the patient
+// no-shows even once more right after being unblocked, they're already
+// back at/above the threshold and get re-restricted instantly (see the
+// !$row['booking_restricted'] guard below: it only ever fires again once
+// the flag has been cleared, but the count is never what's checked for
+// "how far past 3" — just whether it's >= 3 at all).
+//
+// Can admin/staff bypass this for a walk-in? Yes, entirely — the
+// restriction check only ever runs when the request comes from the
+// patient role (self-service; see create.php's `if ($role === 'patient')`
+// gate). If admin or staff creates the appointment on the patient's
+// behalf instead, that check is skipped completely — a walk-in, phone
+// booking, or staff manually scheduling a blocked patient all work
+// normally, no override needed.
 const NO_SHOW_RESTRICTION_THRESHOLD = 3;
 
 // Increments a patient's no-show count by one and applies the booking
@@ -553,11 +581,11 @@ function offerNextWaitlistSlot(PDO $pdo, string $doctorId, string $date, string 
 }
 
 // ── Notification helpers ─────────────────────────────────────────
-function createNotification(PDO $pdo, int $userId, string $type, string $title, string $body): void {
+function createNotification(PDO $pdo, int $userId, string $type, string $title, string $body, ?string $relatedId = null): void {
     try {
         $pdo->prepare(
-            'INSERT INTO notifications (user_id, type, title, body) VALUES (?, ?, ?, ?)'
-        )->execute([$userId, $type, $title, $body]);
+            'INSERT INTO notifications (user_id, type, title, body, related_id) VALUES (?, ?, ?, ?, ?)'
+        )->execute([$userId, $type, $title, $body, $relatedId]);
     } catch (PDOException) {
         // Non-critical — silent fail
     }

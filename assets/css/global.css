@@ -987,6 +987,7 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
   min-width: 0;
   margin-left: 236px;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   transition: margin-left 0.28s cubic-bezier(.4,0,.2,1);
@@ -2169,6 +2170,130 @@ input[type="date"].reg-input::-webkit-datetime-edit-year-field {
    feels like editing text, not clicking a button. */
 input[type="date"].form-input { cursor: text; }
 input[type="date"].form-input::-webkit-calendar-picker-indicator { cursor: pointer; }
+/* Same dark-mode fix already applied to .reg-input (registration page) —
+   these are the DOB/date fields used in the admin/staff modals (Add
+   Patient, Edit Patient, New User, Block Date, etc). Without forcing light
+   rendering, Chrome on Android (very commonly set to system dark mode) and
+   Safari draw the native mm/dd/yyyy text almost invisibly on the field's
+   light background, which reads as "the date picker is broken" even though
+   a value is actually there. */
+input[type="date"].form-input {
+  color-scheme: light;
+}
+input[type="date"].form-input::-webkit-datetime-edit,
+input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper,
+input[type="date"].form-input::-webkit-datetime-edit-text,
+input[type="date"].form-input::-webkit-datetime-edit-month-field,
+input[type="date"].form-input::-webkit-datetime-edit-day-field,
+input[type="date"].form-input::-webkit-datetime-edit-year-field {
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+}
+/* Mobile Safari (and some Android WebViews) auto-zoom the whole viewport
+   when a focused input's font-size is under 16px. .form-input is 14px and
+   .reg-input drops to ~13px on mobile (see the 768px breakpoint above) —
+   for a date field sitting inside a modal, that zoom makes the whole
+   dialog visibly jump/shift on tap, which looks like the picker glitching.
+   Scoped to type=date only so no other field's sizing changes. */
+@media (max-width: 768px) {
+  input[type="date"].reg-input,
+  input[type="date"].form-input {
+    font-size: 16px;
+  }
+}
+
+/* ── Custom DOB date picker ────────────────────────────────────────
+   Every date-of-birth field (registration + Add/Edit Patient + New User)
+   uses this instead of native <input type="date"> — native rendering
+   (icon, internal text colour, fallback UI on unsupported browsers) is too
+   inconsistent across Android OEM/WebView versions and iOS Safari, even
+   with the fixes above. This renders identically everywhere since nothing
+   is left to the OS; a same-id hidden <input> still holds the plain
+   "YYYY-MM-DD" value so existing code reading `.value` is unaffected. */
+.dob-picker { position: relative; }
+.dob-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+}
+.dob-picker-trigger svg { flex-shrink: 0; color: #9CA3AF; }
+.dob-picker-trigger.open { border-color: #E8891C; box-shadow: 0 0 0 3px rgba(232,137,28,.1); }
+.dob-picker-text.placeholder { color: #9CA3AF; }
+
+.dob-picker-popover {
+  position: fixed;
+  z-index: 1600; /* above .modal-overlay (1500) so it also works inside modals */
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.08);
+  border: 1px solid #EEF0F2;
+  padding: 12px;
+  font-family: 'Poppins', sans-serif;
+  animation: modalIn 0.15s ease;
+  display: none;
+}
+.dob-picker-head { display: flex; gap: 6px; margin-bottom: 10px; }
+.dob-picker-select {
+  flex: 1;
+  padding: 7px 26px 7px 10px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: .8rem;
+  color: #1C1C1C;
+  background: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 13px;
+}
+.dob-picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dob-picker-hdr {
+  text-align: center; font-size: .62rem; font-weight: 700; color: #9CA3AF;
+  padding: 4px 0; text-transform: uppercase;
+}
+.dob-day {
+  aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  font-size: .78rem;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  color: #374151;
+}
+.dob-day:hover:not(.dob-day-disabled):not(.dob-day-empty) { background: #FFF0DC; }
+.dob-day-today { outline: 1.5px solid #E8891C; font-weight: 700; }
+.dob-day-selected { background: #E8891C !important; color: #fff !important; font-weight: 700; }
+.dob-day-disabled { opacity: .3; cursor: default; }
+.dob-day-empty { cursor: default; }
+
+/* Appointment row action icons (view/approve/disapprove/cancel/complete/
+   no-show/reschedule) — up to 5 buttons for an approved row. Desktop has
+   plenty of column width for one row; on mobile the narrower cell was
+   wrapping them across 3+ rows, making the row noticeably taller than its
+   neighbours. Capped at exactly 2 rows below the breakpoint by flowing
+   buttons down each column instead of wrapping by available width. */
+.appt-actions-row { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .appt-actions-row {
+    display: grid;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
+    grid-auto-columns: min-content;
+    justify-content: start;
+  }
+}
+
 .form-select {
   width: 100%;
   padding: 11px 38px 11px 14px;

@@ -25,12 +25,12 @@ const SIDEBAR_CONFIG = {
       children: [
         { key: 'appointments', filter: 'all',         label: 'All Appointments' },
         { key: 'appointments', filter: 'today',       label: 'Today' },
-        { key: 'appointments', filter: 'pending',     label: 'Pending', badgeKey: '_apptPendingCount' },
-        { key: 'appointments', filter: 'approved',    label: 'Approved' },
-        { key: 'appointments', filter: 'cancelled',   label: 'Cancelled' },
-        { key: 'appointments', filter: 'disapproved', label: 'Disapproved' },
-        { key: 'appointments', filter: 'completed',   label: 'Completed' },
-        { key: 'appointments', filter: 'no-show',     label: 'No-show' }
+        { key: 'appointments', filter: 'pending',     label: 'Pending',     badgeKey: '_apptPendingCount', color: '#E8891C' },
+        { key: 'appointments', filter: 'approved',    label: 'Approved',    color: '#2E7D32' },
+        { key: 'appointments', filter: 'cancelled',   label: 'Cancelled',   color: '#C62828' },
+        { key: 'appointments', filter: 'disapproved', label: 'Disapproved', color: '#991B1B' },
+        { key: 'appointments', filter: 'completed',   label: 'Completed',   color: '#616161' },
+        { key: 'appointments', filter: 'no-show',     label: 'No-show',     color: '#6D28D9' }
       ]
     },
     { key: 'create-appointment',   label: 'New Appointment',  icon: 'plus-circle' },
@@ -71,12 +71,12 @@ const SIDEBAR_CONFIG = {
       children: [
         { key: 'appointments', filter: 'all',         label: 'All Appointments' },
         { key: 'appointments', filter: 'today',       label: 'Today' },
-        { key: 'appointments', filter: 'pending',     label: 'Pending', badgeKey: '_apptPendingCount' },
-        { key: 'appointments', filter: 'approved',    label: 'Approved' },
-        { key: 'appointments', filter: 'cancelled',   label: 'Cancelled' },
-        { key: 'appointments', filter: 'disapproved', label: 'Disapproved' },
-        { key: 'appointments', filter: 'completed',   label: 'Completed' },
-        { key: 'appointments', filter: 'no-show',     label: 'No-show' }
+        { key: 'appointments', filter: 'pending',     label: 'Pending',     badgeKey: '_apptPendingCount', color: '#E8891C' },
+        { key: 'appointments', filter: 'approved',    label: 'Approved',    color: '#2E7D32' },
+        { key: 'appointments', filter: 'cancelled',   label: 'Cancelled',   color: '#C62828' },
+        { key: 'appointments', filter: 'disapproved', label: 'Disapproved', color: '#991B1B' },
+        { key: 'appointments', filter: 'completed',   label: 'Completed',   color: '#616161' },
+        { key: 'appointments', filter: 'no-show',     label: 'No-show',     color: '#6D28D9' }
       ]
     },
     { key: 'create-appointment',   label: 'New Appointment',  icon: 'plus-circle' },
@@ -97,7 +97,7 @@ const SIDEBAR_CONFIG = {
         { key: 'doctor-appointments', filter: 'all',       label: 'All Appointments' },
         { key: 'doctor-appointments', filter: 'today',     label: 'Today',    badgeKey: '_doctorTodayCount' },
         { key: 'doctor-appointments', filter: 'upcoming',  label: 'Upcoming', badgeKey: '_doctorUpcomingCount' },
-        { key: 'doctor-appointments', filter: 'completed', label: 'Completed' }
+        { key: 'doctor-appointments', filter: 'completed', label: 'Completed', color: '#616161' }
       ]
     },
     { key: 'examination',          label: 'Optical Examination', icon: 'eye',
@@ -121,12 +121,12 @@ const SIDEBAR_CONFIG = {
       children: [
         { key: 'patient-appts', filter: 'all',        label: 'All Appointments' },
         { key: 'patient-appts', filter: 'today',      label: 'Today' },
-        { key: 'patient-appts', filter: 'approved',   label: 'Approved' },
-        { key: 'patient-appts', filter: 'pending',    label: 'Pending' },
-        { key: 'patient-appts', filter: 'completed',  label: 'Completed' },
-        { key: 'patient-appts', filter: 'cancelled',    label: 'Cancelled' },
-        { key: 'patient-appts', filter: 'disapproved', label: 'Disapproved' },
-        { key: 'patient-appts', filter: 'no-show',     label: 'No-show' },
+        { key: 'patient-appts', filter: 'approved',    label: 'Approved',    color: '#2E7D32' },
+        { key: 'patient-appts', filter: 'pending',     label: 'Pending',     color: '#E8891C' },
+        { key: 'patient-appts', filter: 'completed',   label: 'Completed',   color: '#616161' },
+        { key: 'patient-appts', filter: 'cancelled',    label: 'Cancelled',   color: '#C62828' },
+        { key: 'patient-appts', filter: 'disapproved', label: 'Disapproved', color: '#991B1B' },
+        { key: 'patient-appts', filter: 'no-show',     label: 'No-show',     color: '#6D28D9' },
       ]
     },
     { key: 'doctor-availability',  label: 'Doctor Availability', icon: 'user' },
@@ -405,9 +405,16 @@ function renderSidebar() {
                 : `window.navigate('${c.key}'${c.filter ? `, {filter:'${c.filter}'}` : ''})`
               const cBadgeCount = c.badgeKey ? (window[c.badgeKey] || 0) : 0
               const cBadgeHtml  = cBadgeCount > 0 ? `<span class="nav-badge">${cBadgeCount > 99 ? '99+' : cBadgeCount}</span>` : ''
+              // A per-status color (appointment filters like Pending/Approved/
+              // Cancelled/etc.) overrides the dot's default "match the text
+              // color" behavior — it stays that status's color even when this
+              // item is active/hovered, so it still works as an at-a-glance
+              // legend right when the user is looking at that filter, not just
+              // when it's sitting unselected in the list.
+              const dotStyle = c.color ? ` style="background:${c.color}"` : ''
               return `
               <div class="nav-sub-item${cActive ? ' active' : ''}" onclick="${cClick}">
-                <span class="nav-sub-dot"></span>
+                <span class="nav-sub-dot"${dotStyle}></span>
                 ${c.label}${cBadgeHtml}
               </div>`
             }).join('')}
@@ -552,8 +559,8 @@ function _notifTimeAgo(dateStr) {
 }
 window._notifTimeAgo = _notifTimeAgo
 
-const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', no_show:'alert-circle', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', welcome:'home', info:'info', contact_message:'mail' }
-const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', no_show:'red', reminder:'orange', waitlist_offer:'orange', waitlist_removed:'red', welcome:'orange', info:'gray', contact_message:'orange' }
+const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', no_show:'alert-circle', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', waitlist_join:'clock', welcome:'home', info:'info', contact_message:'mail' }
+const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', no_show:'red', reminder:'orange', waitlist_offer:'orange', waitlist_removed:'red', waitlist_join:'orange', welcome:'orange', info:'gray', contact_message:'orange' }
 const _resolveNotifType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
 // Returns { page, params } so callers always pass an explicit filter,
@@ -610,6 +617,10 @@ function _notifNavTarget(type, role) {
   if (type === 'reminder')         return { page: 'patient-appts', params: { filter: 'approved' } }
   if (type === 'waitlist_offer')   return { page: 'patient-request-appt', params: {} }
   if (type === 'waitlist_removed') return { page: 'patient-request-appt', params: {} }
+
+  // A patient joining the waitlist is admin/staff-only — send them to the
+  // Waitlist list page (there's no per-status filter there to preserve).
+  if (type === 'waitlist_join')    return { page: 'waitlist', params: {} }
 
   const map = {
     record:          role === 'patient' ? 'patient-exam-history'  : 'patient-list',
@@ -668,6 +679,13 @@ function _markNotifDropdown(id) {
     }).catch(() => {})
   }
   closeAllDropdowns()
+  // Same dedicated confirm-prompt shortcut as markNotifRead() (main.js) —
+  // duplicated here because the bell dropdown and the full Notifications
+  // page are two separate click-handling paths that both need it.
+  if (notif.type === 'reminder' && notif.relatedId && state.role === 'patient' && window.confirmApptPrompt) {
+    window.confirmApptPrompt(notif.relatedId)
+    return
+  }
   const { page: _np, params: _npar } = _notifNavTarget(notif.type, state.role)
   navigate(_np, _npar)
 }

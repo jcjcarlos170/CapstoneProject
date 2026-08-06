@@ -236,17 +236,30 @@
 
   // ── Hide navbar when footer is visible, restore when footer leaves ──
   // On tall/large-screen viewports the whole page (hero → footer) can fit
-  // without any scrolling, so the footer is already "visible" the instant
-  // the page loads — folding the navbar right away with no scroll at all.
-  // Only fold once the page has actually been scrolled down from the top.
+  // without any scrolling at all — the footer is "visible" from the instant
+  // the page loads, and stays that way forever since there's nothing to
+  // scroll past. Folding the navbar in that case is simply wrong: there's
+  // no long page underneath it to reclaim room from, so it should never
+  // hide. The atTop check alone only catches this at the exact moment the
+  // observer's callback happens to fire — if content loads in async after
+  // (e.g. the clinic video section revealing itself) and changes the
+  // page's total height, the fold state needs re-checking from scratch,
+  // not just once at whatever instant IntersectionObserver first ran.
   var navbar = document.getElementById('navbar')
   var footer = document.getElementById('footer')
-  if (navbar && footer && 'IntersectionObserver' in window) {
-    new IntersectionObserver(function (entries) {
-      var footerVisible = entries[0].isIntersecting
-      var atTop = window.scrollY < 24
-      navbar.classList.toggle('navbar-folded', footerVisible && !atTop)
-    }, { threshold: 0.05 }).observe(footer)
+  if (navbar && footer) {
+    var updateNavbarFold = function () {
+      var wholePageFits = document.documentElement.scrollHeight <= window.innerHeight + 4
+      var atTop         = window.scrollY < 24
+      var footerRect    = footer.getBoundingClientRect()
+      var footerVisible = footerRect.top < window.innerHeight && footerRect.bottom > 0
+      navbar.classList.toggle('navbar-folded', footerVisible && !atTop && !wholePageFits)
+    }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(updateNavbarFold, { threshold: 0.05 }).observe(footer)
+    }
+    window.addEventListener('resize', updateNavbarFold)
+    updateNavbarFold() // don't wait on the observer's first async callback
   }
 
   // ── Scroll-to-top button ──────────────────────────────────────────

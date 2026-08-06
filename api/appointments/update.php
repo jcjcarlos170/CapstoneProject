@@ -183,7 +183,7 @@ try {
             // (e.g. admin and staff both viewing it), which would otherwise let
             // a stale second click silently overwrite the already-applied change.
             $upd = $pdo->prepare(
-                'UPDATE appointments SET date = ?, time = ?, reschedule_note = ?, reschedule_request = NULL
+                'UPDATE appointments SET date = ?, time = ?, reschedule_note = ?, reschedule_request = NULL, rescheduled_at = NOW()
                  WHERE id = ? AND reschedule_request IS NOT NULL'
             );
             $upd->execute([$newDate, $newTime, $note ?: null, $id]);
@@ -192,7 +192,7 @@ try {
             }
         } else {
             $pdo->prepare(
-                'UPDATE appointments SET date = ?, time = ?, reschedule_note = ?, reschedule_request = NULL WHERE id = ?'
+                'UPDATE appointments SET date = ?, time = ?, reschedule_note = ?, reschedule_request = NULL, rescheduled_at = NOW() WHERE id = ?'
             )->execute([$newDate, $newTime, $note ?: null, $id]);
         }
 
@@ -214,6 +214,15 @@ try {
         if ($role !== 'patient') {
             jsonResponse(['success' => false, 'message' => 'Only patients may submit reschedule requests.'], 403);
         }
+
+        // Same 24h cutoff as cancellation (see the 'cancelled' branch above) —
+        // mirrors pages.js's RESCHEDULE_DEADLINE_HOURS so a direct API call
+        // can't bypass it.
+        $apptDt = DateTime::createFromFormat('Y-m-d g:i A', $appt['date'] . ' ' . $appt['time']);
+        if ($apptDt && (time() > $apptDt->getTimestamp() - 24 * 3600)) {
+            jsonResponse(['success' => false, 'message' => "This appointment can no longer be rescheduled online — reschedule requests require at least 24 hours' notice. Please call the clinic directly."]);
+        }
+
         $reason   = trim($b['reason']        ?? '');
         $prefDate = trim($b['preferredDate'] ?? '');
         $prefTime = trim($b['preferredTime'] ?? '');

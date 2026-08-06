@@ -392,7 +392,7 @@ function regNextStep() {
     const gender = (document.getElementById('reg-gender')?.value || '')
     if (!first) markError('reg-first')
     if (!last)  markError('reg-last')
-    if (!dob)   markError('reg-dob')
+    if (!dob)   markError('reg-dob-trigger') // visible custom-picker button — the real reg-dob is a hidden input now
     if (!gender) markError('reg-gender')
     if (!first || !last || !dob || !gender) {
       if (errMsg) errMsg.textContent = 'Please fill in all required fields.'
@@ -402,7 +402,7 @@ function regNextStep() {
     const today   = new Date()
     const minDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
     if (dobDate > minDate) {
-      markError('reg-dob')
+      markError('reg-dob-trigger')
       if (errMsg) errMsg.textContent = 'You must be at least 18 years old to create an account. Patients under 18 may be registered by a parent or guardian at the clinic.'
       if (errEl)  errEl.style.display = 'flex'; return
     }
@@ -541,14 +541,15 @@ function showRegister() {
   _syncAuthBranding()
   document.getElementById('login-screen').style.display    = 'none'
   document.getElementById('register-screen').style.display = 'flex'
-  ;['reg-first','reg-last','reg-dob','reg-address','reg-contact','reg-email','reg-password','reg-confirm']
+  ;['reg-first','reg-last','reg-address','reg-contact','reg-email','reg-password','reg-confirm']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = '' })
-  const dobEl = document.getElementById('reg-dob')
-  if (dobEl) {
-    const t = new Date()
-    const maxDob = new Date(t.getFullYear() - 18, t.getMonth(), t.getDate())
-    dobEl.max = maxDob.toISOString().slice(0, 10)
-  }
+  // reg-dob is the custom picker (see main.js) — reset its display, not just
+  // the underlying hidden input, and recompute the 18+ cutoff each time the
+  // form opens rather than once at page load.
+  if (window.resetDobField) window.resetDobField('reg-dob')
+  const t = new Date()
+  const maxDob = new Date(t.getFullYear() - 18, t.getMonth(), t.getDate())
+  if (window.setDobFieldMax) window.setDobFieldMax('reg-dob', maxDob.toISOString().slice(0, 10))
   const genderEl = document.getElementById('reg-gender'); if (genderEl) genderEl.value = ''
   const bloodEl  = document.getElementById('reg-blood');  if (bloodEl)  bloodEl.value  = ''
   document.getElementById('reg-error').style.display = 'none'

@@ -59,7 +59,17 @@ body { overflow-x: hidden; }
 }
 
 /* Hero */
-#hero { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+/* 100vh alone is a well-known Safari trap: it measures the LARGEST possible
+   viewport (as if the address bar/toolbar were always hidden), not the
+   actual visible area — as the toolbar shows/hides during scrolling, the
+   real viewport shrinks/grows underneath a hero that's still sized to the
+   bigger number, leaving a visible gap. 100dvh (dynamic viewport height)
+   is the actual fix; kept as a second declaration so browsers that don't
+   support dvh yet still fall back to the old (imperfect but working) vh
+   value instead of getting no height at all. max-height keeps very large
+   monitors from turning the hero into an excessively tall, mostly-empty
+   block just because the viewport happens to be huge. */
+#hero { position: relative; height: 100vh; height: 100dvh; max-height: 960px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .hero-bg { position: absolute; inset: -12px; background-size: cover; background-position: right center; background-repeat: no-repeat; filter: blur(3px); z-index: 0; }
 @media (max-width: 768px) { .hero-bg { background-position: center center; } }
 #hero::before { content: ''; position: absolute; inset: 0; background: rgba(15,15,20,0.72); z-index: 1; }
@@ -227,12 +237,16 @@ body { overflow-x: hidden; }
 .video-inner .about-eyebrow { text-align: center; }
 .video-inner .about-heading { text-align: center; }
 .video-embed-wrap {
+  /* No overflow:hidden here — it would also clip the speed menu popover,
+     which needs to render outside the video's own bounds. Rounded-corner
+     clipping lives on .video-clip instead. */
   position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 16px;
-  overflow: hidden; margin-top: 28px; background: #050505;
+  margin-top: 28px; background: #050505;
   border: 1px solid rgba(232,137,28,0.18);
   box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -6px rgba(232,137,28,0.10), 0 1px 0 rgba(255,255,255,0.03) inset;
 }
-.video-embed-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; cursor: pointer; }
+.video-clip { position: absolute; inset: 0; overflow: hidden; border-radius: 16px; }
+.video-clip video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; cursor: pointer; }
 
 /* Center play button — shown only before the video has ever started playing
    (classic "poster + play" affordance). Once playback has begun, all
@@ -303,12 +317,18 @@ body { overflow-x: hidden; }
   display: flex; flex-direction: column; gap: 2px; padding: 6px 10px 8px;
   background: rgba(8,8,10,0.62);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-radius: 0 0 16px 16px; /* was relying on the parent's overflow:hidden clip before */
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 .vid-bar-hidden { opacity: 0; transform: translateY(10px); pointer-events: none; }
 
-.vid-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.vid-row-left, .vid-row-right { display: flex; align-items: center; gap: 2px; min-width: 0; }
+/* flex-wrap + flex-shrink:0 on the buttons is a safety net for narrow
+   phones: previously, if the row's content didn't fit, buttons could
+   shrink/squish (making them harder to accurately tap) instead of wrapping
+   to a second line — this guarantees every control stays full-size and
+   reachable regardless of viewport width. */
+.vid-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; row-gap: 4px; }
+.vid-row-left, .vid-row-right { display: flex; align-items: center; gap: 2px; min-width: 0; flex-shrink: 0; }
 
 .vid-btn {
   appearance: none; border: none; background: transparent; color: #fff;

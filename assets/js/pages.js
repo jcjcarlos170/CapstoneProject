@@ -23,13 +23,11 @@ function emptyState(iconName, title, desc) {
 // Actions <td> (no new <tr>), so sortable.js/pagination.js are unaffected.
 function rescheduleReqLabel(a) {
   if (!a.rescheduleRequest) return ''
-  // width:100% + a wrapping text span (min-width:0 lets a flex child shrink
-  // below its content's intrinsic width, which is what actually allows the
-  // text to wrap) keeps this pill from overflowing the narrow Actions
-  // column — it grows to two lines instead of spilling past the table edge.
-  return `<span style="display:flex;align-items:flex-start;gap:4px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:4px 9px;cursor:pointer;width:100%;box-sizing:border-box;line-height:1.3" onclick="window.viewAppt('${a.id}')" title="View reschedule request details">
-    <span style="flex-shrink:0;margin-top:1px">${ic('refresh-cw', 'icon-xs')}</span>
-    <span style="min-width:0;white-space:normal">Reschedule Requested</span>
+  // Compact, content-sized pill — matches the same convention as the
+  // Confirmed/Rescheduled sub-badges (apptSubBadges) rather than stretching
+  // to fill the Actions column.
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;color:#C2410C;background:#FFF7ED;border:1px solid #FED7AA;border-radius:999px;padding:2px 8px;cursor:pointer;white-space:nowrap" onclick="window.viewAppt('${a.id}')" title="View reschedule request details">
+    <span style="flex-shrink:0;display:flex">${ic('refresh-cw', 'icon-xs')}</span>Reschedule Req.
   </span>`
 }
 
@@ -78,6 +76,12 @@ function fmtTimestamp12h(ts) {
 // for patients (matches the existing 1-day default for advance booking).
 const CANCEL_DEADLINE_HOURS = 24
 
+// ── Patient reschedule-request deadline ─────────────────────────
+// Same 24h cutoff as cancellation — a reschedule request this close to the
+// appointment leaves staff no real lead time to work it, so it's blocked
+// the same way and the patient is pointed to calling the clinic directly.
+const RESCHEDULE_DEADLINE_HOURS = 24
+
 function apptDateTime(a) {
   if (!a?.date) return null
   let h = 0, m = 0
@@ -103,6 +107,40 @@ function apptCancellable(a) {
   return (dt.getTime() - Date.now()) / 3600000 >= CANCEL_DEADLINE_HOURS
 }
 
+// Whether a patient is still within the reschedule-request window for this appointment.
+function apptReschedulable(a) {
+  const dt = apptDateTime(a)
+  if (!dt) return true // malformed/missing date — don't block on bad data
+  return (dt.getTime() - Date.now()) / 3600000 >= RESCHEDULE_DEADLINE_HOURS
+}
+
+// Small pills shown next to the main status badge — "Confirmed" (patient
+// confirmed attendance after the reminder) and "Rescheduled" (staff/admin
+// moved the date/time at least once). Both are independent of `status`
+// itself, so they're additive rather than replacing the main badge.
+// Colors deliberately reuse existing, established meanings elsewhere in the
+// app: Confirmed reuses the same green as the "Approved" badge (confirming
+// reinforces the approval, it doesn't change it), Rescheduled reuses the
+// same blue already used for the "Appointment Rescheduled" notification.
+function apptSubBadges(a) {
+  let out = ''
+  if (a.status === 'approved' && a.confirmedAt) {
+    out += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;
+      background:#E8F5E9;color:#2E7D32;border-radius:999px;padding:2px 8px;white-space:nowrap">${ic('check','icon-xs')} Confirmed</span>`
+  }
+  if (a.rescheduledAt) {
+    out += `<span style="display:inline-flex;align-items:center;gap:4px;font-size:.68rem;font-weight:600;
+      background:#EFF6FF;color:#3B82F6;border-radius:999px;padding:2px 8px;white-space:nowrap">${ic('refresh-cw','icon-xs')} Rescheduled</span>`
+  }
+  return out
+}
+
+// The Status column's content — the real status badge plus its sub-badges
+// (see apptSubBadges above), always shown together everywhere.
+function apptStatusCell(a) {
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">${badge(a.status)}${apptSubBadges(a)}</div>`
+}
+
 function apptActions(a, role) {
   if (role === 'patient') return ''
   if (role === 'doctor')  return `
@@ -111,9 +149,8 @@ function apptActions(a, role) {
       <button class="btn-icon" title="Patient Record" onclick="window.navigate('patient-view',{patientId:'${a.patientId}',patientName:'${a.patientName}'})">${ic('user','icon-sm')}</button>
     </div>`
   return `
-    <div style="display:flex;flex-direction:column;gap:4px">
-      ${rescheduleReqLabel(a)}
-      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
+      <div class="appt-actions-row">
         <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
         ${a.status === 'pending' ? `
           <button class="btn-icon" title="Approve" style="color:#059669" onclick="window.approveAppt('${a.id}')">${ic('check','icon-sm')}</button>
@@ -125,6 +162,7 @@ function apptActions(a, role) {
           <button class="btn-icon" title="Reschedule" onclick="window.rescheduleAppt('${a.id}')">${ic('refresh-cw','icon-sm')}</button>
           <button class="btn-icon" title="Cancel" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x','icon-sm')}</button>` : ''}
       </div>
+      ${rescheduleReqLabel(a)}
     </div>`
 }
 
@@ -166,7 +204,7 @@ function appointmentsTable(list, role, tbodyId = 'appt-tbody', hidePatient = fal
           <td style="font-size:.82rem">${fmtDate(a.date)}</td>
           <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
           <td style="font-size:.82rem">${a.type}</td>
-          <td>${badge(a.status)}</td>
+          <td>${apptStatusCell(a)}</td>
           ${hasActions ? `<td>${apptActions(a, role)}</td>` : ''}
         </tr>`).join('')}
       </tbody>
@@ -4416,18 +4454,33 @@ function appointmentWizardHtml(mode) {
   // able to self-select when requesting their own first-time visit.
   const bookableServices = CLINIC_SERVICES.filter(s => s.status === 'active' && (isStaff || s.name !== 'Follow-up Consultation'))
   const _minAdv = minAdvanceDays()
-  const advanceNoticeHtml = _minAdv === 0
-    ? `You can book for <strong>today</strong> or any future date.`
-    : `Appointments must be booked <strong>at least ${_minAdv} day${_minAdv > 1 ? 's' : ''} in advance.</strong><br>
-       ${_minAdv === 1 ? 'Same-day booking is not available.' : `Booking less than ${_minAdv} days ahead is not available.`} Please select a valid date from the calendar below.`
+  // Staff/admin retain discretion over booking-window timing (see
+  // amcRender()'s own tooSoon check, main.js — same role-based exception
+  // already applied on the backend in create.php) — the Minimum Advance
+  // Booking policy only ever governs self-service patient bookings, so the
+  // patient-facing "same-day isn't available" wording would be actively
+  // wrong here: same-day IS available for staff, e.g. for a walk-in.
+  // Wording distinguishes admin from staff specifically (rather than a
+  // generic "As staff…" for both) since this wizard is shared by both
+  // roles via the same mode:'staff' — state.role is the actual signer-in's
+  // role, independent of which wizard mode they're using.
+  const _roleLabel = state.role === 'admin' ? 'an admin' : 'a staff member'
+  const advanceNoticeHtml = isStaff
+    ? `As ${_roleLabel}, you have no date restrictions for walk-ins or urgent cases. Book any date, including today.`
+    : _minAdv === 0
+      ? `You can book for <strong>today</strong> or any future date.`
+      : `Appointments must be booked <strong>at least ${_minAdv} day${_minAdv > 1 ? 's' : ''} in advance.</strong><br>
+         ${_minAdv === 1 ? 'Same-day booking is not available.' : `Booking less than ${_minAdv} days ahead is not available.`} Please select a valid date from the calendar below.`
 
   // Clinic-wide days/hours — relevant here since no specific doctor is
   // chosen yet at this step (the calendar itself is gated by these same
   // Consultation Settings via consultationSettings.clinicDays).
   const _clinicDaysShort = (consultationSettings.clinicDays || []).map(d => d.slice(0,3)).join(', ')
+  // The max-advance-booking clause only applies to the patient wizard —
+  // staff/admin have no upper bound either (see amcRender()'s isFar check).
   const clinicHoursNotice = `The clinic is open <strong>${_clinicDaysShort}</strong>, ${consultationSettings.morningStart}–${consultationSettings.afternoonEnd}`
     + (consultationSettings.lunchBreak ? ` (lunch break ${consultationSettings.morningEnd}–${consultationSettings.afternoonStart})` : '')
-    + `. Maximum booking window is ${consultationSettings.maxAdvanceBooking}.`
+    + (isStaff ? '.' : `. Maximum booking window is ${consultationSettings.maxAdvanceBooking}.`)
 
   return `
     <style>
@@ -4949,18 +5002,20 @@ function pagePatientAppts() {
             <td style="font-size:.82rem">${fmtDate(a.date)}</td>
             <td style="font-size:.82rem;white-space:nowrap">${a.time}</td>
             <td style="font-size:.82rem">${a.type}</td>
-            <td>${badge(a.status)}</td>
+            <td>${apptStatusCell(a)}</td>
             <td>
-              <div style="display:flex;flex-direction:column;gap:4px">
-                ${rescheduleReqLabel(a)}
+              <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">
                 <div class="pt-appt-act">
                   <button class="btn-icon" title="View Details" onclick="window.viewAppt('${a.id}')">${ic('eye','icon-sm')}</button>
                   ${(a.status==='pending'||a.status==='approved') ? `
-                    ${a.status==='approved' ? (a.rescheduleRequest ? '' : `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`) : ''}
+                    ${a.status==='approved' && !a.rescheduleRequest ? (apptReschedulable(a)
+                      ? `<button class="btn-icon" title="Request Reschedule" style="color:#D97706" onclick="window.requestReschedule('${a.id}')">${ic('refresh-cw','icon-sm')}</button>`
+                      : `<button class="btn-icon" title="Reschedule window has passed" style="color:#9CA3AF;opacity:.5;cursor:not-allowed" onclick="window.explainRescheduleDeadline()">${ic('refresh-cw','icon-sm')}</button>`) : ''}
                     ${apptCancellable(a)
                       ? `<button class="btn-icon" title="Cancel Appointment" style="color:#DC2626" onclick="window.confirmCancelAppt('${a.id}')">${ic('x-circle','icon-sm')}</button>`
                       : `<button class="btn-icon" title="Cancellation window has passed" style="color:#9CA3AF;opacity:.5;cursor:not-allowed" onclick="window.explainCancelDeadline()">${ic('x-circle','icon-sm')}</button>`}` : ''}
                 </div>
+                ${rescheduleReqLabel(a)}
               </div>
             </td>
           </tr>`}).join('')}
@@ -5536,9 +5591,9 @@ function pagePatientPrescriptions() {
 function pagePatientNotifications() {
   const notifs = window._notifications || []
 
-  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', waitlist_offer:'alert-circle', no_show:'alert-circle', record:'eye', prescription:'file-text', info:'info' }
-  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', waitlist_offer:'#E8760A', no_show:'#EF4444', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280' }
-  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', waitlist_offer:'#FFF0DC', no_show:'#FEF2F2', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6' }
+  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', waitlist_join:'clock', no_show:'alert-circle', record:'eye', prescription:'file-text', info:'info', appointment_confirmed:'check-circle' }
+  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', waitlist_offer:'#E8760A', waitlist_removed:'#EF4444', waitlist_join:'#E8760A', no_show:'#EF4444', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280', appointment_confirmed:'#059669' }
+  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', waitlist_offer:'#FFF0DC', waitlist_removed:'#FEF2F2', waitlist_join:'#FFF0DC', no_show:'#FEF2F2', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6', appointment_confirmed:'#ECFDF5' }
   const resolveType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
   const unreadCount = notifs.filter(n => !n.isRead).length

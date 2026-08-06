@@ -118,7 +118,13 @@
     <span class="about-eyebrow">See Us In Action</span>
     <h2 class="about-heading">Take a Look Inside<br>Our Clinic</h2>
     <div class="video-embed-wrap" id="video-wrap">
-      <video id="clinic-video" playsinline preload="metadata" disablepictureinpicture controlslist="nodownload noremoteplayback"></video>
+      <!-- Rounded-corner clipping lives on this inner layer only — the
+           outer wrap must NOT have overflow:hidden, or it clips the speed
+           menu popover (which needs to render outside the video's own
+           bounds) along with the video itself. -->
+      <div class="video-clip">
+        <video id="clinic-video" playsinline preload="metadata" disablepictureinpicture controlslist="nodownload noremoteplayback"></video>
+      </div>
 
       <button type="button" class="vid-center-btn" id="vid-center-btn" aria-label="Play video">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 5v14l11-7z"/></svg>
@@ -425,30 +431,59 @@
       document.addEventListener('click', closeSpeedMenu);
     }
 
+    // Matches YouTube's mobile behavior: entering fullscreen on a phone-sized
+    // viewport immediately forces landscape, instead of leaving a portrait
+    // video letterboxed in a landscape-shaped fullscreen frame. Desktops/
+    // tablets (and browsers without the Orientation Lock API) just no-op —
+    // the API only meaningfully applies on mobile in the first place.
+    function lockLandscapeIfMobile() {
+      if (window.innerWidth >= 768) return;
+      const orient = screen.orientation;
+      if (orient && orient.lock) orient.lock('landscape').catch(() => {});
+    }
+    function unlockOrientation() {
+      const orient = screen.orientation;
+      if (orient && orient.unlock) { try { orient.unlock(); } catch (_) {} }
+    }
+
     fsBtn.addEventListener('click', () => {
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else if (wrap.requestFullscreen) {
-        wrap.requestFullscreen();
+        wrap.requestFullscreen().then(lockLandscapeIfMobile).catch(() => {});
       } else if (video.webkitEnterFullscreen) {
-        video.webkitEnterFullscreen(); // iOS Safari fallback
-      }
+        video.webkitEnterFullscreen(); // iOS Safari fallback — its native
+        lockLandscapeIfMobile();       // player rotates on its own, but this
+      }                                 // covers browsers that don't.
     });
     document.addEventListener('fullscreenchange', () => {
       const isFs = !!document.fullscreenElement;
       fsBtn.querySelector('.ic-fs-in').style.display  = isFs ? 'none' : '';
       fsBtn.querySelector('.ic-fs-out').style.display = isFs ? '' : 'none';
+      if (!isFs) unlockOrientation();
     });
 
     // Auto-hide the control bar during playback once idle; always show when paused.
+    // Deliberately skipped on touch-primary devices (matchMedia('(hover: none)'))
+    // — while the bar is hidden it's also pointer-events:none, so a tap on
+    // where a button *would* be doesn't actually hit that button at all (the
+    // browser's hit-testing skips pointer-events:none elements entirely); the
+    // tap falls through to the video underneath instead, which just reveals
+    // the bar without ever firing the button's own click. A second, separate
+    // tap directly on the now-visible button is needed to actually activate
+    // it — not obvious, and exactly why skip/seek could look "broken" with a
+    // single tap. Keeping the bar always visible on touch sidesteps that
+    // entirely instead of trying to special-case the first-tap-only-reveals
+    // behavior real players use.
+    const isTouchPrimary = window.matchMedia && window.matchMedia('(hover: none)').matches;
     let idleTimer;
     function showBar() {
       bar.classList.remove('vid-bar-hidden');
       clearTimeout(idleTimer);
-      if (!video.paused) idleTimer = setTimeout(() => bar.classList.add('vid-bar-hidden'), 2500);
+      if (!video.paused && !isTouchPrimary) idleTimer = setTimeout(() => bar.classList.add('vid-bar-hidden'), 2500);
     }
     wrap.addEventListener('mousemove', showBar);
-    wrap.addEventListener('mouseleave', () => { if (!video.paused) bar.classList.add('vid-bar-hidden'); });
+    wrap.addEventListener('mouseleave', () => { if (!video.paused && !isTouchPrimary) bar.classList.add('vid-bar-hidden'); });
     wrap.addEventListener('touchstart', showBar, { passive: true });
     video.addEventListener('play', showBar);
     video.addEventListener('pause', () => { clearTimeout(idleTimer); bar.classList.remove('vid-bar-hidden'); });
@@ -469,7 +504,13 @@
       if (headingYearEl) headingYearEl.textContent = fy;
 
       if (d.clinic.videoUrl) {
-        document.getElementById('clinic-video').src = d.clinic.videoUrl;
+        // Routed through api/media/video.php instead of the static path
+        // directly — it adds real HTTP Range support, which PHP's built-in
+        // server (this app's Railway deployment) doesn't provide for
+        // static files, breaking seek/skip without it. Harmless on
+        // localhost/Apache too, just extra insurance either way.
+        const videoFilename = d.clinic.videoUrl.split('/').pop();
+        document.getElementById('clinic-video').src = 'api/media/video.php?src=' + encodeURIComponent(videoFilename);
         document.getElementById('video-section').style.display = '';
       }
     })

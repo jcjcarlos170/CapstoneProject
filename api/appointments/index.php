@@ -42,6 +42,7 @@ function mapRow(array $r): array {
         'rescheduleRequest'   => is_array($rr) ? $rr : null,
         'reminderSentAt'      => $r['reminder_sent_at'] ?? null,
         'confirmedAt'         => $r['confirmed_at']     ?? null,
+        'rescheduledAt'       => $r['rescheduled_at']   ?? null,
     ];
 }
 

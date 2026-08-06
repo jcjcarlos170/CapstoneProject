@@ -61,7 +61,8 @@ try {
             $fmtDate = date('M j, Y', strtotime($r['date']));
             createNotification($pdo, (int)$userId, 'reminder', 'Confirm Your Appointment',
                 "You have an appointment with {$r['doctor_name']} tomorrow ({$fmtDate}) at {$r['time']}. "
-              . "Please confirm by " . date('g:i A', strtotime($deadlineHourStr)) . " today or it will be automatically cancelled."
+              . "Please confirm by " . date('g:i A', strtotime($deadlineHourStr)) . " today or it will be automatically cancelled.",
+                $r['id']
             );
         }
     }
@@ -151,8 +152,8 @@ try {
         if ($userId) {
             $fmtDate = date('M j, Y', strtotime($w['date']));
             createNotification($pdo, (int)$userId, 'info', 'Removed From Waitlist',
-                "You've been removed from the waitlist for {$w['doctor_name']} on {$fmtDate} at {$w['time']} — "
-              . "it's too close to that time now for the slot to realistically open up for you. "
+                "You've been removed from the waitlist for {$w['doctor_name']} on {$fmtDate} at {$w['time']}. "
+              . "It's too close to that time now for the slot to open up for you. "
               . "Please request a new appointment if you'd still like to be seen."
             );
         }

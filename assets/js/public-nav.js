@@ -92,7 +92,7 @@
       wrap.className = 'nav-profile'
 
       var avatarInner = user.photoUrl
-        ? '<img src="' + base + user.photoUrl + '" alt="">'
+        ? '<img src="' + base + user.photoUrl + '" alt="" onerror="this.remove();this.parentElement&&(this.parentElement.textContent=' + "'" + initials(user.name).replace(/'/g, "\\'") + "'" + ')">'
         : initials(user.name)
 
       wrap.innerHTML =
@@ -138,7 +138,7 @@
       if (li.parentElement.querySelector('.nav-link-account')) return // already added
 
       var avatarInner = user.photoUrl
-        ? '<img src="' + base + user.photoUrl + '" alt="">'
+        ? '<img src="' + base + user.photoUrl + '" alt="" onerror="this.remove();this.parentElement&&(this.parentElement.textContent=' + "'" + initials(user.name).replace(/'/g, "\\'") + "'" + ')">'
         : initials(user.name)
 
       li.className = 'nav-item nav-link-account'

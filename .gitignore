@@ -6,3 +6,11 @@
 Thumbs.db
 /temporary screenshots/
 node_modules/
+
+# Runtime uploads live on a Railway Volume in production — don't commit
+# user-uploaded content, but keep the folder structure (see .gitkeep files)
+# so it exists even before a volume is first mounted.
+/assets/uploads/**
+!/assets/uploads/
+!/assets/uploads/*/
+!/assets/uploads/*/.gitkeep

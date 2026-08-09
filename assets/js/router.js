@@ -438,7 +438,7 @@ function renderSidebar() {
   const roleBadgeMap = { admin: 'Administrator', staff: 'Staff', doctor: 'Doctor', patient: 'Patient' }
   const roleBadge = roleBadgeMap[role] || role
   const avatarHtml = user?.photoUrl
-    ? `<div class="sidebar-avatar sidebar-profile-avatar" style="overflow:hidden;padding:0;background:transparent"><img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+    ? `<div class="sidebar-avatar sidebar-profile-avatar" style="overflow:hidden;padding:0;background:transparent"><img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="var w=this.parentElement;if(w&&w.className){w.style.background='';w.style.padding='';w.style.overflow=''}if(w)w.textContent='${initials}'"></div>`
     : `<div class="sidebar-avatar sidebar-profile-avatar">${initials}</div>`
 
   document.getElementById('sidebar-nav').innerHTML = nav

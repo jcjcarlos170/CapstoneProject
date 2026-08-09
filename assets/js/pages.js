@@ -35,10 +35,20 @@ function initials(name) {
   return name.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase()
 }
 
+// If a stored photo file is missing (deleted, never uploaded, etc.) the
+// <img> 404s and used to leave a broken-image icon in its place. Falling
+// back to the same orange initials avatar shown before a photo was ever
+// set is much less alarming and matches the "no photo" look everywhere
+// else in the app.
+function avatarFallbackAttr(name) {
+  return `var w=this.parentElement;if(w&&w.className){w.style.background='';w.style.padding='';w.style.overflow=''}if(w)w.textContent='${initials(name).replace(/'/g,"\\'")}'`
+}
+
 function avatar(name, cls = 'patient-avatar', photoUrl = null) {
-  if (photoUrl) return `<div class="${cls}" style="padding:0;overflow:hidden;background:transparent"><img src="${photoUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+  if (photoUrl) return `<div class="${cls}" style="padding:0;overflow:hidden;background:transparent"><img src="${photoUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(name)}"></div>`
   return `<div class="${cls}">${initials(name)}</div>`
 }
+window.avatarFallbackAttr = avatarFallbackAttr
 
 function dayPills(days, size = 'md') {
   if (!days || !days.length) return ''
@@ -3304,7 +3314,7 @@ function pageExamination() {
     </div></div>` : `
     <div class="card" style="margin-bottom:20px">
       <div class="profile-hero" style="padding:20px 24px">
-        <div class="profile-avatar-lg" style="width:56px;height:56px;font-size:1.3rem">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}</div>
+        <div class="profile-avatar-lg" style="width:56px;height:56px;font-size:1.3rem">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(p.name)}">` : initials(p.name)}</div>
         <div>
           <div class="profile-info-name" style="font-size:1.2rem">${p.name}</div>
           <div class="profile-info-meta">
@@ -6173,7 +6183,7 @@ function pagePatientDoctorAvail() {
         <div class="card-body" style="display:flex;align-items:center;gap:16px;padding-bottom:14px;flex-wrap:wrap">
           <div class="profile-avatar-lg" style="width:52px;height:52px;font-size:1.1rem;flex-shrink:0;${doctor.photoUrl?'padding:0;overflow:hidden;background:none;':''}">
             ${doctor.photoUrl
-              ? `<img src="${doctor.photoUrl}" alt="${doctor.name}" style="width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%;display:block">`
+              ? `<img src="${doctor.photoUrl}" alt="${doctor.name}" style="width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:50%;display:block" onerror="${avatarFallbackAttr(doctor.name)}">`
               : initials(doctor.name)}
           </div>
           <div style="flex:1;min-width:0">

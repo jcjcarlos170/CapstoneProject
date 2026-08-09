@@ -2,7 +2,15 @@
 // ================================================================
 //  CANAOPTICALCLINIC — api/users/upload_photo.php
 //  POST multipart/form-data { photo: File }
-//  Saves to assets/images/profiles/<user_id>.<ext>
+//  Saves to assets/uploads/profiles/<user_id>.<ext>
+//  NOTE: this directory must have a Railway Volume mounted on it in
+//  production (see README/deploy notes) — without one, Railway's
+//  container filesystem is ephemeral and anything written here at
+//  runtime is lost the next time the container restarts (redeploys,
+//  or waking back up after going idle), even though the DB row
+//  pointing at it survives. assets/images/profiles/ (committed to
+//  git) is left alone on purpose so this change can't wipe out any
+//  pre-existing seed photos there.
 //  Updates users.photo_url and returns the public path.
 // ================================================================
 
@@ -36,7 +44,7 @@ $ext       = match($mimeType) {
     default      => 'jpg',
 };
 
-$uploadDir = __DIR__ . '/../../assets/images/profiles/';
+$uploadDir = __DIR__ . '/../../assets/uploads/profiles/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
@@ -54,7 +62,7 @@ if (!move_uploaded_file($file['tmp_name'], $destPath)) {
     jsonResponse(['success' => false, 'message' => 'Failed to save file. Check server permissions.'], 500);
 }
 
-$photoUrl = 'assets/images/profiles/' . $filename;
+$photoUrl = 'assets/uploads/profiles/' . $filename;
 
 try {
     $pdo = getDB();

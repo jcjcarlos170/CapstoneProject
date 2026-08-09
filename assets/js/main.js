@@ -2824,7 +2824,7 @@ async function wizBuildDoctorCards() {
 
   const getInitials = name => name.replace('Dr. ','').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()
   const docAvatar = d => d.photoUrl
-    ? `<div class="doc-card-avatar" style="overflow:hidden;padding:0"><img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block"></div>`
+    ? `<div class="doc-card-avatar" style="overflow:hidden;padding:0"><img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block" onerror="${window.avatarFallbackAttr(d.name)}"></div>`
     : `<div class="doc-card-avatar">${getInitials(d.name)}</div>`
 
   container.innerHTML = availDocs.map(d => {
@@ -5530,7 +5530,7 @@ function showQRResult(p) {
 function _renderPatientResult(p, onclickJs) {
   const initls = (p.name || '').split(' ').map(n=>n[0]).slice(0,2).join('')
   const avatarHtml = p.photoUrl
-    ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+    ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="this.remove();this.parentElement&&(this.parentElement.textContent='${initls.replace(/'/g,"\\'")}')">`
     : initls
   return `
     <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:10px"
@@ -6969,7 +6969,7 @@ function _openExamPrintWindow(p, e) {
   <div class="patient-block">
     <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
       ${p.photoUrl
-        ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+        ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${window.avatarFallbackAttr(p.name)}"></div>`
         : `<div class="avatar">${_inits(p.name)}</div>`}
       ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:52px;height:52px">` : ''}
     </div>
@@ -7170,7 +7170,7 @@ function _openRxPrintWindow(p, rx) {
   <div class="patient-block">
     <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0">
       ${p.photoUrl
-        ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+        ? `<div class="avatar" style="padding:0;overflow:hidden;background:transparent"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${window.avatarFallbackAttr(p.name)}"></div>`
         : `<div class="avatar">${_inits(p.name)}</div>`}
       ${qrDataUrl ? `<img src="${qrDataUrl}" alt="Patient QR" style="width:52px;height:52px">` : ''}
     </div>

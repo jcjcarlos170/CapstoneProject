@@ -2533,6 +2533,12 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
   background: white;
   border-radius: 16px;
   width: 100%;
+  min-width: 0; /* Without this, a flex item's default min-width:auto lets its
+    content's intrinsic width (e.g. the mini-calendar's 7-column grid, or
+    long unwrapped text) force this box wider than modal-overlay's available
+    space instead of letting it shrink to fit — the box then renders past
+    the left edge of narrow/phone screens, clipping the header/labels flush
+    against the edge instead of centering with padding on both sides. */
   max-width: 540px;
   max-height: 90vh;
   display: flex;
@@ -2547,6 +2553,7 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
 }
 .modal-box.modal-lg { max-width: 720px; }
 .modal-box.modal-sm { max-width: 400px; }
+.modal-box.modal-xl { max-width: 840px; }
 .modal-header {
   background: #fff;
   padding: 20px 24px 16px;
@@ -2586,6 +2593,9 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
   flex-direction: column;
   gap: 14px;
   flex: 1;
+  min-width: 0; /* same auto-min-size fix as .modal-box, one level down —
+    otherwise wide grid/flex children (the mini calendar, time-slot rows)
+    re-introduce the same overflow via this box instead. */
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -2594,6 +2604,15 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
 .modal-body::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
 .modal-body::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 4px; }
 .modal-body::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+@media (max-width: 480px) {
+  /* Claw back space on phones — same spirit as the booking wizard's own
+     max-width:480px breakpoint (pages.js), so the modal's mini calendar
+     gets roughly as much width to work with as the wizard page's does. */
+  .modal-overlay { padding: 10px; }
+  .modal-header { padding: 16px 16px 14px; }
+  .modal-body { padding: 16px; }
+  .modal-footer { padding: 12px 16px; }
+}
 .modal-footer {
   background: #fff;
   padding: 14px 24px;

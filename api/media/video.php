@@ -78,8 +78,19 @@ const MAX_CHUNK_BYTES = 6 * 1024 * 1024; // ~6MB per response
 
 $range = $_SERVER['HTTP_RANGE'] ?? '';
 if ($range !== '' && preg_match('/bytes=(\d*)-(\d*)/', $range, $m)) {
-    $start = $m[1] === '' ? 0 : (int)$m[1];
-    $end   = $m[2] === '' ? min($size - 1, $start + MAX_CHUNK_BYTES - 1) : min((int)$m[2], $size - 1);
+    if ($m[1] === '' && $m[2] !== '') {
+        // Suffix range — "bytes=-500" means "the LAST 500 bytes", not the
+        // first 500. Safari relies on this form to fetch the tail of a
+        // file when probing for metadata, so getting it backwards (as an
+        // earlier version of this script did) can break playback in ways
+        // that only show up on Safari/iOS.
+        $suffixLen = (int)$m[2];
+        $start     = max(0, $size - $suffixLen);
+        $end       = $size - 1;
+    } else {
+        $start = $m[1] === '' ? 0 : (int)$m[1];
+        $end   = $m[2] === '' ? min($size - 1, $start + MAX_CHUNK_BYTES - 1) : min((int)$m[2], $size - 1);
+    }
 
     if ($start > $end || $start >= $size) {
         http_response_code(416); // Range Not Satisfiable
@@ -90,15 +101,19 @@ if ($range !== '' && preg_match('/bytes=(\d*)-(\d*)/', $range, $m)) {
     http_response_code(206);
     header("Content-Range: bytes {$start}-{$end}/{$size}");
 } else {
-    // No Range header at all — still cap it rather than trying to stream a
-    // (possibly huge) file in one uninterrupted go.
-    $end = min($size - 1, MAX_CHUNK_BYTES - 1);
-    if ($end < $size - 1) {
-        http_response_code(206);
-        header("Content-Range: bytes {$start}-{$end}/{$size}");
-    } else {
-        http_response_code(200);
-    }
+    // No Range header at all. A 206/Content-Range response is only valid
+    // as the answer to an actual Range request — sending one unprompted
+    // (as this branch used to, to cap the response size) is a genuine HTTP
+    // spec violation. Chrome/Firefox mostly shrug it off, but Safari's
+    // media pipeline treats an unsolicited 206 as a corrupt response and
+    // refuses to play the video at all — this is very likely why playback
+    // failed specifically on Apple devices. Once Accept-Ranges: bytes is
+    // advertised (above), browsers — including Safari — switch to Range
+    // requests for all subsequent chunks/seeks anyway, so this plain,
+    // correct 200 response only ever really applies to that first probe
+    // request, which connection_aborted() below cuts short as soon as the
+    // client has what it needs.
+    http_response_code(200);
 }
 
 $length = $end - $start + 1;

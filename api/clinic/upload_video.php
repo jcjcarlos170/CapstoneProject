@@ -58,6 +58,35 @@ if ($file['size'] > $maxBytes) {
 
 $ext = $mimeType === 'video/webm' ? 'webm' : 'mp4';
 
+// A file can be a perfectly valid MP4 *container* (passing the MIME check
+// above) while the video stream inside it is encoded with a codec Safari/
+// iOS can't decode — VP9-in-MP4 is the classic case: Chrome/Firefox play
+// it fine since they support VP9 regardless of container, so it looks
+// "fine" in testing right up until a Safari/iPhone visitor hits the
+// landing page. ffprobe (if present — see nixpacks.toml) is the only
+// reliable way to catch this at upload time rather than after the fact.
+if ($ext === 'mp4') {
+    $ffprobe = @shell_exec('which ffprobe 2>/dev/null');
+    if ($ffprobe) {
+        $codec = trim((string)@shell_exec(
+            'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name ' .
+            '-of csv=p=0 ' . escapeshellarg($file['tmp_name']) . ' 2>/dev/null'
+        ));
+        $safariCompatible = ['h264', 'hevc'];
+        if ($codec !== '' && !in_array($codec, $safariCompatible, true)) {
+            jsonResponse([
+                'success' => false,
+                'message' => "This MP4's video track is encoded with \"$codec\", which Safari and " .
+                    'iOS/iPadOS cannot play even though other browsers can. Please re-export it as ' .
+                    'H.264 (or HEVC) video with AAC audio before uploading.',
+            ]);
+        }
+    }
+    // If ffprobe isn't available on this deployment, upload proceeds as
+    // before rather than blocking admins — same behavior as prior to this
+    // check.
+}
+
 if (!is_dir(VIDEO_DIR)) {
     mkdir(VIDEO_DIR, 0755, true);
 }

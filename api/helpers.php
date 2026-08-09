@@ -560,6 +560,31 @@ function checkWaitlistHold(PDO $pdo, string $doctorId, string $date, string $tim
     return (bool)$stmt->fetch();
 }
 
+// Where a given waiting entry currently sits in line for its doctor+date+
+// time slot, and how many people total are waiting for that same slot.
+// Uses the identical ordering offerNextWaitlistSlot() uses to pick who's
+// next (status='waiting', created_at ASC, id as a tiebreaker for same-
+// timestamp entries) so the number shown to a patient always matches who'd
+// actually be offered the slot next — never shows other patients' details,
+// just where this one entry ranks.
+function waitlistPosition(PDO $pdo, string $doctorId, string $date, string $time, string $createdAt, int $id): array {
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM appointment_waitlist
+         WHERE doctor_id = ? AND date = ? AND time = ? AND status = 'waiting'
+           AND (created_at < ? OR (created_at = ? AND id <= ?))"
+    );
+    $stmt->execute([$doctorId, $date, $time, $createdAt, $createdAt, $id]);
+    $position = (int)$stmt->fetchColumn();
+
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM appointment_waitlist WHERE doctor_id = ? AND date = ? AND time = ? AND status = 'waiting'"
+    );
+    $stmt->execute([$doctorId, $date, $time]);
+    $total = (int)$stmt->fetchColumn();
+
+    return ['position' => $position, 'total' => $total];
+}
+
 // Offers a freshly-opened slot to the next patient in line, if anyone is
 // waiting for that exact doctor+date+time. Call this any time an
 // appointment for that slot is cancelled/no-showed, a waitlist offer is

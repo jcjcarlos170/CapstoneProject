@@ -548,8 +548,18 @@ function pageAppointments() {
     list = list.filter(a => a.status === activeFilter)
   }
 
+  // Same convention as the patient's own "My Appointments" page
+  // (pagePatientAppts()): pending/approved are the actionable, upcoming
+  // statuses — soonest-first (ascending) surfaces what needs attention next,
+  // instead of burying it under whatever was booked furthest in the future.
+  // Historical statuses (all/cancelled/disapproved/completed/no-show) stay
+  // most-recent-first (descending), same as before.
+  const _asc = activeFilter === 'pending' || activeFilter === 'approved'
+
   if (activeFilter === 'today') {
     list.sort((a, b) => a.time.localeCompare(b.time))
+  } else if (_asc) {
+    list.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
   } else {
     list.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time))
   }
@@ -578,7 +588,7 @@ function pageAppointments() {
   const title    = role === 'doctor' ? 'My Patient Appointments' : (titleMap[activeFilter] || 'Appointments')
   const subtitle = role === 'doctor' ? 'Appointments assigned to you' : (subtitleMap[activeFilter] || 'Manage and track appointment requests')
 
-  window.state.afterRender = () => { window.initPagination('appt-tbody'); window.initSortable('appt-tbody', { key: 'date', type: 'date', dir: activeFilter === 'today' ? 1 : -1, context: activeFilter }) }
+  window.state.afterRender = () => { window.initPagination('appt-tbody'); window.initSortable('appt-tbody', activeFilter === 'today' ? { key: 'time', type: 'text', dir: 1, context: activeFilter } : { key: 'date', type: 'date', dir: _asc ? 1 : -1, context: activeFilter }) }
 
   return `
   <div class="page-header">
@@ -4576,10 +4586,11 @@ function appointmentWizardHtml(mode) {
       .time-slot-legend-item { display:flex; align-items:center; gap:6px; }
       .time-slot-legend-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; flex-shrink:0; }
       /* ── Mini calendar ── */
-      .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+      .appt-mini-cal { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; min-width:0; }
       .amc-hdr { text-align:center; font-size:.65rem; font-weight:700; color:#9CA3AF; padding:4px 0; text-transform:uppercase; }
       .amc-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px;
-        font-size:.8rem; cursor:pointer; transition:all .15s; position:relative; color:#374151; }
+        font-size:.8rem; cursor:pointer; position:relative; color:#374151;
+        transition:background-color .15s, color .15s; }
       .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
       .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
       .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
@@ -4602,7 +4613,7 @@ function appointmentWizardHtml(mode) {
       .sum-icon { width:28px; height:28px; border-radius:7px; background:#FFF0DC; display:flex; align-items:center;
         justify-content:center; flex-shrink:0; color:#E8760A; margin-top:1px; }
       .sum-label { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:#9CA3AF; margin-bottom:2px; }
-      .sum-val { font-size:.85rem; font-weight:600; color:#1C1C1C; }
+      .sum-val { font-size:.85rem; font-weight:600; color:#1C1C1C; transition:color .15s; }
       .sum-val.empty { color:#9CA3AF; font-weight:400; }
       /* ── Mobile: stack the wizard and booking summary top-to-bottom ── */
       @media (max-width:767px) {
@@ -5618,9 +5629,9 @@ function pagePatientPrescriptions() {
 function pagePatientNotifications() {
   const notifs = window._notifications || []
 
-  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', waitlist_join:'clock', no_show:'alert-circle', record:'eye', prescription:'file-text', info:'info', appointment_confirmed:'check-circle' }
-  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', waitlist_offer:'#E8760A', waitlist_removed:'#EF4444', waitlist_join:'#E8760A', no_show:'#EF4444', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280', appointment_confirmed:'#059669' }
-  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', waitlist_offer:'#FFF0DC', waitlist_removed:'#FEF2F2', waitlist_join:'#FFF0DC', no_show:'#FEF2F2', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6', appointment_confirmed:'#ECFDF5' }
+  const typeIcon  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', welcome:'home', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', waitlist_join:'clock', waitlist_left:'x-circle', no_show:'alert-circle', record:'eye', prescription:'file-text', info:'info', appointment_confirmed:'check-circle' }
+  const typeColor = { approved:'#059669', cancelled:'#EF4444', disapproved:'#EF4444', rescheduled:'#3B82F6', new_appointment:'#E8760A', reschedule_request:'#D97706', welcome:'#E8760A', reminder:'#D97706', waitlist_offer:'#E8760A', waitlist_removed:'#EF4444', waitlist_join:'#E8760A', waitlist_left:'#6B7280', no_show:'#EF4444', record:'#E8760A', prescription:'#3B82F6', info:'#6B7280', appointment_confirmed:'#059669' }
+  const typeBg    = { approved:'#ECFDF5', cancelled:'#FEF2F2', disapproved:'#FEF2F2', rescheduled:'#EFF6FF', new_appointment:'#FFF0DC', reschedule_request:'#FFF3CD', welcome:'#FFF0DC', reminder:'#FFF3CD', waitlist_offer:'#FFF0DC', waitlist_removed:'#FEF2F2', waitlist_join:'#FFF0DC', waitlist_left:'#F3F4F6', no_show:'#FEF2F2', record:'#FFF0DC', prescription:'#EFF6FF', info:'#F3F4F6', appointment_confirmed:'#ECFDF5' }
   const resolveType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
   const unreadCount = notifs.filter(n => !n.isRead).length

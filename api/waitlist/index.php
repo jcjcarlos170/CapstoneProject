@@ -46,7 +46,16 @@ try {
         );
         $stmt->execute([$profileId]);
         $row = $stmt->fetch();
-        jsonResponse(['success' => true, 'entry' => $row ? mapWaitlistRow($row) : null]);
+        $entry = $row ? mapWaitlistRow($row) : null;
+        // Position only makes sense while still 'waiting' — an 'offered'
+        // entry has already reached the front of the line and is instead
+        // showing its own claim countdown in the UI.
+        if ($entry && $row['status'] === 'waiting') {
+            $pos = waitlistPosition($pdo, $row['doctor_id'], $row['date'], $row['time'], $row['created_at'], (int)$row['id']);
+            $entry['position']     = $pos['position'];
+            $entry['totalWaiting'] = $pos['total'];
+        }
+        jsonResponse(['success' => true, 'entry' => $entry]);
     } elseif (in_array($role, ['admin', 'staff'], true)) {
         $rows = $pdo->query(
             "SELECT * FROM appointment_waitlist WHERE status IN ('waiting','offered')

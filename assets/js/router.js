@@ -559,8 +559,8 @@ function _notifTimeAgo(dateStr) {
 }
 window._notifTimeAgo = _notifTimeAgo
 
-const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', no_show:'alert-circle', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', waitlist_join:'clock', welcome:'home', info:'info', contact_message:'mail' }
-const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', no_show:'red', reminder:'orange', waitlist_offer:'orange', waitlist_removed:'red', waitlist_join:'orange', welcome:'orange', info:'gray', contact_message:'orange' }
+const _NOTIF_ICON  = { approved:'check-circle', cancelled:'x-circle', disapproved:'x-circle', rescheduled:'calendar', new_appointment:'calendar', reschedule_request:'alert-circle', no_show:'alert-circle', reminder:'clock', waitlist_offer:'alert-circle', waitlist_removed:'x-circle', waitlist_join:'clock', waitlist_left:'x-circle', welcome:'home', info:'info', contact_message:'mail' }
+const _NOTIF_COLOR = { approved:'green', cancelled:'red', disapproved:'red', rescheduled:'blue', new_appointment:'orange', reschedule_request:'orange', no_show:'red', reminder:'orange', waitlist_offer:'orange', waitlist_removed:'red', waitlist_join:'orange', waitlist_left:'gray', welcome:'orange', info:'gray', contact_message:'orange' }
 const _resolveNotifType = n => (n.type === 'info' && n.title?.toLowerCase().startsWith('welcome')) ? 'welcome' : n.type
 
 // Returns { page, params } so callers always pass an explicit filter,
@@ -618,9 +618,11 @@ function _notifNavTarget(type, role) {
   if (type === 'waitlist_offer')   return { page: 'patient-request-appt', params: {} }
   if (type === 'waitlist_removed') return { page: 'patient-request-appt', params: {} }
 
-  // A patient joining the waitlist is admin/staff-only — send them to the
-  // Waitlist list page (there's no per-status filter there to preserve).
+  // A patient joining or leaving the waitlist is admin/staff-only — send
+  // them to the Waitlist list page (there's no per-status filter there to
+  // preserve).
   if (type === 'waitlist_join')    return { page: 'waitlist', params: {} }
+  if (type === 'waitlist_left')    return { page: 'waitlist', params: {} }
 
   const map = {
     record:          role === 'patient' ? 'patient-exam-history'  : 'patient-list',

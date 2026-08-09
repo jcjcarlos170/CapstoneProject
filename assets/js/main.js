@@ -1043,7 +1043,9 @@ function reCalSelectDate(dateStr) {
   _reCal.selectedDate = dateStr
   const inp = document.getElementById('re-date')
   if (inp) inp.value = dateStr
-  reCalRender()
+  // Same reasoning as amcSwapSelected — swap the highlighted cell directly so
+  // the fade transition plays instead of getting skipped by a full rebuild.
+  if (!amcSwapSelected('re-cal-cells', dateStr)) reCalRender()
   reOnDateChange(_reCal.doctorId, _reCal.apptId)
 }
 window.reCalSelectDate = reCalSelectDate
@@ -1181,10 +1183,11 @@ function rescheduleAppt(id) {
         /* ── Mini calendar — same convention as the booking wizard's own
            amc-* classes (pages.js), copied here since modals don't share
            the wizard page's stylesheet. ── */
-        .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+        .appt-mini-cal { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; min-width:0; }
         .amc-hdr { text-align:center; font-size:.65rem; font-weight:700; color:#9CA3AF; padding:4px 0; text-transform:uppercase; }
         .amc-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px;
-          font-size:.8rem; cursor:pointer; transition:all .15s; position:relative; color:#374151; }
+          font-size:.8rem; cursor:pointer; position:relative; color:#374151;
+          transition:background-color .15s, color .15s; }
         .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
         .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
         .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
@@ -1195,6 +1198,14 @@ function rescheduleAppt(id) {
         .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; }
         .amc-holiday-lbl { position:absolute; left:2px; right:2px; top:calc(50% + 8px); font-size:.6rem; line-height:1.15; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:600; padding:0 1px; }
         .amc-day.amc-blocked { background:#FEE2E2; color:#B91C1C; cursor:default; font-weight:700; text-decoration:line-through; text-decoration-color:rgba(185,28,28,0.5); }
+        /* Same responsive shrink as the booking wizard's calendar (pages.js)
+           — without this, a holiday name (e.g. "Ninoy Aquino Day") wraps
+           past 2 lines and spills out of the cell on narrow/phone widths,
+           since this modal's grid has less room than the full wizard page. */
+        @media (max-width:480px) {
+          .amc-day.amc-holiday { font-size:.7rem; }
+          .amc-holiday-lbl { font-size:.44rem; top:calc(50% + 4px); line-height:1.05; }
+        }
       </style>
       ${fulfillingRequest ? `<div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.8rem;color:#9A3412">
         Fulfilling the patient's reschedule request.${prefText ? ` They asked for <strong>${prefText}</strong>, already pre-filled below.` : ' No specific date or time was requested.'}
@@ -1322,7 +1333,7 @@ function rsCalSelectDate(dateStr) {
   _rsCal.selectedDate = dateStr
   const inp = document.getElementById('rs-date')
   if (inp) inp.value = dateStr
-  rsCalRender()
+  if (!amcSwapSelected('rs-cal-cells', dateStr)) rsCalRender()
   rsOnDateChange(_rsCal.doctorId, _rsCal.apptId)
 }
 window.rsCalSelectDate = rsCalSelectDate
@@ -1460,10 +1471,11 @@ function requestReschedule(id) {
         /* ── Mini calendar — same convention as the booking wizard's own
            amc-* classes (pages.js), copied here since modals don't share
            the wizard page's stylesheet. ── */
-        .appt-mini-cal { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+        .appt-mini-cal { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; min-width:0; }
         .amc-hdr { text-align:center; font-size:.65rem; font-weight:700; color:#9CA3AF; padding:4px 0; text-transform:uppercase; }
         .amc-day { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px;
-          font-size:.8rem; cursor:pointer; transition:all .15s; position:relative; color:#374151; }
+          font-size:.8rem; cursor:pointer; position:relative; color:#374151;
+          transition:background-color .15s, color .15s; }
         .amc-day:hover:not(.amc-past):not(.amc-empty):not(.amc-far) { background:#FFF0DC; }
         .amc-day.amc-avail { background:#ECFDF5; color:#065F46; font-weight:600; }
         .amc-day.amc-today { outline:2px solid #E8760A; font-weight:700; }
@@ -1474,6 +1486,14 @@ function requestReschedule(id) {
         .amc-day.amc-holiday { background:#FFF1F2; color:#f43f5e; cursor:default; font-weight:600; }
         .amc-holiday-lbl { position:absolute; left:2px; right:2px; top:calc(50% + 8px); font-size:.6rem; line-height:1.15; text-align:center; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; font-weight:600; padding:0 1px; }
         .amc-day.amc-blocked { background:#FEE2E2; color:#B91C1C; cursor:default; font-weight:700; text-decoration:line-through; text-decoration-color:rgba(185,28,28,0.5); }
+        /* Same responsive shrink as the booking wizard's calendar (pages.js)
+           — without this, a holiday name (e.g. "Ninoy Aquino Day") wraps
+           past 2 lines and spills out of the cell on narrow/phone widths,
+           since this modal's grid has less room than the full wizard page. */
+        @media (max-width:480px) {
+          .amc-day.amc-holiday { font-size:.7rem; }
+          .amc-holiday-lbl { font-size:.44rem; top:calc(50% + 4px); line-height:1.05; }
+        }
       </style>
       <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.84rem">
         <div style="font-weight:600;color:#1a1a1a">${a.type}</div>
@@ -2563,11 +2583,11 @@ function _buildRescheduleCalCells(doctor, year, month, selectedDate, onSelectFn,
     const isDisabled = isPast || isFar || tooSoon || isHoliday || isBlocked || isSun || !docAvail
 
     let cls = 'amc-day'
-    if (isSel)                        cls += ' amc-selected'
-    else if (isToday)                 cls += ' amc-today'
+    if (isToday)                      cls += ' amc-today'
     else if (isBlocked && !isPast)    cls += ' amc-blocked'
     else if (isHoliday && !isPast)    cls += ' amc-holiday'
     else if (docAvail && !isDisabled) cls += ' amc-avail'
+    if (isSel) cls += ' amc-selected'
     if (isDisabled) cls += ' amc-past'
     if (isFar)      cls += ' amc-far'
 
@@ -2579,7 +2599,7 @@ function _buildRescheduleCalCells(doctor, year, month, selectedDate, onSelectFn,
     const inner = isHoliday && !isPast
       ? `${d}<span class="amc-holiday-lbl">${holidayName}</span>`
       : String(d)
-    cells += `<div class="${cls}" ${onclick} ${tooltip}>${inner}</div>`
+    cells += `<div class="${cls}" data-date="${dateStr}" ${onclick} ${tooltip}>${inner}</div>`
   }
   return cells
 }
@@ -2650,12 +2670,18 @@ function amcRender() {
       (doc.days || []).includes(dayNames[dow]) && !(doc.blockedDates || []).some(b => b.date === dateStr)
     )
     const docAvail    = hasPrefill ? prefillDays.includes(dayNames[dow]) : isClinicDay && !noDoctorThisDay
+    // Status class and amc-selected are additive, not either/or — so that
+    // selecting/deselecting a date can be done by toggling just the
+    // amc-selected class on the existing cell (see amcSwapSelected), instead
+    // of always having to rebuild the whole grid, which would otherwise wipe
+    // out the underlying amc-today/amc-avail class a cell needs to fall back
+    // to once amc-selected is removed.
     let cls = 'amc-day'
-    if (isSel)                                       cls += ' amc-selected'
-    else if (isToday)                                cls += ' amc-today'
+    if (isToday)                                     cls += ' amc-today'
     else if (isBlocked && !isPast)                   cls += ' amc-blocked'
     else if (isHoliday && !isPast)                   cls += ' amc-holiday'
     else if (docAvail && !isDisabled && !isFar)      cls += ' amc-avail'
+    if (isSel) cls += ' amc-selected'
     if (isDisabled || isSun || (hasPrefill && !docAvail)) cls += ' amc-past'
     if (isFar)                                            cls += ' amc-far'
     if (noDoctorThisDay && !isPast && !isHoliday)         cls += ' amc-past'
@@ -2670,10 +2696,28 @@ function amcRender() {
       : (noDoctorThisDay && !isPast)
         ? `${d}<span class="amc-nodoc-lbl">No Doctor</span>`
         : String(d)
-    cells += `<div class="${cls}" ${onclick} ${tooltip}>${inner}</div>`
+    cells += `<div class="${cls}" data-date="${dateStr}" ${onclick} ${tooltip}>${inner}</div>`
   }
   const grid = document.getElementById('amc-cells')
   if (grid) grid.innerHTML = cells
+}
+
+// Toggles the amc-selected class directly on the existing cell elements
+// (removing it from whichever cell had it, adding it to the newly-picked
+// date) instead of rebuilding the grid — a full rebuild replaces the DOM
+// nodes outright, so the new cell would arrive with amc-selected already
+// baked in and the background-color transition would never get a "from"
+// state to animate. Returns false if the target date isn't in the current
+// view (e.g. it's a fresh render) so the caller can fall back to a full render.
+function amcSwapSelected(gridId, dateStr) {
+  const grid = document.getElementById(gridId)
+  if (!grid) return false
+  const prev = grid.querySelector('.amc-day.amc-selected')
+  if (prev) prev.classList.remove('amc-selected')
+  const next = grid.querySelector(`.amc-day[data-date="${dateStr}"]`)
+  if (!next) return false
+  next.classList.add('amc-selected')
+  return true
 }
 
 function amcSelectDate(dateStr, dayAbb) {
@@ -2692,7 +2736,10 @@ function amcSelectDate(dateStr, dayAbb) {
     // Doctor pre-filled: only reset time
     _wiz.time = ''
   }
-  amcRender()
+  // Swap the highlighted cell directly (see amcSwapSelected) so the fade
+  // transition plays; only fall back to a full rebuild if the date somehow
+  // isn't in the currently-rendered month.
+  if (!amcSwapSelected('amc-cells', dateStr)) amcRender()
 
   // Update summary
   const sd = document.getElementById('sum-date')
@@ -3436,6 +3483,11 @@ function waitlistCardHtml(entry) {
         <div style="flex:1;min-width:220px">
           <div style="font-weight:700;color:#1C1C1C;margin-bottom:4px">You're on the waitlist</div>
           <div style="font-size:.85rem;color:#6B7280">${entry.doctorName} on ${dateShort} at ${entry.time}. We'll notify you if this slot opens up.</div>
+          ${entry.position ? `
+          <div style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:#FFF0DC;color:#9A3412;
+                      border-radius:6px;padding:4px 10px;font-size:.78rem;font-weight:700">
+            You're #${entry.position}${entry.totalWaiting > 1 ? ` of ${entry.totalWaiting}` : ''} in line
+          </div>` : ''}
         </div>
         <button class="btn-secondary" style="flex-shrink:0" onclick="window.leaveWaitlist(${entry.id})">Leave Waitlist</button>
       </div>

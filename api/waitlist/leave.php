@@ -72,6 +72,14 @@ try {
                 "You've been removed from the waitlist for {$row['doctor_name']} on {$fmtDate} at {$row['time']}."
             );
         }
+    } else {
+        // Mirror join.php: a genuine self-service departure is worth telling
+        // admin/staff about — when they themselves remove a patient, they
+        // already know (handled above).
+        $fmtDate = date('M j, Y', strtotime($row['date']));
+        notifyAdminStaff($pdo, 'waitlist_left', 'Patient Left Waitlist',
+            "{$row['patient_name']} left the waitlist for {$row['doctor_name']} on {$fmtDate} at {$row['time']}."
+        );
     }
 
     jsonResponse(['success' => true]);

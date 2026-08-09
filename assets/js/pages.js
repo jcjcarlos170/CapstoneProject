@@ -846,7 +846,7 @@ function pagePatientView() {
                       display:flex;align-items:center;justify-content:center;flex-shrink:0;
                       font-size:1.8rem;font-weight:800;color:#fff;letter-spacing:-.02em;
                       overflow:hidden">
-            ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}
+            ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(p.name)}">` : initials(p.name)}
           </div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
             <div style="border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);border:1px solid #e5e7eb;">
@@ -1497,7 +1497,7 @@ function pageSchedule() {
           <button class="doctor-sel-card sched-tab" data-doc="${d.id}"
                   onclick="window.switchScheduleDoctor('${d.id}')">
             <div class="doc-card-avatar" ${d.photoUrl ? 'style="overflow:hidden;padding:0"' : ''}>
-              ${d.photoUrl ? `<img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block">` : initials(d.name)}
+              ${d.photoUrl ? `<img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block" onerror="${avatarFallbackAttr(d.name)}">` : initials(d.name)}
             </div>
             <div>
               <div class="doc-card-name">${d.name.replace('Dr. ','')}</div>
@@ -1814,7 +1814,7 @@ function pageAdminSettings() {
             <label for="ad-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
               <div id="ad-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
                 ${user.photoUrl
-                  ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+                  ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(admName)}">`
                   : initials(admName)}
               </div>
               <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .2s"
@@ -2940,7 +2940,7 @@ function pageDoctorSchedule() {
       <div class="card-body" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
         <div class="profile-avatar-lg" style="width:56px;height:56px;font-size:1.2rem;flex-shrink:0;overflow:hidden">${
           doc.photoUrl
-            ? `<img src="${doc.photoUrl}" alt="${doc.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+            ? `<img src="${doc.photoUrl}" alt="${doc.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(doc.name)}">`
             : initials(doc.name)
         }</div>
         <div style="flex:1;min-width:0">
@@ -3065,7 +3065,7 @@ function pageDoctorSettings() {
           <label for="doc-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
             <div id="doc-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
-                ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+                ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(docName)}">`
                 : initials(docName)}
             </div>
             <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .2s"
@@ -3568,7 +3568,7 @@ function pageNewExamination() {
     // Initials helper
     const initials = name => name.split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase()
     const miniAvatar = (name, photoUrl, size) => photoUrl
-      ? `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${photoUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block"></div>`
+      ? `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${photoUrl}" alt="${name}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="var w=this.parentElement;if(w){w.style.cssText='width:${size}px;height:${size}px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;font-size:${size>=38?'.75rem':'.65rem'};font-weight:700;flex-shrink:0';w.textContent='${initials(name).replace(/'/g,"\\'")}'}"></div>`
       : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#E8760A;color:white;display:flex;align-items:center;justify-content:center;font-size:${size>=38?'.75rem':'.65rem'};font-weight:700;flex-shrink:0">${initials(name)}</div>`
 
     state.afterRender = () => {
@@ -4066,7 +4066,7 @@ function pageNewExamination() {
   <div style="background:white;border-radius:12px;border:1px solid #e5e7eb;padding:20px">
     <!-- Patient Profile -->
     <div style="text-align:center;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f3f4f6">
-      <div style="width:72px;height:72px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.02em;overflow:hidden">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initials(p.name)}</div>
+      <div style="width:72px;height:72px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:1.5rem;font-weight:800;color:#fff;letter-spacing:-.02em;overflow:hidden">${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(p.name)}">` : initials(p.name)}</div>
       <div style="font-size:1rem;font-weight:800;color:#1f2937;margin-bottom:2px">${p.name}</div>
       <div style="font-size:.75rem;font-family:monospace;color:#9CA3AF;margin-bottom:6px">${p.id}</div>
       <span style="display:inline-block;background:#dcfce7;color:#16a34a;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 10px;border-radius:20px">${p.status || 'Active'}</span>
@@ -5309,7 +5309,7 @@ function pageStaffSettings() {
           <label for="st-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
             <div id="st-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
-                ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+                ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(staffName)}">`
                 : initials(staffName)}
             </div>
             <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;transition:background .2s"
@@ -5739,7 +5739,7 @@ function pagePatientSettings() {
           <label for="pt-photo-input" style="cursor:pointer;display:block;width:80px;height:80px;border-radius:50%;overflow:hidden;position:relative">
             <div id="pt-avatar" style="width:80px;height:80px;border-radius:50%;background:#E8760A;color:#fff;font-size:1.5rem;font-weight:700;display:flex;align-items:center;justify-content:center;overflow:hidden">
               ${user.photoUrl
-                ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">`
+                ? `<img src="${user.photoUrl}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${avatarFallbackAttr(user.name)}">`
                 : initials(user.name)}
             </div>
             <!-- Camera overlay -->
@@ -6274,7 +6274,7 @@ function pagePatientDoctorAvail() {
           <button class="doctor-sel-card pat-doc-tab" data-doc="${d.id}"
                   onclick="window.switchPatDocDoctor('${d.id}')">
             <div class="doc-card-avatar" ${d.photoUrl ? 'style="overflow:hidden;padding:0"' : ''}>
-              ${d.photoUrl ? `<img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block">` : initials(d.name)}
+              ${d.photoUrl ? `<img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;border-radius:50%;display:block" onerror="${avatarFallbackAttr(d.name)}">` : initials(d.name)}
             </div>
             <div>
               <div class="doc-card-name">${d.name.replace('Dr. ','')}</div>

@@ -4465,7 +4465,7 @@ function confirmArchivePatient(id) {
     <div class="modal-body">
       <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#F9FAFB;border-radius:8px;margin-bottom:16px">
         <div style="width:42px;height:42px;border-radius:50%;background:#E8760A;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;flex-shrink:0;overflow:hidden">
-          ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}
+          ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${window.avatarFallbackAttr(p.name)}">` : p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}
         </div>
         <div>
           <div style="font-weight:700">${p.name}</div>
@@ -5485,7 +5485,7 @@ function showQRResult(p) {
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
       <div style="width:56px;height:56px;border-radius:50%;background:#E8760A;
                   display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:#fff;flex-shrink:0;overflow:hidden">
-        ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">` : initls}
+        ${p.photoUrl ? `<img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="${window.avatarFallbackAttr(p.name)}">` : initls}
       </div>
       <div>
         <div style="font-size:1.1rem;font-weight:700;color:#1C1C1C">${p.name}</div>
@@ -6201,7 +6201,7 @@ function viewExamDetail(patientId, examId) {
       <!-- Patient strip -->
       <div style="background:#FFF8F0;border-bottom:1px solid #FDE68A;padding:11px 24px;display:flex;align-items:center;gap:12px">
         ${p.photoUrl
-          ? `<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block"></div>`
+          ? `<div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${p.photoUrl}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" onerror="var w=this.parentElement;if(w){w.style.cssText='width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;color:#fff;flex-shrink:0';w.textContent='${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase().replace(/'/g,"\\'")}'}"></div>`
           : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#E8760A,#F5A44D);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:800;color:#fff;flex-shrink:0">${(p.name||'').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}</div>`
         }
         <div style="flex:1;min-width:0">
@@ -7516,7 +7516,7 @@ function updateAdminDashboard() {
     docList.innerHTML = doctors.map(d => {
       const avail   = d.available && d.status === 'active'
       const docAvatar = d.photoUrl
-        ? `<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block"></div>`
+        ? `<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0"><img src="${d.photoUrl}" alt="${d.name}" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block" onerror="var w=this.parentElement;if(w){w.style.cssText='width:32px;height:32px;border-radius:50%;background:#E8760A;color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0';w.textContent='${d.name.split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase().replace(/'/g,"\\'")}'}"></div>`
         : `<div style="width:32px;height:32px;border-radius:50%;background:#E8760A;color:#fff;font-size:.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${d.name.split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>`
       return `<div class="doctor-avail-item">
         <div class="doctor-avail-info">

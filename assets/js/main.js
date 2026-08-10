@@ -3666,7 +3666,7 @@ function openAddUserModal() {
             ${dobFieldHtml('nu-dob', { max: new Date().toISOString().slice(0, 10) })}</div>
           <div class="form-group"><label class="form-label">Gender <span class="req">*</span></label>
             <select id="nu-gender" class="form-select">
-              <option value="">Select gender</option>
+              <option value="" disabled selected>Select gender</option>
               <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
             </select></div>
         </div>
@@ -4074,7 +4074,7 @@ function openAddPatientModal() {
           ${dobFieldHtml('ap-dob', { max: new Date().toISOString().slice(0, 10) })}</div>
         <div class="form-group"><label class="form-label">Gender <span class="req">*</span></label>
           <select id="ap-gender" class="form-select">
-            <option value="">Select gender</option>
+            <option value="" disabled selected>Select gender</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
             <option value="Other">Other</option>

@@ -512,8 +512,8 @@ function pageAdminUsers() {
       </div>
       ${filtered.length ? `<table class="tbl">
         <colgroup>
-          <col style="width:22%"><col style="width:26%"><col style="width:14%">
-          <col style="width:12%"><col style="width:10%"><col style="width:16%">
+          <col style="width:22%"><col style="width:23%"><col style="width:14%">
+          <col style="width:12%"><col style="width:10%"><col style="width:19%">
         </colgroup>
         <thead><tr>
           <th data-sort-key="name" data-sort-type="text">Name</th>
@@ -530,6 +530,10 @@ function pageAdminUsers() {
             <td>${badge(u.role.toLowerCase())}</td>
             <td>${badge(u.status || 'active')}</td>
             <td><div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap">
+              ${u.role.toLowerCase() === 'patient' ? `<button class="btn-icon" title="View Profile"
+                      onclick="window.navigate('patient-view',{patientId:'${u.id}',patientName:'${(u.name||'').replace(/'/g,"\\'")}'})">
+                ${ic('eye','icon-sm')}
+              </button>` : ''}
               <button class="btn-icon" title="Edit" onclick="window.editUserModal('${u.id}','${u.role}')">${ic('edit','icon-sm')}</button>
               <button class="btn-icon" title="Archive" style="color:#d97706;border-color:#fef3c7" onclick="window.archiveUserConfirm('${u.id}','${(u.name||'').replace(/'/g,"\\'")}')"> ${ic('archive','icon-sm')}</button>
             </div></td>
@@ -1550,6 +1554,11 @@ function pageAdminReports() {
       const from = document.getElementById('rpt-from')?.value || ''
       const to   = document.getElementById('rpt-to')?.value || ''
       const ci   = (typeof clinicInfo !== 'undefined') ? clinicInfo : {}
+      // The print target is a blank iframe written to via document.write()
+      // (see _printHtmlDocument), which has no real base URI — a relative
+      // logo path silently fails to load there, so it's resolved to an
+      // absolute URL up front, same as the Exam/Rx/Clearance print docs.
+      const logoAbsUrl = new URL(window._clinicLogoUrl || 'assets/images/logo/clinic-logo.png', document.baseURI).href
       const fmtD = d => d ? new Date(d).toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' }) : ''
       const rangePart = (from && to) ? fmtD(from) + ' \u2013 ' + fmtD(to) : from ? 'From ' + fmtD(from) : 'All Dates'
       const now = new Date().toLocaleString('en-PH', { month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true })
@@ -1586,11 +1595,18 @@ function pageAdminReports() {
 <meta charset="utf-8">
 <title>${typeLabel} \u2014 ${ci.name || 'Clinic'}</title>
 <style>
+  /* margin:0 leaves Chrome no page-margin band to draw its own print
+     header/footer (title, date, URL) into — same fix already used by the
+     Exam/Rx/QR print documents. Visual margin is restored via body
+     padding below instead. */
+  @page { size: A4; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #111; padding: 18px 22px; background: #fff; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #111; padding: 16mm 20mm; background: #fff; }
 
   /* \u2500\u2500 Clinic header \u2500\u2500 */
   .hdr          { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 10px; }
+  .hdr-left     { display: flex; align-items: center; gap: 10px; }
+  .hdr-logo     { height: 42px; width: 42px; object-fit: contain; flex-shrink: 0; }
   .clinic-name  { font-size: 14pt; font-weight: 700; letter-spacing: -.02em; }
   .clinic-sub   { font-size: 7.5pt; color: #555; margin-top: 3px; }
   .hdr-right    { text-align: right; }
@@ -1607,6 +1623,11 @@ function pageAdminReports() {
   th { padding: 6px 8px; text-align: left; font-size: 7.5pt; font-weight: 700; border: 1px solid #d1d5db; background: #f3f4f6; }
   td { padding: 5px 8px; border: 1px solid #e5e7eb; vertical-align: top; line-height: 1.35; }
   tbody tr:nth-child(even) td { background: #fafafa; }
+  /* Keeps a single row from being sliced in half across a natural page
+     break on longer reports (thead already repeats at the top of each
+     new page the table spans — that's a native browser table-print
+     behavior, no extra CSS needed for it). */
+  tr { page-break-inside: avoid; }
   code { font-family: 'Courier New', monospace; font-size: 7.5pt; }
 
   /* \u2500\u2500 Badges \u2500\u2500 */
@@ -1617,6 +1638,7 @@ function pageAdminReports() {
   .badge-inactive    { background: #FFEBEE; color: #C62828; }
   .badge-disapproved { background: #fef2f2; color: #991b1b; }
   .badge-completed   { background: #F5F5F5; color: #616161; }
+  .badge-no-show     { background: #EDE9FE; color: #6D28D9; }
   .badge-active      { background: #E3F2FD; color: #1565C0; }
   .badge-admin       { background: #EDE9FE; color: #5B21B6; }
   .badge-staff       { background: #DBEAFE; color: #1D4ED8; }
@@ -1624,7 +1646,18 @@ function pageAdminReports() {
   .badge-patient     { background: #FFF0DC; color: #92400E; }
 
   /* \u2500\u2500 Charts \u2500\u2500 */
-  .page-break   { page-break-before: always; }
+  /* Body's own top/bottom padding only ever renders on the very first and
+     very last printed page — a box that's fragmented across pages by the
+     browser's print engine does NOT repeat top/bottom padding/margin at
+     each fragment boundary the way left/right padding does (that part
+     stays consistent on every page since it's part of the box's inline
+     width, not the fragmentation-affected block direction). So the
+     Charts section, forced onto its own new page below, would otherwise
+     sit flush against the paper's top edge with no margin at all. Giving
+     it the same top offset as the body's own top padding restores a
+     matching margin on every page this document spans, not just the
+     first. */
+  .page-break   { page-break-before: always; padding-top: 16mm; }
   .section-header { border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 14px; }
   .section-title  { font-size: 11pt; font-weight: 700; }
   .section-sub    { font-size: 7.5pt; color: #666; margin-top: 2px; }
@@ -1633,9 +1666,13 @@ function pageAdminReports() {
   .chart-label  { font-size: 8.5pt; font-weight: 700; margin-bottom: 8px; }
   .chart-img    { width: 100%; height: auto; display: block; }
 
-  /* \u2500\u2500 Print \u2500\u2500 */
+  /* ── Print ──
+     No padding reset here — @page above already handles keeping Chrome's
+     own header/footer band out; the body's own mm-based padding IS the
+     page margin and needs to survive into the actual print, or content
+     prints flush to the paper edges instead of matching the margin the
+     other print documents use. */
   @media print {
-    body { padding: 0; }
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -1643,10 +1680,13 @@ function pageAdminReports() {
 </head>
 <body>
   <div class="hdr">
-    <div>
-      <div class="clinic-name">${ci.name || 'Cana Optical Clinic'}</div>
-      <div class="clinic-sub">${ci.address || ''}</div>
-      <div class="clinic-sub">${[ci.phone ? 'Tel: ' + ci.phone : '', ci.email || ''].filter(Boolean).join('\u2002\u00b7\u2002')}</div>
+    <div class="hdr-left">
+      <img src="${logoAbsUrl}" alt="${ci.name || 'Cana Optical Clinic'}" class="hdr-logo" onerror="this.style.display='none'">
+      <div>
+        <div class="clinic-name">${ci.name || 'Cana Optical Clinic'}</div>
+        <div class="clinic-sub">${ci.address || ''}</div>
+        <div class="clinic-sub">${[ci.phone ? 'Tel: ' + ci.phone : '', ci.email || ''].filter(Boolean).join('\u2002\u00b7\u2002')}</div>
+      </div>
     </div>
     <div class="hdr-right">
       <div class="hdr-tag">Official Report</div>
@@ -1691,7 +1731,7 @@ function pageAdminReports() {
           <div style="flex:1;min-width:220px">
             <label style="display:block;font-size:.68rem;font-weight:700;color:#6b7280;margin-bottom:6px">Report type</label>
             <select id="rpt-type" class="form-select" style="height:42px">
-              <option value="">Select a report type</option>
+              <option value="" disabled selected>Select a report type</option>
               <option value="patient-visit">Patient Visit History</option>
               <option value="diagnosis-history">Diagnosis History</option>
               <option value="prescription-records">Prescription Records</option>
@@ -3958,7 +3998,7 @@ function pageNewExamination() {
       <div class="form-group" style="margin:0">
         ${fl('Lens Type / Contact Lens')}
         <select id="ne-lens-type" class="form-select" style="${inp}">
-          <option value="">Select lens type</option>
+          <option value="" disabled selected>Select lens type</option>
           ${['Single Vision','Bifocal','Progressive','Contact Lens','Photochromic'].map(t => `<option${lastExam?.lensType === t ? ' selected' : ''}>${t}</option>`).join('')}
         </select>
       </div>

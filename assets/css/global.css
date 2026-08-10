@@ -2223,6 +2223,7 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
 }
 .dob-picker-trigger svg { flex-shrink: 0; color: #9CA3AF; }
 .dob-picker-trigger.open { border-color: #E8891C; box-shadow: 0 0 0 3px rgba(232,137,28,.1); }
+.dob-picker-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dob-picker-text.placeholder { color: #9CA3AF; }
 
 .dob-picker-popover {

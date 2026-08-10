@@ -260,6 +260,23 @@
     }
     window.addEventListener('resize', updateNavbarFold)
     updateNavbarFold() // don't wait on the observer's first async callback
+
+    // IntersectionObserver alone isn't enough: its callback is async and
+    // threshold-batched, so on iOS/Safari in particular — which delays and
+    // coalesces these callbacks further during inertial (momentum)
+    // scrolling — the navbar's unfold visibly lags a beat behind the
+    // actual scroll position when flinging back up away from the footer.
+    // A scroll listener recalculates in real time instead; rAF-throttled
+    // (rather than every 'scroll' event, which fires far too often on
+    // touch devices) so it stays cheap while still tracking every frame.
+    var foldRaf = null
+    window.addEventListener('scroll', function () {
+      if (foldRaf) return
+      foldRaf = requestAnimationFrame(function () {
+        foldRaf = null
+        updateNavbarFold()
+      })
+    }, { passive: true })
   }
 
   // ── Scroll-to-top button ──────────────────────────────────────────

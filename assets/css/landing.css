@@ -245,8 +245,21 @@ body { overflow-x: hidden; }
   border: 1px solid rgba(232,137,28,0.18);
   box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35), 0 8px 24px -6px rgba(232,137,28,0.10), 0 1px 0 rgba(255,255,255,0.03) inset;
 }
-.video-clip { position: absolute; inset: 0; overflow: hidden; border-radius: 16px; }
-.video-clip video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; cursor: pointer; }
+.video-clip {
+  position: absolute; inset: 0; overflow: hidden; border-radius: 16px;
+  /* iOS Safari has a long-standing bug where a <video> element ignores an
+     ancestor's overflow:hidden + border-radius clip — its sharp corners
+     poke outside the rounded container. Forcing this layer onto its own
+     GPU compositing layer (translateZ/backface-visibility) plus a mask
+     makes Safari actually respect the clip; harmless everywhere else. */
+  transform: translateZ(0); -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  -webkit-mask-image: -webkit-radial-gradient(circle, #fff 100%, #000 100%);
+}
+.video-clip video {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  border: 0; cursor: pointer; border-radius: 16px;
+}
 
 /* Center play button — shown only before the video has ever started playing
    (classic "poster + play" affordance). Once playback has begun, all
@@ -373,7 +386,12 @@ body { overflow-x: hidden; }
 .vid-vol-slider::-webkit-slider-runnable-track { background: transparent; height: 13px; }
 .vid-vol-slider::-moz-range-track { background: transparent; height: 13px; border: none; }
 .vid-vol-slider::-webkit-slider-thumb {
-  appearance: none; width: 11px; height: 11px; border-radius: 50%; margin-top: 0;
+  /* Chrome for Android doesn't auto-center a custom (appearance:none) thumb
+     within the runnable track the way desktop Chrome does — it pins it to
+     the track's top edge, which reads as the white dot floating above the
+     orange fill line. Explicit margin-top centers it: (track 13px − thumb
+     11px) / 2 = 1px. */
+  appearance: none; width: 11px; height: 11px; border-radius: 50%; margin-top: 1px;
   background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5);
 }
 .vid-vol-slider::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; background: #fff; border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }

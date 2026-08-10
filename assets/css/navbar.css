@@ -13,6 +13,16 @@
   border-bottom: 1px solid rgba(229,231,235,0.7);
   box-shadow: 0 1px 12px rgba(0,0,0,0.06);
   transition: background 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease, transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  /* Safari (mac and iOS) tends to drop a fixed element off its own GPU
+     layer mid-scroll when it combines backdrop-filter with an animated
+     transform — it then has to repaint on the main thread before the
+     transform change is reflected, which is exactly what reads as the
+     navbar "not returning immediately" during a fast scroll-up. Promoting
+     the layer up front (will-change + a 3D transform hint) keeps it
+     composited throughout the scroll so the translateY responds instantly. */
+  will-change: transform;
+  -webkit-transform: translateZ(0); transform: translateZ(0);
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
 }
 .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 48px; width: 100%; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .nav-logo.navbar-brand { margin-right: 0; padding: 0; font-size: 1rem; }

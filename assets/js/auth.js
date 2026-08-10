@@ -10,6 +10,7 @@ const PW_POLICY_RULES = [
   { key: 'lower', label: 'One lowercase letter (a-z)', test: v => /[a-z]/.test(v) },
   { key: 'upper', label: 'One uppercase letter (A-Z)', test: v => /[A-Z]/.test(v) },
   { key: 'num',   label: 'One number (0-9)',           test: v => /[0-9]/.test(v) },
+  { key: 'special', label: 'One special character (!@#$%^&*...)', test: v => /[^A-Za-z0-9]/.test(v) },
 ]
 function pwPolicyValid(v) {
   return PW_POLICY_RULES.every(r => r.test(v || ''))
@@ -169,7 +170,7 @@ async function handleRegister() {
     errEl.style.display = 'flex'; return
   }
   if (!pwPolicyValid(pass)) {
-    errMsg.textContent = 'Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.'
+    errMsg.textContent = 'Password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.'
     errEl.style.display = 'flex'; return
   }
 
@@ -729,7 +730,7 @@ async function fpS4Submit() {
   pw1.classList.remove('error'); pw2.classList.remove('error'); err1.classList.remove('show'); err2.classList.remove('show')
   let valid = true
   if (!pw1.value) { pw1.classList.add('error'); err1.textContent = 'Please enter a new password.'; err1.classList.add('show'); valid = false }
-  else if (!pwPolicyValid(pw1.value)) { pw1.classList.add('error'); err1.textContent = 'Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.'; err1.classList.add('show'); valid = false }
+  else if (!pwPolicyValid(pw1.value)) { pw1.classList.add('error'); err1.textContent = 'Password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.'; err1.classList.add('show'); valid = false }
   if (!pw2.value) { pw2.classList.add('error'); err2.textContent = 'Please confirm your password.'; err2.classList.add('show'); valid = false }
   else if (pw1.value && pw2.value !== pw1.value) { pw2.classList.add('error'); err2.textContent = 'Passwords do not match.'; err2.classList.add('show'); valid = false }
   if (!valid) return

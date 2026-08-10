@@ -1832,7 +1832,7 @@ async function validateSettingsPassword(newId, confId, errId, curId) {
   if (newPw !== confPw) { if (errEl) errEl.classList.add('show'); return }
   if (errEl) errEl.classList.remove('show')
   if (!curPw || !newPw) { toast('Please fill in all password fields.', 'error'); return }
-  if (!window.pwPolicyValid(newPw)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return }
+  if (!window.pwPolicyValid(newPw)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return }
 
   try {
     const r = await fetch('api/users/change_password.php', {
@@ -3727,7 +3727,7 @@ async function doAddUser() {
   if (!first || !last || !email) { toast('Please fill in all required fields.', 'error'); return }
   if (role !== 'Patient' && !pass) { toast('Password is required.', 'error'); return }
   if (role !== 'Patient' && !window.pwPolicyValid(pass)) {
-    toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return
+    toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return
   }
 
   const btn = document.getElementById('nu-save-btn')
@@ -3897,7 +3897,7 @@ async function doEditUser(id, role) {
   const cfPw    = document.getElementById('eu-confirm-pw')?.value || ''
 
   if (newPw) {
-    if (!window.pwPolicyValid(newPw)) { toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return }
+    if (!window.pwPolicyValid(newPw)) { toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return }
     if (newPw !== cfPw)   { toast('Passwords do not match.', 'error'); return }
   }
 
@@ -4283,7 +4283,7 @@ async function doEditPatient(patientId) {
   const np  = (document.getElementById('ep-newpass')  || {}).value || ''
   const np2 = (document.getElementById('ep-newpass2') || {}).value || ''
   if (np || np2) {
-    if (!window.pwPolicyValid(np)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, and a number.', 'error'); return }
+    if (!window.pwPolicyValid(np)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return }
     if (np !== np2)     { toast('Passwords do not match.', 'error'); return }
   }
 

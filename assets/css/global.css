@@ -2347,7 +2347,7 @@ input[type="date"].form-input::-webkit-datetime-edit-year-field {
 }
 .form-hint { font-size: 0.74rem; color: #9CA3AF; margin-top: 4px; }
 
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-row-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 
 .section-label {

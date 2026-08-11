@@ -1111,14 +1111,46 @@ function pageWaitlist() {
   // verbatim from the booking wizard's slot label, not a raw SQL TIME.
   const fmtD = d => { const dt = new Date(d + 'T00:00:00'); return isNaN(dt) ? d : dt.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) }
   const fmtExpiry = dtStr => { const dt = new Date((dtStr || '').replace(' ', 'T')); return isNaN(dt) ? '' : dt.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) }
+  // "9:00 AM" → "09:00", so date+time can be combined into one sortable value.
+  const to24h = t => {
+    const m = /^(\d{1,2}):(\d{2})\s*([AP]M)$/i.exec((t || '').trim())
+    if (!m) return '00:00'
+    let h = parseInt(m[1], 10)
+    if (/PM/i.test(m[3]) && h !== 12) h += 12
+    if (/AM/i.test(m[3]) && h === 12) h = 0
+    return String(h).padStart(2, '0') + ':' + m[2]
+  }
 
-  window.state.afterRender = () => { window.initPagination('waitlist-tbody') }
+  // ── Group entries into slots: same doctor + date + time = one slot that
+  // patients queue up for. The API already returns rows ordered by
+  // date → time → created_at, so numbering slots in that discovery order
+  // gives a naturally chronological "Slot 1, Slot 2, …" sequence.
+  const slots = new Map()
+  list.forEach(e => {
+    const key = `${e.doctorId || e.doctorName}|${e.date}|${e.time}`
+    if (!slots.has(key)) slots.set(key, { no: slots.size + 1, entries: [] })
+    slots.get(key).entries.push(e)
+  })
+  slots.forEach(g => {
+    // Queue position only applies to patients still 'waiting' — an
+    // 'offered' entry has already reached the front of the line and is
+    // shown as such rather than with a number.
+    let pos = 0
+    g.entries.forEach(e => { e._pos = e.status === 'waiting' ? ++pos : 0 })
+    g.waitingCount = pos
+  })
+  const totalSlots = slots.size
+
+  window.state.afterRender = () => {
+    window.initPagination('waitlist-tbody')
+    window.initSortable('waitlist-tbody', { key: 'slot', type: 'date', dir: 1 })
+  }
 
   return `
   <div class="page-header">
     <div class="page-header-left">
       <h1 class="page-title">Waitlist</h1>
-      <p class="page-subtitle">Patients waiting for a fully-booked slot to open up</p>
+      <p class="page-subtitle">Patients waiting for a fully-booked slot to open up${totalSlots ? ` · ${totalSlots} slot${totalSlots !== 1 ? 's' : ''} with a queue` : ''}</p>
     </div>
   </div>
   <div class="page-body">
@@ -1136,13 +1168,21 @@ function pageWaitlist() {
       ${list.length === 0 ? emptyState('clock', 'No waitlist entries', 'No one is currently waitlisted.') : `
       <table class="tbl">
         <colgroup>
-          <col style="width:24%"><col style="width:18%"><col style="width:20%"><col style="width:20%"><col style="width:10%"><col style="width:8%">
+          <col style="width:16%"><col style="width:22%"><col style="width:16%"><col style="width:16%"><col style="width:12%"><col style="width:10%"><col style="width:8%">
         </colgroup>
         <thead><tr>
-          <th>Patient</th><th>Doctor</th><th>Requested Slot</th><th>Status</th><th>Joined</th><th></th>
+          <th data-sort-key="slot" data-sort-type="date" title="Sort by which slot comes up soonest">Slot</th>
+          <th data-sort-key="patient" data-sort-type="text">Patient</th>
+          <th data-sort-key="doctor" data-sort-type="text">Doctor</th>
+          <th data-sort-key="position" data-sort-type="number" title="Sort by place in line — who gets offered the slot next">Queue Position</th>
+          <th>Status</th>
+          <th data-sort-key="joined" data-sort-type="date">Joined</th>
+          <th></th>
         </tr></thead>
         <tbody id="waitlist-tbody">
           ${list.map(e => {
+            const key = `${e.doctorId || e.doctorName}|${e.date}|${e.time}`
+            const g = slots.get(key)
             const isOffered = e.status === 'offered'
             const statusPill = isOffered
               ? `<span style="display:inline-flex;flex-direction:column;gap:1px">
@@ -1150,13 +1190,29 @@ function pageWaitlist() {
                    <span style="font-size:.68rem;color:#9CA3AF">Expires ${fmtExpiry(e.offerExpiresAt)}</span>
                  </span>`
               : `<span style="display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:600;background:#F3F4F6;color:#6B7280">Waiting</span>`
-            return `<tr data-search="${(e.patientName || '').toLowerCase()} ${(e.doctorName || '').toLowerCase()}">
+            const posBadge = isOffered
+              ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.76rem;font-weight:700;color:#C2410C;white-space:nowrap">${ic('alert-circle', 'icon-xs')} Front of line</span>`
+              : `<span style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">
+                   <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;font-size:.75rem;font-weight:700;background:${e._pos === 1 ? '#FFF0DC' : '#F3F4F6'};color:${e._pos === 1 ? '#C2410C' : '#6B7280'}">#${e._pos}</span>
+                   <span style="font-size:.72rem;color:#9CA3AF">of ${g.waitingCount}</span>
+                 </span>`
+            return `<tr data-search="${(e.patientName || '').toLowerCase()} ${(e.doctorName || '').toLowerCase()}"
+                        data-sort-slot="${e.date}T${to24h(e.time)}"
+                        data-sort-patient="${(e.patientName || '').toLowerCase()}"
+                        data-sort-doctor="${(e.doctorName || '').toLowerCase()}"
+                        data-sort-position="${isOffered ? 0 : e._pos}"
+                        data-sort-joined="${e.createdAt}">
+              <td>
+                <span style="display:inline-flex;align-items:center;padding:2px 9px;border-radius:6px;font-size:.71rem;font-weight:700;background:#EFF6FF;color:#2563EB">Slot ${g.no}</span>
+                <div style="font-size:.78rem;color:#374151;margin-top:4px">${fmtD(e.date)}</div>
+                <div style="font-size:.76rem;color:#6B7280">${e.time}</div>
+              </td>
               <td><div class="patient-name-cell">
                 ${avatar(e.patientName, 'patient-avatar')}
                 <div class="patient-name-info"><strong>${e.patientName}</strong><span>${e.patientId}</span></div>
               </div></td>
               <td style="font-size:.82rem">${e.doctorName || '—'}</td>
-              <td style="font-size:.82rem">${fmtD(e.date)}<br><span style="color:#6B7280">${e.time}</span></td>
+              <td>${posBadge}</td>
               <td>${statusPill}</td>
               <td style="font-size:.78rem;color:#9ca3af;white-space:nowrap">${window._notifTimeAgo(e.createdAt)}</td>
               <td>
@@ -1831,7 +1887,7 @@ function pageAdminSettings() {
         <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
         <button type="button" onclick="window.togglePwVisibility('${id}',this)"
                 style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
-          ${ic('eye','icon-sm')}
+          ${ic('eye-off','icon-sm')}
         </button>
       </div>`
 
@@ -1930,23 +1986,23 @@ function pageAdminSettings() {
           <div style="display:flex;flex-direction:column;gap:14px">
             <div class="form-group">
               <label class="form-label">Current Password</label>
-              ${pwField('ad-curpw','Enter current password')}
+              ${pwField('ad-curpw','Enter current password', `oninput="window.updateSettingsPwGate('ad')"`)}
             </div>
             <div class="form-group">
               <label class="form-label">New Password</label>
-              ${pwField('ad-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('ad-newpw', this.value)"`)}
+              ${pwField('ad-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('ad-newpw', this.value);window.updateSettingsPwGate('ad')"`)}
               ${window.pwChecklistHtml('ad-newpw')}
             </div>
             <div class="form-group">
               <label class="form-label">Confirm New Password</label>
-              ${pwField('ad-confpw','Repeat new password')}
+              ${pwField('ad-confpw','Repeat new password', `oninput="window.updateSettingsPwGate('ad')"`)}
               <div id="ad-pw-err" class="field-error">Passwords do not match.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
               ${ic('info','icon-sm')} Can't reuse a previous password.
             </div>
             <div style="display:flex;justify-content:flex-end">
-              <button class="btn-primary"
+              <button id="ad-pw-btn" class="btn-primary" disabled style="opacity:.55;cursor:not-allowed"
                       onclick="window.validateSettingsPassword('ad-newpw','ad-confpw','ad-pw-err','ad-curpw')">
                 ${ic('lock','icon-sm')} Update Password
               </button>
@@ -3080,7 +3136,7 @@ function pageDoctorSettings() {
       <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
       <button type="button" onclick="window.togglePwVisibility('${id}',this)"
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
-        ${ic('eye','icon-sm')}
+        ${ic('eye-off','icon-sm')}
       </button>
     </div>`
 
@@ -3200,23 +3256,23 @@ function pageDoctorSettings() {
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="form-group">
             <label class="form-label">Current Password</label>
-            ${pwField('doc-curpw','Enter current password')}
+            ${pwField('doc-curpw','Enter current password', `oninput="window.updateSettingsPwGate('doc')"`)}
           </div>
           <div class="form-group">
             <label class="form-label">New Password</label>
-            ${pwField('doc-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('doc-newpw', this.value)"`)}
+            ${pwField('doc-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('doc-newpw', this.value);window.updateSettingsPwGate('doc')"`)}
             ${window.pwChecklistHtml('doc-newpw')}
           </div>
           <div class="form-group">
             <label class="form-label">Confirm New Password</label>
-            ${pwField('doc-confpw','Repeat new password')}
+            ${pwField('doc-confpw','Repeat new password', `oninput="window.updateSettingsPwGate('doc')"`)}
             <div id="doc-pw-err" class="field-error">Passwords do not match.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
             ${ic('info','icon-sm')} Can't reuse a previous password.
           </div>
           <div style="display:flex;justify-content:flex-end">
-            <button class="btn-primary"
+            <button id="doc-pw-btn" class="btn-primary" disabled style="opacity:.55;cursor:not-allowed"
                     onclick="window.validateSettingsPassword('doc-newpw','doc-confpw','doc-pw-err','doc-curpw')">
               ${ic('lock','icon-sm')} Update Password
             </button>
@@ -5324,7 +5380,7 @@ function pageStaffSettings() {
       <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
       <button type="button" onclick="window.togglePwVisibility('${id}',this)"
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
-        ${ic('eye','icon-sm')}
+        ${ic('eye-off','icon-sm')}
       </button>
     </div>`
 
@@ -5426,23 +5482,23 @@ function pageStaffSettings() {
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="form-group">
             <label class="form-label">Current Password</label>
-            ${pwField('st-curpw','Enter current password')}
+            ${pwField('st-curpw','Enter current password', `oninput="window.updateSettingsPwGate('st')"`)}
           </div>
           <div class="form-group">
             <label class="form-label">New Password</label>
-            ${pwField('st-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('st-newpw', this.value)"`)}
+            ${pwField('st-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('st-newpw', this.value);window.updateSettingsPwGate('st')"`)}
             ${window.pwChecklistHtml('st-newpw')}
           </div>
           <div class="form-group">
             <label class="form-label">Confirm New Password</label>
-            ${pwField('st-confpw','Repeat new password')}
+            ${pwField('st-confpw','Repeat new password', `oninput="window.updateSettingsPwGate('st')"`)}
             <div id="st-pw-err" class="field-error">Passwords do not match.</div>
           </div>
           <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
             ${ic('info','icon-sm')} Can't reuse a previous password.
           </div>
           <div style="display:flex;justify-content:flex-end">
-            <button class="btn-primary"
+            <button id="st-pw-btn" class="btn-primary" disabled style="opacity:.55;cursor:not-allowed"
                     onclick="window.validateSettingsPassword('st-newpw','st-confpw','st-pw-err','st-curpw')">
               ${ic('lock','icon-sm')} Update Password
             </button>
@@ -5754,7 +5810,7 @@ function pagePatientSettings() {
       <input type="password" class="form-input" id="${id}" placeholder="${placeholder}" style="padding-right:40px" ${extra}>
       <button type="button" onclick="window.togglePwVisibility('${id}',this)"
               style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
-        ${ic('eye','icon-sm')}
+        ${ic('eye-off','icon-sm')}
       </button>
     </div>`
 
@@ -5906,23 +5962,23 @@ function pagePatientSettings() {
           <div style="display:flex;flex-direction:column;gap:14px">
             <div class="form-group">
               <label class="form-label">Current Password</label>
-              ${pwField('sett-curpw','Enter current password')}
+              ${pwField('sett-curpw','Enter current password', `oninput="window.updateSettingsPwGate('sett')"`)}
             </div>
             <div class="form-group">
               <label class="form-label">New Password</label>
-              ${pwField('sett-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('sett-newpw', this.value)"`)}
+              ${pwField('sett-newpw','Minimum 8 characters', `oninput="window.updatePwChecklist('sett-newpw', this.value);window.updateSettingsPwGate('sett')"`)}
               ${window.pwChecklistHtml('sett-newpw')}
             </div>
             <div class="form-group">
               <label class="form-label">Confirm New Password</label>
-              ${pwField('sett-confpw','Repeat new password')}
+              ${pwField('sett-confpw','Repeat new password', `oninput="window.updateSettingsPwGate('sett')"`)}
               <div id="sett-pw-err" class="field-error">Passwords do not match.</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:6px;font-size:.78rem;color:#9CA3AF">
               ${ic('info','icon-sm')} Can't reuse a previous password.
             </div>
             <div style="display:flex;justify-content:flex-end">
-              <button class="btn-primary"
+              <button id="sett-pw-btn" class="btn-primary" disabled style="opacity:.55;cursor:not-allowed"
                       onclick="window.validateSettingsPassword('sett-newpw','sett-confpw','sett-pw-err')">
                 ${ic('lock','icon-sm')} Update Password
               </button>

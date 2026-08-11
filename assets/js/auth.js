@@ -47,6 +47,26 @@ window.pwPolicyValid     = pwPolicyValid
 window.pwChecklistHtml   = pwChecklistHtml
 window.updatePwChecklist = updatePwChecklist
 
+// Shared by the "Change Password" section on every role's own Settings
+// page (ids are always {prefix}-curpw/-newpw/-confpw/-pw-err/-pw-btn).
+// Keeps Update Password disabled until the form is actually submittable —
+// the live checklist + this gate replace what used to be a submit-time
+// toast repeating the same rules.
+function updateSettingsPwGate(prefix) {
+  const btn = document.getElementById(prefix + '-pw-btn')
+  if (!btn) return
+  const cur = (document.getElementById(prefix + '-curpw')  || {}).value || ''
+  const np  = (document.getElementById(prefix + '-newpw')  || {}).value || ''
+  const cf  = (document.getElementById(prefix + '-confpw') || {}).value || ''
+  const errEl = document.getElementById(prefix + '-pw-err')
+  if (errEl) errEl.classList.toggle('show', !!(np && cf && np !== cf))
+  const ok = !!cur && pwPolicyValid(np) && np === cf
+  btn.disabled      = !ok
+  btn.style.opacity = ok ? '' : '.55'
+  btn.style.cursor  = ok ? '' : 'not-allowed'
+}
+window.updateSettingsPwGate = updateSettingsPwGate
+
 // ── Login ────────────────────────────────────────────────────────
 function _showLoginError(msg) {
   const errEl  = document.getElementById('login-error')
@@ -1303,11 +1323,12 @@ window.evSaveEditEmail = evSaveEditEmail
 
 function fpTogglePw(inputId, iconId) {
   const EYE_OPEN   = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
-  const EYE_CLOSED = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+  const EYE_CLOSED = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/>'
   const input = document.getElementById(inputId)
   const icon  = document.getElementById(iconId)
-  if (input.type === 'password') { input.type = 'text'; icon.innerHTML = EYE_CLOSED }
-  else { input.type = 'password'; icon.innerHTML = EYE_OPEN }
+  // FB-style: full eye + diagonal slash = hidden (default), plain open eye = revealed after click.
+  if (input.type === 'password') { input.type = 'text'; icon.innerHTML = EYE_OPEN }
+  else { input.type = 'password'; icon.innerHTML = EYE_CLOSED }
 }
 
 // ── Private helpers ───────────────────────────────────────────────

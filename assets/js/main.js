@@ -26,6 +26,7 @@ function icon(name, cls = 'icon') {
     'message-square': '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     activity:      '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
     eye:           '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+    'eye-off':     '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/>',
     'log-out':     '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
     search:        '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
     plus:          '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
@@ -1790,13 +1791,15 @@ async function deleteAllNotifs() {
 }
 window.deleteAllNotifs = deleteAllNotifs
 
-// Toggle password field visibility (show/hide eye button)
+// Toggle password field visibility (FB-style eye button: slashed = hidden
+// (default), open eye = currently visible after a click).
 function togglePwVisibility(inputId, btn) {
   const input = document.getElementById(inputId)
   if (!input) return
   const isHidden = input.type === 'password'
   input.type = isHidden ? 'text' : 'password'
   btn.style.color = isHidden ? '#E8760A' : '#9CA3AF'
+  btn.innerHTML = icon(isHidden ? 'eye' : 'eye-off', 'icon-sm')
 }
 window.togglePwVisibility = togglePwVisibility
 
@@ -1831,8 +1834,9 @@ async function validateSettingsPassword(newId, confId, errId, curId) {
   const errEl   = document.getElementById(errId)
   if (newPw !== confPw) { if (errEl) errEl.classList.add('show'); return }
   if (errEl) errEl.classList.remove('show')
-  if (!curPw || !newPw) { toast('Please fill in all password fields.', 'error'); return }
-  if (!window.pwPolicyValid(newPw)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return }
+  // Required fields + password policy are enforced live and the Update
+  // button is disabled until met — this is just a safety net.
+  if (!curPw || !newPw || !window.pwPolicyValid(newPw)) return
 
   try {
     const r = await fetch('api/users/change_password.php', {
@@ -3694,14 +3698,20 @@ function openAddUserModal() {
 
       <div id="nu-pass-group">
         <div class="form-group"><label class="form-label">Temporary Password <span class="req">*</span></label>
-          <input id="nu-pass" type="password" class="form-input" placeholder="Minimum 8 characters" oninput="window.updatePwChecklist('nu-pass', this.value)">
+          <div style="position:relative">
+            <input id="nu-pass" type="password" class="form-input" style="padding-right:40px" placeholder="Minimum 8 characters" oninput="window.updatePwChecklist('nu-pass', this.value);window.updateNuSaveGate()">
+            <button type="button" onclick="window.togglePwVisibility('nu-pass',this)"
+                    style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
+              ${ic('eye-off', 'icon-sm')}
+            </button>
+          </div>
           ${window.pwChecklistHtml('nu-pass')}
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button id="nu-save-btn" class="btn-primary" onclick="window.doAddUser()">Create Account</button>
+      <button id="nu-save-btn" class="btn-primary" disabled style="opacity:.55;cursor:not-allowed" onclick="window.doAddUser()">Create Account</button>
     </div>`, 'modal-lg')
 }
 
@@ -3712,8 +3722,24 @@ function onAddUserRoleChange(role) {
   if (docFields) docFields.style.display = role === 'Doctor'  ? 'flex' : 'none'
   if (patFields) patFields.style.display = role === 'Patient' ? 'flex' : 'none'
   if (passGroup) passGroup.style.display = role === 'Patient' ? 'none' : ''
+  window.updateNuSaveGate()
 }
 window.onAddUserRoleChange = onAddUserRoleChange
+
+// Keeps the Create Account button disabled until the temporary password
+// meets policy — mirrors the real-time checklist instead of duplicating
+// the same rules in a submit-time toast.
+function updateNuSaveGate() {
+  const btn  = document.getElementById('nu-save-btn')
+  if (!btn) return
+  const role = (document.getElementById('nu-role') || {}).value || 'Admin'
+  const pass = (document.getElementById('nu-pass') || {}).value || ''
+  const ok   = role === 'Patient' || window.pwPolicyValid(pass)
+  btn.disabled       = !ok
+  btn.style.opacity  = ok ? '' : '.55'
+  btn.style.cursor   = ok ? '' : 'not-allowed'
+}
+window.updateNuSaveGate = updateNuSaveGate
 
 async function doAddUser() {
   const gv    = id => (document.getElementById(id)||{}).value?.trim() || ''
@@ -3725,10 +3751,10 @@ async function doAddUser() {
   const pass    = gv('nu-pass')
 
   if (!first || !last || !email) { toast('Please fill in all required fields.', 'error'); return }
-  if (role !== 'Patient' && !pass) { toast('Password is required.', 'error'); return }
-  if (role !== 'Patient' && !window.pwPolicyValid(pass)) {
-    toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return
-  }
+  // Password policy is enforced live via the checklist and the Create
+  // Account button is disabled until it's met — this is just a safety
+  // net in case the button's disabled state was somehow bypassed.
+  if (role !== 'Patient' && !window.pwPolicyValid(pass)) return
 
   const btn = document.getElementById('nu-save-btn')
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…' }
@@ -3851,20 +3877,51 @@ function editUserModal(id, role) {
         <div id="eu-pw-section" style="display:none;margin-top:12px">
           <div class="form-row-2">
             <div class="form-group"><label class="form-label">New Password</label>
-              <input id="eu-new-pw" type="password" class="form-input" placeholder="Min. 8 characters" autocomplete="new-password" oninput="window.updatePwChecklist('eu-new-pw', this.value)"></div>
+              <div style="position:relative">
+                <input id="eu-new-pw" type="password" class="form-input" style="padding-right:40px" placeholder="Min. 8 characters" autocomplete="new-password" oninput="window.updatePwChecklist('eu-new-pw', this.value);window.updateEuSaveGate()">
+                <button type="button" onclick="window.togglePwVisibility('eu-new-pw',this)"
+                        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
+                  ${ic('eye-off', 'icon-sm')}
+                </button>
+              </div></div>
             <div class="form-group"><label class="form-label">Confirm Password</label>
-              <input id="eu-confirm-pw" type="password" class="form-input" placeholder="Re-enter password" autocomplete="new-password"></div>
+              <div style="position:relative">
+                <input id="eu-confirm-pw" type="password" class="form-input" style="padding-right:40px" placeholder="Re-enter password" autocomplete="new-password" oninput="window.updateEuSaveGate()">
+                <button type="button" onclick="window.togglePwVisibility('eu-confirm-pw',this)"
+                        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
+                  ${ic('eye-off', 'icon-sm')}
+                </button>
+              </div></div>
           </div>
           ${window.pwChecklistHtml('eu-new-pw')}
+          <p id="eu-pw-mismatch" style="display:none;font-size:.74rem;color:#DC2626;margin:6px 0 0">Passwords do not match.</p>
           <p style="font-size:.74rem;color:#9CA3AF;margin:2px 0 0">Leave blank to keep the existing password.</p>
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="window.doEditUser('${id}','${role}')">Save Changes</button>
+      <button id="eu-save-btn" class="btn-primary" onclick="window.doEditUser('${id}','${role}')">Save Changes</button>
     </div>`)
 }
+
+// Keeps Edit User's Save button disabled only when a password reset is in
+// an invalid state (started but not policy-valid, or the two don't match).
+// A blank password (i.e. "leave as-is") is always valid.
+function updateEuSaveGate() {
+  const btn   = document.getElementById('eu-save-btn')
+  const hint  = document.getElementById('eu-pw-mismatch')
+  if (!btn) return
+  const newPw = (document.getElementById('eu-new-pw')     || {}).value || ''
+  const cfPw  = (document.getElementById('eu-confirm-pw') || {}).value || ''
+  const blank = !newPw && !cfPw
+  const ok    = blank || (window.pwPolicyValid(newPw) && newPw === cfPw)
+  if (hint) hint.style.display = (!blank && newPw && cfPw && newPw !== cfPw) ? '' : 'none'
+  btn.disabled      = !ok
+  btn.style.opacity = ok ? '' : '.55'
+  btn.style.cursor  = ok ? '' : 'not-allowed'
+}
+window.updateEuSaveGate = updateEuSaveGate
 
 
 function _togglePwReset() {
@@ -3896,10 +3953,9 @@ async function doEditUser(id, role) {
   const newPw   = document.getElementById('eu-new-pw')?.value  || ''
   const cfPw    = document.getElementById('eu-confirm-pw')?.value || ''
 
-  if (newPw) {
-    if (!window.pwPolicyValid(newPw)) { toast('Password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return }
-    if (newPw !== cfPw)   { toast('Passwords do not match.', 'error'); return }
-  }
+  // Password policy/match is enforced live (checklist + inline hint) and
+  // the Save button is disabled until valid — this is just a safety net.
+  if (newPw && (!window.pwPolicyValid(newPw) || newPw !== cfPw)) return
 
   // Persist profile changes to database
   try {
@@ -4251,11 +4307,23 @@ function openEditPatientModal(patientId) {
             <div id="ep-pw-section" style="display:none;margin-top:12px">
               <div class="form-row-2">
                 <div class="form-group" style="margin-bottom:0"><label class="form-label">New Password</label>
-                  <input type="password" id="ep-newpass" class="form-input" placeholder="Min. 8 characters"
-                         autocomplete="new-password" oninput="window.syncEpPassHint();window.updatePwChecklist('ep-newpass', this.value)"></div>
+                  <div style="position:relative">
+                    <input type="password" id="ep-newpass" class="form-input" style="padding-right:40px" placeholder="Min. 8 characters"
+                           autocomplete="new-password" oninput="window.syncEpPassHint();window.updatePwChecklist('ep-newpass', this.value)">
+                    <button type="button" onclick="window.togglePwVisibility('ep-newpass',this)"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
+                      ${icon('eye-off', 'icon-sm')}
+                    </button>
+                  </div></div>
                 <div class="form-group" style="margin-bottom:0"><label class="form-label">Confirm Password</label>
-                  <input type="password" id="ep-newpass2" class="form-input" placeholder="Re-enter password"
-                         autocomplete="new-password" oninput="window.syncEpPassHint()"></div>
+                  <div style="position:relative">
+                    <input type="password" id="ep-newpass2" class="form-input" style="padding-right:40px" placeholder="Re-enter password"
+                           autocomplete="new-password" oninput="window.syncEpPassHint()">
+                    <button type="button" onclick="window.togglePwVisibility('ep-newpass2',this)"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#9CA3AF;padding:2px;display:flex;align-items:center">
+                      ${icon('eye-off', 'icon-sm')}
+                    </button>
+                  </div></div>
               </div>
               ${window.pwChecklistHtml('ep-newpass')}
               <p id="ep-pass-hint" style="margin:7px 0 0;font-size:.74rem;color:#9CA3AF">Leave blank to keep the existing password.</p>
@@ -4266,7 +4334,7 @@ function openEditPatientModal(patientId) {
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" onclick="window.closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="window.doEditPatient('${patientId}')">Save Changes</button>
+      <button id="ep-save-btn" class="btn-primary" onclick="window.doEditPatient('${patientId}')">Save Changes</button>
     </div>`)
 }
 
@@ -4282,10 +4350,9 @@ async function doEditPatient(patientId) {
   // Optional password change
   const np  = (document.getElementById('ep-newpass')  || {}).value || ''
   const np2 = (document.getElementById('ep-newpass2') || {}).value || ''
-  if (np || np2) {
-    if (!window.pwPolicyValid(np)) { toast('New password must be at least 8 characters and include a lowercase letter, an uppercase letter, a number, and a special character.', 'error'); return }
-    if (np !== np2)     { toast('Passwords do not match.', 'error'); return }
-  }
+  // Password policy/match is enforced live (inline hint + checklist) and
+  // the Save button is disabled until valid — this is just a safety net.
+  if ((np || np2) && (!window.pwPolicyValid(np) || np !== np2)) return
 
   const statusEl = document.getElementById('ep-status')
   const payload = {
@@ -4357,14 +4424,22 @@ window._toggleEpPwReset = function() {
 
 window.syncEpPassHint = function() {
   const hint = document.getElementById('ep-pass-hint')
+  const btn  = document.getElementById('ep-save-btn')
   const np   = (document.getElementById('ep-newpass')  || {}).value || ''
   const np2  = (document.getElementById('ep-newpass2') || {}).value || ''
+  const blank = !np && !np2
+  const ok    = blank || (np && np2 && np === np2 && window.pwPolicyValid(np))
+  if (btn) {
+    btn.disabled      = !ok
+    btn.style.opacity = ok ? '' : '.55'
+    btn.style.cursor  = ok ? '' : 'not-allowed'
+  }
   if (!hint) return
-  if (!np && !np2) {
+  if (blank) {
     hint.textContent = 'Leave blank to keep the existing password.'
     hint.style.color = '#9CA3AF'
-  } else if (np && np2 && np === np2 && window.pwPolicyValid(np)) {
-    hint.textContent = '✓ Passwords match — will update on Save.'
+  } else if (ok) {
+    hint.textContent = '✓ Passwords match. Will update on Save.'
     hint.style.color = '#059669'
   } else if (np2 && np !== np2) {
     hint.textContent = 'Passwords do not match.'
@@ -8237,14 +8312,15 @@ function toggleLoginPw() {
   if (!inp) return
   const show = inp.type === 'password'
   inp.type = show ? 'text' : 'password'
+  // FB-style: full eye + diagonal slash = hidden (default), plain open eye = revealed after click.
   if (ico) ico.innerHTML = show
-    ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`
-    : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`
+    ? `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`
+    : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/>`
 }
 window.toggleLoginPw = toggleLoginPw
 
 const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`
-const EYE_CLOSED = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`
+const EYE_CLOSED = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" y1="2" x2="22" y2="22"/>`
 
 function toggleRegPw(inputId, iconId) {
   const inp = document.getElementById(inputId)
@@ -8252,7 +8328,8 @@ function toggleRegPw(inputId, iconId) {
   if (!inp) return
   const show = inp.type === 'password'
   inp.type = show ? 'text' : 'password'
-  if (ico) ico.innerHTML = show ? EYE_CLOSED : EYE_OPEN
+  // FB-style: slashed eye = hidden (default), open eye = revealed after click.
+  if (ico) ico.innerHTML = show ? EYE_OPEN : EYE_CLOSED
 }
 window.toggleRegPw = toggleRegPw
 

@@ -436,13 +436,14 @@ body { overflow-x: hidden; }
 .vid-seek-wrap:hover .vid-seek-buffered,
 .vid-seek-wrap:hover .vid-seek-fill { height: 5px; }
 .vid-seek {
-  position: absolute; inset: 0; width: 100%; margin: 0; appearance: none;
+  position: absolute; inset: 0; width: 100%; margin: 0;
+  -webkit-appearance: none; appearance: none;
   background: transparent; cursor: pointer;
 }
 .vid-seek::-webkit-slider-runnable-track { background: transparent; height: 13px; }
 .vid-seek::-moz-range-track { background: transparent; height: 13px; border: none; }
 .vid-seek::-webkit-slider-thumb {
-  appearance: none; width: 0; height: 0; border-radius: 50%;
+  -webkit-appearance: none; appearance: none; width: 0; height: 0; border-radius: 50%;
   background: var(--orange); box-shadow: 0 1px 4px rgba(0,0,0,0.5);
   transition: width 0.12s ease, height 0.12s ease, margin-top 0.12s ease;
 }
@@ -484,6 +485,17 @@ body { overflow-x: hidden; }
      height) / 2 = (22 − 12) / 2 = 5px; margin-top:0 pinned it to the top. */
   .vid-seek::-webkit-slider-thumb { width: 12px; height: 12px; margin-top: 5px; }
   .vid-seek::-moz-range-thumb { width: 12px; height: 12px; }
+  /* The desktop rules above (.vid-seek-wrap:hover / :focus-visible) size the
+     thumb for the 13px desktop track and re-center it with margin-top:0.
+     On mobile the track is 22px tall, so once the input gains focus (which
+     happens the instant you touch/drag it on iOS and Android) those desktop
+     values took over and popped the thumb up off the visible line. Re-assert
+     the mobile-correct size/centering for the focused (i.e. actively
+     dragging) state so the thumb always matches vid-seek-track. */
+  .vid-seek:focus-visible::-webkit-slider-thumb,
+  .vid-seek-wrap:hover .vid-seek::-webkit-slider-thumb { width: 12px; height: 12px; margin-top: 5px; }
+  .vid-seek:focus-visible::-moz-range-thumb,
+  .vid-seek-wrap:hover .vid-seek::-moz-range-thumb { width: 12px; height: 12px; }
 
   .vid-flash { font-size: 0.82rem; padding: 8px 16px; }
   .vid-speed-menu { right: -34px; min-width: 88px; }

@@ -11,7 +11,6 @@ require_once '../../config/db.php';
 require_once '../helpers.php';
 
 requireMethod('POST');
-rateLimit('verify-otp', 15, 600); // 15 per IP per 10 min
 
 $b     = getBody();
 $email = strtolower(trim($b['email'] ?? ''));
@@ -20,6 +19,15 @@ $otp   = trim($b['otp'] ?? '');
 if (!$email || strlen($otp) !== 6) {
     jsonResponse(['success' => false, 'message' => 'Invalid request.']);
 }
+
+// Per-email limit — keeps one account's wrong-code guesses from starving
+// another account's budget on the same IP (previously this was IP-only and
+// shared across every email tried from that IP).
+rateLimit('verify-otp:' . substr(md5($email), 0, 12), 15, 600); // 15 per IP+email per 10 min
+
+// Broader per-IP safety net — still guards against one IP brute-forcing
+// codes across many different emails.
+rateLimit('verify-otp-ip', 60, 600); // 60 per IP per 10 min, across all emails
 
 const MAX_OTP_ATTEMPTS   = 5;
 const MAX_FP_TOTAL       = 10; // hard limit across all OTP resends

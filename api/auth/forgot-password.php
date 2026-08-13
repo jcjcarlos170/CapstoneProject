@@ -13,7 +13,6 @@ require_once '../../config/smtp.php';
 require_once '../helpers.php';
 
 requireMethod('POST');
-rateLimit('forgot-password', 5, 900); // 5 per IP per 15 min — each hit sends an email
 
 $b     = getBody();
 $email = strtolower(trim($b['email'] ?? ''));
@@ -21,6 +20,14 @@ $email = strtolower(trim($b['email'] ?? ''));
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
     jsonResponse(['success' => false, 'message' => 'Please enter a valid email address.']);
 }
+
+// Per-email limit — keeps one account's testing/retries from starving another
+// account's budget on the same IP (previously this was IP-only and shared).
+rateLimit('forgot-password:' . substr(md5($email), 0, 12), 5, 900); // 5 per IP+email per 15 min
+
+// Broader per-IP safety net — still guards against one IP spamming many
+// different emails (each hit sends a real email via SMTP).
+rateLimit('forgot-password-ip', 30, 900); // 30 per IP per 15 min, across all emails
 
 try {
     $pdo = getDB();

@@ -699,6 +699,7 @@ async function fpS1Submit() {
     }
     document.getElementById('fp-s2-email').textContent = window._fpEmail
     document.getElementById('fp-s3-email').textContent = window._fpEmail
+    document.querySelectorAll('#fp-otp-row .otp-input').forEach(i => { i.value = ''; i.classList.remove('error') })
     fpGoToStep(2)
   } catch (_) {
     errEl.textContent = 'Network error. Please check your connection.'
@@ -724,7 +725,7 @@ async function fpS3Submit() {
     const data = await res.json()
     if (!data.success) {
       btn.disabled = false; btn.innerHTML = 'Verify OTP'
-      fpShowWrongOTP(!!data.locked, data.attemptsLeft ?? null, !!data.banned)
+      fpShowWrongOTP(!!data.locked, data.attemptsLeft ?? null, !!data.banned, data.message || null)
       fpGoToStep(3.5)
       return
     }
@@ -776,7 +777,7 @@ async function fpS4Submit() {
   }
 }
 
-function fpShowWrongOTP(locked, attemptsLeft, banned = false) {
+function fpShowWrongOTP(locked, attemptsLeft, banned = false, serverMessage = null) {
   const title   = document.getElementById('fp-3b-title')
   const msg     = document.getElementById('fp-3b-msg')
   const retry   = document.getElementById('fp-3b-retry')
@@ -795,8 +796,17 @@ function fpShowWrongOTP(locked, attemptsLeft, banned = false) {
     msg.textContent          = 'You\'ve used all 5 attempts. Please request a new code to try again.'
     retry.style.display      = 'none'
     newCode.style.display    = 'block'
+  } else if (attemptsLeft === null || attemptsLeft === undefined) {
+    // No attempts count came back from the server — this isn't a wrong-code
+    // response, it's an error/expired/missing-row state. Show the real reason
+    // instead of guessing, and point the user at requesting a fresh code
+    // rather than a pointless "Try Again" on a code that can't succeed.
+    title.textContent        = 'Code Expired or Invalid'
+    msg.textContent          = serverMessage || 'This code is no longer valid. Please request a new one.'
+    retry.style.display      = 'none'
+    newCode.style.display    = 'block'
   } else {
-    const left   = attemptsLeft ?? 2
+    const left   = attemptsLeft
     const plural = left === 1 ? 'attempt' : 'attempts'
     title.textContent        = 'Invalid OTP Code'
     msg.textContent          = `The code you entered is incorrect. You have ${left} ${plural} remaining.`

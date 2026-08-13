@@ -32,6 +32,19 @@ rateLimit('forgot-password-ip', 30, 900); // 30 per IP per 15 min, across all em
 try {
     $pdo = getDB();
 
+    // Probabilistic GC — same pattern as rate_limits: deletes rows that are
+    // long past being useful, 1-in-10 requests. Only removes rows whose
+    // 5-min OTP window expired AND (if it was ever blocking) that block has
+    // also already lapsed, so we never delete a row that's actively
+    // enforcing something — just old, no-longer-relevant history.
+    if (mt_rand(1, 10) === 1) {
+        $pdo->prepare(
+            'DELETE FROM password_resets
+              WHERE expires_at < NOW() - INTERVAL 1 DAY
+                AND (blocked_until IS NULL OR blocked_until < NOW())'
+        )->execute();
+    }
+
     // Check if the email belongs to a registered user
     $s = $pdo->prepare('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1');
     $s->execute([$email]);
